@@ -44,7 +44,10 @@ def _dec(tv: Optional[TracedValue]) -> Optional[Decimal]:
 def _score(bill: Bill) -> tuple[int, int, float]:
     """Deterministic consistency score (higher tuple is better).
 
-    (has a usable nonzero total, items reconcile within epsilon, -|gap|)
+    (has a usable nonzero total, items reconcile within epsilon, -|gap|).
+    Receipts legitimately reconcile in different ways — items ≈ subtotal,
+    items + tax ≈ total, or items ≈ total (tax-inclusive prices / post-discount
+    amount columns) — so the gap is the best fit across all hypotheses.
     """
     total = _dec(bill.total_amount)
     has_total = 1 if total else 0
@@ -54,10 +57,15 @@ def _score(bill: Bill) -> tuple[int, int, float]:
     items_sum = sum(items, Decimal(0))
     subtotal = _dec(bill.subtotal)
     tax = _dec(bill.tax_amount) or Decimal(0)
-    reference = subtotal if subtotal is not None else (total - tax if total else None)
-    if reference is None:
+    gaps = []
+    if subtotal is not None:
+        gaps.append(abs(items_sum - subtotal))
+    if total:
+        gaps.append(abs(items_sum + tax - total))
+        gaps.append(abs(items_sum - total))
+    if not gaps:
         return (has_total, 0, 0.0)
-    gap = abs(items_sum - reference)
+    gap = min(gaps)
     return (has_total, 1 if gap <= EPSILON else 0, -float(gap))
 
 

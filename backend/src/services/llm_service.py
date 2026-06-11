@@ -47,6 +47,17 @@ class LLMService(ABC):
         """Summarize over already-retrieved real records (semantic path)."""
 
     @abstractmethod
+    def derive_intent(
+        self, question: str, categories: list[str], today: str
+    ) -> dict[str, Any]:
+        """Translate a spending question into a constrained query intent.
+
+        Returns {path, category, month, merchant, aggregate}; every field is
+        validated/allowlisted by the caller and the figure itself is always
+        computed in code (Principle VI).
+        """
+
+    @abstractmethod
     def label_lines(self, lines: list[dict[str, Any]]) -> dict[str, str]:
         """Label each extracted line's structural ROLE (item/total/tax/...).
 
@@ -154,6 +165,28 @@ class GroqLLMService(LLMService):
         )
         user = json.dumps({"question": question, "records": retrieved_records})
         return self._chat(system, user).strip()
+
+    def derive_intent(
+        self, question: str, categories: list[str], today: str
+    ) -> dict[str, Any]:
+        system = (
+            "You translate a question about personal spending into a constrained "
+            "query intent over a bills database. Return JSON exactly of the form "
+            '{"path": "numeric" | "semantic", "category": string | null, '
+            '"month": "YYYY-MM" | null, "merchant": string | null, '
+            '"aggregate": "sum" | "count" | "latest" | "average"}. '
+            "'numeric' = the user asks for an amount, count, average, or most "
+            "recent figure. 'semantic' = the user wants to find, list, or "
+            "describe bills. "
+            "category MUST be exactly one of the provided category names, or null "
+            "if none clearly applies. merchant only when a specific store/vendor "
+            "is named. Resolve relative times ('last month', 'this month') using "
+            "the provided current date. Do NOT compute or output any amounts."
+        )
+        user = json.dumps({"question": question, "categories": categories, "today": today})
+        raw = self._chat(system, user, json_mode=True)
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
 
     def label_lines(self, lines: list[dict[str, Any]]) -> dict[str, str]:
         system = (

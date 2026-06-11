@@ -53,9 +53,18 @@ def _check_sum(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
     total = to_decimal(bill.total_amount)
     tax = to_decimal(bill.tax_amount) or Decimal("0")
 
-    if subtotal is not None:
-        # Check 1: the line items must sum to the stated subtotal.
-        if abs(items_sum - subtotal) > EPSILON:
+    # Bills legitimately reconcile in different ways: items ≈ subtotal,
+    # items + tax ≈ total, or items ≈ total (tax-inclusive prices, or amount
+    # columns already net of per-item discounts). Only when NO hypothesis
+    # holds is the itemization provably inconsistent (Principle II: legitimate
+    # non-summing reasons are deliberately not flagged).
+    sub_ok = subtotal is not None and abs(items_sum - subtotal) <= EPSILON
+    total_ok = total is not None and (
+        abs(items_sum + tax - total) <= EPSILON or abs(items_sum - total) <= EPSILON
+    )
+
+    if not sub_ok and not total_ok:
+        if subtotal is not None:
             flags.append(
                 DiscrepancyFlag(
                     kind=DiscrepancyKind.sum_mismatch,
@@ -70,34 +79,8 @@ def _check_sum(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
                     ),
                 )
             )
-        # Check 2: subtotal + tax must reconcile to the stated total. A subtotal
-        # that sums correctly does not prove the total is right (the error may be
-        # in the total itself), so both checks run when the total is present.
-        if total is not None:
-            expected_total = subtotal + tax
-            if abs(expected_total - total) > EPSILON:
-                flags.append(
-                    DiscrepancyFlag(
-                        kind=DiscrepancyKind.sum_mismatch,
-                        conflicting_figures={
-                            **_fig("stated_subtotal", subtotal),
-                            **_fig("tax", tax),
-                            **_fig("expected_total", expected_total),
-                            **_fig("stated_total", total),
-                            "difference": str(expected_total - total),
-                        },
-                        explanation_text=(
-                            f"The subtotal ({subtotal}) plus tax ({tax}) come to "
-                            f"{expected_total}, but the stated total is {total}."
-                        ),
-                    )
-                )
-        return
-
-    # No subtotal printed: items + tax should reconcile to the total.
-    if total is not None:
-        expected_total = items_sum + tax
-        if abs(expected_total - total) > EPSILON:
+        elif total is not None:
+            expected_total = items_sum + tax
             flags.append(
                 DiscrepancyFlag(
                     kind=DiscrepancyKind.sum_mismatch,
@@ -110,6 +93,29 @@ def _check_sum(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
                     },
                     explanation_text=(
                         f"The line items ({items_sum}) plus tax ({tax}) come to "
+                        f"{expected_total}, but the stated total is {total}."
+                    ),
+                )
+            )
+        return
+
+    # The itemization verifies against the subtotal — the total itself may still
+    # be misprinted, which only this chain can prove.
+    if sub_ok and total is not None and not total_ok:
+        expected_total = subtotal + tax
+        if abs(expected_total - total) > EPSILON:
+            flags.append(
+                DiscrepancyFlag(
+                    kind=DiscrepancyKind.sum_mismatch,
+                    conflicting_figures={
+                        **_fig("stated_subtotal", subtotal),
+                        **_fig("tax", tax),
+                        **_fig("expected_total", expected_total),
+                        **_fig("stated_total", total),
+                        "difference": str(expected_total - total),
+                    },
+                    explanation_text=(
+                        f"The subtotal ({subtotal}) plus tax ({tax}) come to "
                         f"{expected_total}, but the stated total is {total}."
                     ),
                 )

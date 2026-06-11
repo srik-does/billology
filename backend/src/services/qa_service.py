@@ -69,7 +69,48 @@ def _intent(question: str) -> dict[str, Any]:
         aggregate = "count"
     else:
         aggregate = "sum"
-    return {"category": category, "month": month, "aggregate": aggregate}
+    return {"category": category, "month": month, "merchant": None, "aggregate": aggregate}
+
+
+def _llm_intent(question: str, db, llm) -> Optional[dict[str, Any]]:
+    """LLM translates the question; every field is validated/allowlisted here.
+
+    The LLM picks WHICH filters apply (Principle VI: question → query); it never
+    computes the figure. Returns None on any failure → heuristic fallback.
+    """
+    if llm is None:
+        return None
+    try:
+        from datetime import date
+
+        cats = [c.get("name") for c in db.select("categories") if c.get("name")]
+        raw = llm.derive_intent(question, cats, date.today().isoformat())
+    except Exception:  # noqa: BLE001 - LLM optional
+        return None
+    if not isinstance(raw, dict):
+        return None
+
+    path = raw.get("path")
+    if path not in ("numeric", "semantic"):
+        return None
+    category = raw.get("category")
+    if not (isinstance(category, str) and category in cats):
+        category = None
+    month = raw.get("month")
+    if not (isinstance(month, str) and re.fullmatch(r"\d{4}-\d{2}", month)):
+        month = None
+    merchant = raw.get("merchant")
+    merchant = merchant.strip() if isinstance(merchant, str) and 0 < len(merchant.strip()) <= 60 else None
+    aggregate = raw.get("aggregate")
+    if aggregate not in ("sum", "count", "latest", "average"):
+        aggregate = "sum"
+    return {
+        "path": path,
+        "category": category,
+        "month": month,
+        "merchant": merchant,
+        "aggregate": aggregate,
+    }
 
 
 def _load_bills(db) -> list[dict[str, Any]]:
@@ -105,21 +146,38 @@ def _unanswerable(reason: str = "I don't have that information in your saved bil
     return {"path": "unanswerable", "answer": reason, "records": [], "executed_query": None}
 
 
-def _numeric(question: str, db) -> dict:
-    intent = _intent(question)
-    rows = _load_bills(db)
-
+def _apply_filters(intent: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if intent["category"]:
         rows = [r for r in rows if (r["category"] or "").lower() == intent["category"].lower()]
-    if intent["month"]:
-        rows = [r for r in rows if _month_of(r["bill_date"]) == intent["month"]]
+    if intent["month"] is not None:
+        if isinstance(intent["month"], int):  # heuristic path: bare month number
+            rows = [r for r in rows if _month_of(r["bill_date"]) == intent["month"]]
+        else:  # LLM path: "YYYY-MM"
+            rows = [r for r in rows if str(r["bill_date"] or "").startswith(intent["month"])]
+    if intent.get("merchant"):
+        needle = intent["merchant"].lower()
+        rows = [r for r in rows if needle in (r["merchant"] or "").lower()]
+    return rows
+
+
+def _numeric(question: str, db, intent: Optional[dict[str, Any]] = None) -> dict:
+    intent = intent or _intent(question)
+    all_rows = _load_bills(db)
+    rows = _apply_filters(intent, all_rows)
+
+    # A named merchant is the precise filter; a guessed category must not zero
+    # it out (e.g. "DMart" guessed as Shopping when its bills are Groceries).
+    if not rows and intent.get("merchant") and intent["category"]:
+        intent = {**intent, "category": None}
+        rows = _apply_filters(intent, all_rows)
 
     if not rows:
         return _unanswerable()
 
     cat = intent["category"] or "all categories"
-    when = f" in month {intent['month']:02d}" if intent["month"] else ""
-    desc = f"{intent['aggregate']}(total_amount) WHERE category={cat}{when}"
+    when = f" in {intent['month']}" if intent["month"] is not None else ""
+    who = f" at {intent['merchant']}" if intent.get("merchant") else ""
+    desc = f"{intent['aggregate']}(total_amount) WHERE category={cat}{who}{when}"
 
     if intent["aggregate"] == "latest":
         latest = max(rows, key=lambda r: (r["bill_date"] or ""))
@@ -132,15 +190,23 @@ def _numeric(question: str, db) -> dict:
     if intent["aggregate"] == "count":
         return {
             "path": "numeric",
-            "answer": f"You have {len(rows)} {cat} bill(s){when}.",
+            "answer": f"You have {len(rows)} {cat} bill(s){who}{when}.",
             "records": [_summary(r) for r in rows],
             "executed_query": desc,
         }
 
     total = sum((_to_decimal(r["total_amount"]) for r in rows), Decimal("0"))
+    if intent["aggregate"] == "average":
+        avg = (total / len(rows)).quantize(Decimal("0.01"))
+        return {
+            "path": "numeric",
+            "answer": f"Your average {cat} bill{who}{when} is ₹{avg} (over {len(rows)} bill(s)).",
+            "records": [_summary(r) for r in rows],
+            "executed_query": desc,
+        }
     return {
         "path": "numeric",
-        "answer": f"You spent ₹{total} on {cat}{when} across {len(rows)} bill(s).",
+        "answer": f"You spent ₹{total} on {cat}{who}{when} across {len(rows)} bill(s).",
         "records": [_summary(r) for r in rows],
         "executed_query": desc,
     }
@@ -192,6 +258,13 @@ def answer_question(
     question = (question or "").strip()
     if not question:
         return _unanswerable("Please ask a question about your spending.")
+    # Preferred routing: LLM translates the question into a validated intent
+    # (Principle VI). Heuristic keyword routing remains the no-LLM fallback.
+    intent = _llm_intent(question, db, llm)
+    if intent is not None:
+        if intent["path"] == "numeric":
+            return _numeric(question, db, intent)
+        return _semantic(question, db, embed_fn, llm)
     if _classify(question) == "numeric":
         return _numeric(question, db)
     return _semantic(question, db, embed_fn, llm)
