@@ -57,11 +57,11 @@ def vector_literal(embedding: list[float]) -> str:
     return "[" + ",".join(repr(float(x)) for x in embedding) + "]"
 
 
-def embedding_text(bill: Bill) -> str:
+def embedding_text(bill: Bill, tags: tuple[str, ...] | list[str] = ()) -> str:
     """Canonical text rendering used to embed a bill (single source of truth).
 
-    Descriptive only (merchant, type, category, item descriptions) so retrieval
-    is about *what* the bill is, not its figures.
+    Descriptive only (merchant, type, category, item descriptions, enrichment
+    tags) so retrieval is about *what* the bill is, not its figures.
     """
     parts: list[str] = []
     if bill.merchant and bill.merchant.value:
@@ -72,12 +72,75 @@ def embedding_text(bill: Bill) -> str:
     for item in bill.line_items:
         if item.description and item.description.value:
             parts.append(item.description.value)
+    parts.extend(tags)
     return " | ".join(parts)
 
 
-def bill_row(bill: Bill, embedding: list[float], category_id: Optional[str]) -> dict[str, Any]:
-    """Map a Bill to the ``bills`` table columns (per migration 001)."""
+def sanitize_tags(raw: Any) -> list[str]:
+    """Validate LLM enrichment output into a safe, bounded tag list.
+
+    Tags are descriptive search labels (Principle I): strings only, lowercased,
+    bounded in length and count, with pure-number tokens dropped so no figure
+    can sneak into the record via enrichment.
+    """
+    if not isinstance(raw, (list, tuple)):
+        return []
+    seen: set[str] = set()
+    tags: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        tag = " ".join(item.lower().split())
+        if not tag or len(tag) > 40:
+            continue
+        if not any(ch.isalpha() for ch in tag):  # drop pure numbers/punctuation
+            continue
+        if tag in seen:
+            continue
+        seen.add(tag)
+        tags.append(tag)
+        if len(tags) >= 24:
+            break
+    return tags
+
+
+def enrichment_tags(bill: Bill, llm) -> list[str]:
+    """LLM search labels for a bill (tags + merchant aliases), or [] on any failure.
+
+    The payload is amount-free (merchant, type, category, item descriptions) —
+    the same privacy class as the explanation call. Enrichment is best-effort:
+    a missing/failing LLM must never block a save.
+    """
+    if llm is None:
+        return []
+    payload = {
+        "merchant": _val(bill.merchant),
+        "bill_type": bill.bill_type.value,
+        "category": bill.category.name if bill.category else None,
+        "items": [
+            item.description.value
+            for item in bill.line_items
+            if item.description and item.description.value
+        ],
+    }
+    try:
+        raw = llm.enrich_bill(payload)
+    except Exception:  # noqa: BLE001 - enrichment is optional
+        return []
+    if not isinstance(raw, dict):
+        return []
+    return sanitize_tags(list(raw.get("merchant_aliases") or []) + list(raw.get("tags") or []))
+
+
+def bill_row(
+    bill: Bill,
+    embedding: list[float],
+    category_id: Optional[str],
+    tags: tuple[str, ...] | list[str] = (),
+) -> dict[str, Any]:
+    """Map a Bill to the ``bills`` table columns (per migrations 001/004)."""
     return {
+        "tags": ", ".join(tags) or None,
         "merchant": _val(bill.merchant),
         "merchant_provenance": _prov(bill.merchant),
         "merchant_source_ref": _ref(bill.merchant),
@@ -183,12 +246,14 @@ def save_bill(
     *,
     db=persistence,
     embed_fn: Callable[[str], list[float]] = _default_embed,
+    llm=None,
 ) -> dict[str, Any]:
     """Persist a reviewed bill as the canonical record; return the saved row.
 
     Uploads any provided original files to private Storage and records them as
     source_artifacts (supports the privacy/traceability claim). Reuses the same
-    embedding rendering as every other caller.
+    embedding rendering as every other caller. When an ``llm`` is provided,
+    best-effort search tags are generated and folded into the embedding.
     """
     # Upload originals (best-effort within the trust boundary).
     for content, filename, content_type in original_files or []:
@@ -200,10 +265,11 @@ def save_bill(
             SourceArtifact(kind=ArtifactKind(kind), storage_path=path, page_order=len(bill.source_artifacts))
         )
 
-    embedding = embed_fn(embedding_text(bill))
+    tags = enrichment_tags(bill, llm)
+    embedding = embed_fn(embedding_text(bill, tags))
     category_id = _resolve_category_id(bill, db)
 
-    saved = db.insert_row("bills", bill_row(bill, embedding, category_id))
+    saved = db.insert_row("bills", bill_row(bill, embedding, category_id, tags))
     bill_id = saved["id"]
 
     for row in line_item_rows(bill_id, bill):

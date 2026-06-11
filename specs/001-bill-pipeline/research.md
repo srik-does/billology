@@ -91,6 +91,27 @@ constitution requires to be documented.
   - `question_to_query()` returns a **parameterized** query restricted to an allowlisted schema/columns;
     the backend executes it — the LLM never sees raw DB credentials and never returns answer numbers.
 
+## 6b. Q&A retrieval reliability (added 2026-06-11)
+
+- **Problem**: small wording changes in a question produced a hard "No bills found" — exact
+  substring merchant matching, an embedding rendered from only merchant/type/category/items, and
+  filter misses returning an unanswerable instead of near matches.
+- **Decision**: three code-side measures plus save-time enrichment:
+  1. *Save-time enrichment* (`enrich_bill` in `llm_service`, migration 004): the LLM generates
+     descriptive search tags and merchant aliases (labels only — sanitized, bounded, pure-number
+     tokens dropped; never figures, Principle I). Tags are stored on the row and folded into the
+     embedding text. Backfill: `backend/scripts/backfill_tags.py`.
+  2. *Fuzzy merchant matching*: normalized (case/punctuation/spacing-insensitive) plus a
+     similarity-ratio fallback, so "d mart" matches "DMart".
+  3. *Hybrid retrieval*: the semantic path merges pgvector results with a keyword pass over
+     merchant/category/tags/item descriptions; it works keyword-only when no embedder is available.
+  4. *Graceful floor*: a numeric question naming a merchant that matches nothing degrades to
+     retrieval ("closest matches") instead of "No bills found". Category-only misses stay honestly
+     unanswerable (no Utilities bills ⇒ say so, don't show lookalikes).
+- **Privacy note**: `enrich_bill()` sends the same amount-free payload class as `explain()`
+  (merchant, type, category, item descriptions) to the user-selected LLM provider — row added to
+  the §7 table.
+
 ## 7. Privacy / data-minimization per cloud call (Principle IV — documented)
 
 | Step | Data leaving the backend | To | Justification |
@@ -99,6 +120,7 @@ constitution requires to be documented.
 | Persist record | Canonical structured fields | Supabase Postgres | The single source of truth; same trust domain as storage. |
 | `explain()` | Merchant + line-item descriptions + amounts/dates already extracted | Groq | Needed to phrase the explanation; no raw image, no account numbers beyond what a description requires. |
 | `suggest_category()` | Merchant + line-item descriptions + known category names | Groq | Category inference only; no totals/account data required. |
+| `enrich_bill()` | Merchant + bill type + category + line-item descriptions (no amounts/dates) | Groq (or user-selected provider) | Search tags/aliases for Q&A retrieval; labels only, sanitized code-side. |
 | Q&A numeric | The user's natural-language question + DB schema description | Groq | To produce a parameterized query; no record values sent. |
 | Q&A semantic | Question text (for embedding, local) + retrieved record snippets (for optional summary) | fastembed local; Groq only for summary | Embedding is local; summary sees only already-retrieved real rows. |
 

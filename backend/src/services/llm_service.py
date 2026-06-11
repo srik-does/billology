@@ -75,6 +75,15 @@ class LLMService(ABC):
         re-parsed from the original lines by deterministic code (Principle I).
         """
 
+    @abstractmethod
+    def enrich_bill(self, bill_payload: dict[str, Any]) -> dict[str, Any]:
+        """Generate descriptive search labels for a bill being saved.
+
+        Returns {"tags": [str], "merchant_aliases": [str]} — labels only, used
+        to widen Q&A retrieval (embedding text + keyword match). The payload is
+        amount-free and the output is sanitized by the caller (Principle I).
+        """
+
 
 class ChatLLMService(LLMService):
     """All prompt logic, provider-agnostic. Subclasses implement ``_chat``."""
@@ -175,6 +184,24 @@ class ChatLLMService(LLMService):
         )
         user = json.dumps({"question": question, "categories": categories, "today": today})
         raw = self._chat(system, user, json_mode=True)
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+
+    def enrich_bill(self, bill_payload: dict[str, Any]) -> dict[str, Any]:
+        system = (
+            "You generate search labels for a saved bill so the user can find it "
+            "later with natural questions. You are given merchant, bill type, "
+            "category, and item descriptions (no amounts). Return JSON "
+            '{"tags": [string], "merchant_aliases": [string]}. '
+            "tags: 5-15 short lowercase keywords/phrases a person might use when "
+            "asking about this bill — item kinds, shopping purpose, colloquial and "
+            "regional words (e.g. 'kirana' for a grocery store), common synonyms. "
+            "merchant_aliases: common alternate spellings, spacings, and short "
+            "forms of the merchant name (e.g. 'D-Mart', 'd mart', 'Avenue "
+            "Supermarts' for 'DMart'). "
+            "Do NOT output any amounts, dates, or numbers that look like figures."
+        )
+        raw = self._chat(system, json.dumps(bill_payload), json_mode=True)
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else {}
 

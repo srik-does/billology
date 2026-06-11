@@ -68,6 +68,44 @@ def test_embedding_text_is_descriptive_and_deterministic():
     assert text == "FreshMart | grocery | Groceries | Tomatoes | Milk"
 
 
+def test_embedding_text_appends_enrichment_tags():
+    text = bill_writer.embedding_text(_bill(), ["fresh mart", "kirana"])
+    assert text.endswith("Tomatoes | Milk | fresh mart | kirana")
+
+
+def test_sanitize_tags_bounds_and_filters():
+    raw = ["Kirana", "kirana", 42, "  Fresh   Mart ", "12345", "x" * 41, ""]
+    assert bill_writer.sanitize_tags(raw) == ["kirana", "fresh mart"]
+    assert bill_writer.sanitize_tags("not-a-list") == []
+    assert len(bill_writer.sanitize_tags([f"tag{i}" for i in range(50)])) == 24
+
+
+def test_save_bill_with_llm_persists_tags_and_embeds_them():
+    class _FakeLLM:
+        def enrich_bill(self, payload):
+            assert "items" in payload and "merchant" in payload
+            return {"tags": ["kirana"], "merchant_aliases": ["fresh-mart"]}
+
+    db = _FakeDB()
+    embedded: list[str] = []
+
+    def _embed(text):
+        embedded.append(text)
+        return [0.0] * 384
+
+    bill_writer.save_bill(_bill(), db=db, embed_fn=_embed, llm=_FakeLLM())
+    bills_row = next(r for t, r in db.inserts if t == "bills")
+    assert bills_row["tags"] == "fresh-mart, kirana"
+    assert "kirana" in embedded[0]
+
+
+def test_save_bill_without_llm_has_no_tags():
+    db = _FakeDB()
+    bill_writer.save_bill(_bill(), db=db, embed_fn=lambda t: [0.0] * 384)
+    bills_row = next(r for t, r in db.inserts if t == "bills")
+    assert bills_row["tags"] is None
+
+
 def test_bill_row_maps_columns_and_embedding():
     row = bill_writer.bill_row(_bill(), [0.1, 0.2, 0.3], "cat-groceries")
     assert row["merchant"] == "FreshMart"

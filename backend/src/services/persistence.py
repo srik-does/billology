@@ -86,6 +86,20 @@ def select(table: str, filters: Optional[dict[str, Any]] = None) -> list[dict[st
     return query.execute().data or []
 
 
+def update_rows(table: str, filters: dict[str, Any], values: dict[str, Any]) -> int:
+    """Update rows matching the filters; return the number updated."""
+    if not filters:
+        raise PersistenceError("update_rows requires at least one filter.")
+    try:
+        query = get_client().table(table).update(values)
+        for key, value in filters.items():
+            query = query.eq(key, value)
+        resp = query.execute()
+    except Exception as exc:
+        raise PersistenceError(f"Update of '{table}' failed: {exc}") from exc
+    return len(resp.data or [])
+
+
 def delete_rows(table: str, filters: dict[str, Any]) -> int:
     """Delete rows matching the filters; return the number deleted."""
     if not filters:

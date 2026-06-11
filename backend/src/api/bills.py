@@ -117,8 +117,16 @@ async def save_reviewed_bill(request: Request):
                     (content, value.filename or "upload", value.content_type or "")
                 )
 
+    # Search-tag enrichment is best-effort: a missing LLM never blocks a save.
     try:
-        saved = save_bill(bill, original_files=originals or None)
+        from src.services.llm_service import get_llm_service
+
+        llm = get_llm_service()
+    except Exception:  # noqa: BLE001
+        llm = None
+
+    try:
+        saved = save_bill(bill, original_files=originals or None, llm=llm)
     except PersistenceError as exc:
         # Surface the real DB failure instead of a generic 500 / false success.
         logger.error("save_bill failed: %s", exc)

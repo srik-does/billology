@@ -84,3 +84,68 @@ def test_semantic_unavailable_without_embedder():
 
 def test_blank_question_is_unanswerable():
     assert answer_question("   ", db=_FakeDB())["path"] == "unanswerable"
+
+
+# --- Ask reliability: forgiving retrieval ------------------------------------
+
+class _FakeLLM:
+    """LLM stub: fixed intent, no summary (exercises the code-side fallbacks)."""
+
+    def __init__(self, intent):
+        self._intent = intent
+
+    def derive_intent(self, question, categories, today):
+        return self._intent
+
+    def summarize_results(self, question, records):
+        raise RuntimeError("no summary in tests")
+
+
+def _numeric_intent(**overrides):
+    intent = {"path": "numeric", "category": None, "month": None,
+              "merchant": None, "aggregate": "sum"}
+    intent.update(overrides)
+    return intent
+
+
+def test_merchant_match_tolerates_spacing_and_punctuation():
+    # 'd mart' must match the saved merchant 'DMart' (the original cliff).
+    res = answer_question(
+        "how much did I spend at d mart?",
+        db=_FakeDB(),
+        llm=_FakeLLM(_numeric_intent(merchant="d mart")),
+    )
+    assert res["path"] == "numeric"
+    assert "770.00" in res["answer"]
+
+
+def test_unmatched_merchant_falls_back_to_semantic_not_cliff():
+    res = answer_question(
+        "how much did I spend at reliance fresh?",
+        db=_FakeDB(),
+        embed_fn=lambda q: [0.1] * 384,
+        llm=_FakeLLM(_numeric_intent(merchant="reliance fresh")),
+    )
+    assert res["path"] == "semantic"  # closest matches, not "No bills found"
+    assert res["records"]
+
+
+def test_category_miss_stays_honestly_unanswerable():
+    # No Utilities bills exist: the correct answer is "don't have it",
+    # not a list of lookalike bills from other categories.
+    res = answer_question("how much did I spend on utilities?", db=_FakeDB())
+    assert res["path"] == "unanswerable"
+
+
+def test_keyword_retrieval_works_without_embedder():
+    res = answer_question("show me everything from dmart", db=_FakeDB(), embed_fn=None)
+    assert res["path"] == "semantic"
+    assert any(r["merchant"] == "DMart" for r in res["records"])
+
+
+def test_tags_make_bills_findable_by_colloquial_words():
+    db = _FakeDB()
+    db.bills[3]["tags"] = "kirana, d-mart, monthly shopping, staples"
+    res = answer_question("kirana purchases", db=db, embed_fn=None)
+    assert res["path"] == "semantic"
+    assert any(r["merchant"] == "DMart" for r in res["records"])

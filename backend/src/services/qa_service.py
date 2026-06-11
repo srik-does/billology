@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal, InvalidOperation
+from difflib import SequenceMatcher
 from typing import Any, Callable, Optional
 
 from src.services import persistence
@@ -95,6 +96,50 @@ def _classify(question: str) -> str:
     return "numeric" if any(t in q for t in _NUMERIC_TRIGGERS) else "semantic"
 
 
+# --- forgiving matching -------------------------------------------------------
+
+def _norm(s: str) -> str:
+    """Collapse to lowercase alphanumerics so 'D-Mart' == 'd mart' == 'DMART'."""
+    return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+
+
+def _fuzzy_merchant(needle: str, merchant: str) -> bool:
+    """Spelling/punctuation-tolerant merchant match (fixes the 'small change in
+    search keys → No bills found' cliff)."""
+    a, b = _norm(needle), _norm(merchant)
+    if not a or not b:
+        return False
+    if a in b or b in a:
+        return True
+    return SequenceMatcher(None, a, b, autojunk=False).ratio() >= 0.8
+
+
+# Question words that carry no retrieval signal.
+_STOPWORDS = frozenset(
+    "the a an my i me of on in at for to from did do was is are and or with "
+    "how much many what where when which who show find get all any bill bills "
+    "spend spent spending buy bought purchase purchased paid pay last this "
+    "that month year time recent latest total amount".split()
+)
+
+
+def _tokens(s: str) -> set[str]:
+    return {t for t in re.findall(r"[a-z0-9]+", (s or "").lower())
+            if len(t) >= 3 and t not in _STOPWORDS}
+
+
+def _keyword_score(question_tokens: set[str], row_text: str) -> int:
+    """Count question tokens that hit the row's descriptive text (tolerating
+    joined/split words: 'dmart' hits 'd mart' and vice versa)."""
+    row_tokens = _tokens(row_text)
+    joined = _norm(row_text)
+    score = 0
+    for qt in question_tokens:
+        if qt in row_tokens or (len(qt) >= 4 and qt in joined):
+            score += 1
+    return score
+
+
 def _intent(question: str) -> dict[str, Any]:
     q = question.lower()
     category = next((name for hint, name in _CATEGORY_HINTS if hint in q), None)
@@ -163,9 +208,26 @@ def _load_bills(db) -> list[dict[str, Any]]:
                 "bill_date": b.get("bill_date"),
                 "total_amount": b.get("total_amount"),
                 "category": cats.get(b.get("category_id")),
+                "tags": b.get("tags"),
             }
         )
     return rows
+
+
+def _searchable_text(row: dict[str, Any], items_by_bill: dict[Any, list[str]]) -> str:
+    """All descriptive text for keyword matching: merchant, category, tags, items."""
+    parts = [row.get("merchant") or "", row.get("category") or "", row.get("tags") or ""]
+    parts.extend(items_by_bill.get(row.get("id"), []))
+    return " ".join(parts)
+
+
+def _load_item_descriptions(db) -> dict[Any, list[str]]:
+    by_bill: dict[Any, list[str]] = {}
+    for item in db.select("line_items"):
+        desc = item.get("description")
+        if desc:
+            by_bill.setdefault(item.get("bill_id"), []).append(desc)
+    return by_bill
 
 
 def _summary(row: dict) -> dict:
@@ -196,8 +258,9 @@ def _apply_filters(intent: dict[str, Any], rows: list[dict[str, Any]]) -> list[d
         else:  # LLM path: "YYYY-MM"
             rows = [r for r in rows if str(r["bill_date"] or "").startswith(intent["month"])]
     if intent.get("merchant"):
-        needle = intent["merchant"].lower()
-        rows = [r for r in rows if needle in (r["merchant"] or "").lower()]
+        needle = intent["merchant"]
+        rows = [r for r in rows if _fuzzy_merchant(needle, r["merchant"] or "")
+                or _keyword_score(_tokens(needle), r.get("tags") or "") > 0]
     return rows
 
 
@@ -260,22 +323,40 @@ def _month_of(bill_date) -> Optional[int]:
 
 
 def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
-    if embed_fn is None:
-        return _unanswerable("Semantic search is unavailable (no embedding model).")
-    from src.services.bill_writer import vector_literal
+    """Hybrid retrieval: vector similarity + keyword/tag matching, merged.
 
-    vec = vector_literal(embed_fn(question))
-    matches = db.match_bills(vec, k)
+    Either signal alone can surface a bill, so a wording change that misses one
+    path is caught by the other; works keyword-only when no embedder is set.
+    """
+    matches: list[dict[str, Any]] = []
+    if embed_fn is not None:
+        from src.services.bill_writer import vector_literal
+
+        vec = vector_literal(embed_fn(question))
+        matches = db.match_bills(vec, k)
+        # The match_bills RPC returns category_id (uuid) but not the category
+        # name; resolve names so retrieved records carry their category.
+        cat_names = {c["id"]: c.get("name") for c in db.select("categories")}
+        for m in matches:
+            m["category"] = cat_names.get(m.get("category_id"))
+
+    # Keyword pass over merchant/category/tags/item descriptions.
+    question_tokens = _tokens(question)
+    if question_tokens:
+        all_rows = _load_bills(db)
+        items_by_bill = _load_item_descriptions(db)
+        seen_ids = {m.get("id") for m in matches}
+        scored = sorted(
+            ((row, _keyword_score(question_tokens, _searchable_text(row, items_by_bill)))
+             for row in all_rows if row["id"] not in seen_ids),
+            key=lambda pair: -pair[1],
+        )
+        matches.extend(row for row, score in scored[:k] if score > 0)
+
     if not matches:
         return _unanswerable()
 
-    # The match_bills RPC returns category_id (uuid) but not the category name;
-    # resolve names so retrieved records carry their category (not null).
-    cat_names = {c["id"]: c.get("name") for c in db.select("categories")}
-    for m in matches:
-        m["category"] = cat_names.get(m.get("category_id"))
-
-    records = [_summary(m) for m in matches]
+    records = [_summary(m) for m in matches[: k + 1]]
     answer = None
     if llm is not None:
         try:
@@ -283,8 +364,8 @@ def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
         except Exception:
             answer = None
     if not answer:
-        merchants = ", ".join(m["merchant"] for m in matches if m.get("merchant"))
-        answer = f"Found {len(matches)} matching bill(s): {merchants}."
+        merchants = ", ".join(r["merchant"] for r in records if r.get("merchant"))
+        answer = f"Found {len(records)} matching bill(s): {merchants}."
     return {"path": "semantic", "answer": answer, "records": records, "executed_query": None}
 
 
@@ -303,7 +384,16 @@ def answer_question(
     intent = _llm_intent(question, db, llm)
     if intent is not None:
         if intent["path"] == "numeric":
-            return _numeric(question, db, intent)
+            result = _numeric(question, db, intent)
+            # A named merchant that matched nothing may just be spelled
+            # differently — degrade to retrieval (closest matches) instead of
+            # a hard "no bills found". Category-only misses stay honest: "no
+            # Utilities bills" is the correct answer, not a lookalike list.
+            if result["path"] == "unanswerable" and intent.get("merchant"):
+                fallback = _semantic(question, db, embed_fn, llm)
+                if fallback["path"] != "unanswerable":
+                    return fallback
+            return result
         return _semantic(question, db, embed_fn, llm)
     if _classify(question) == "numeric":
         return _numeric(question, db)
