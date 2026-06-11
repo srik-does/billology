@@ -26,9 +26,17 @@ class Settings(BaseSettings):
     )
     supabase_bucket: str = "bills"
 
+    # LLM provider: "groq" (cloud) or "ollama" (local inference). Per-request
+    # header overrides let users switch or bring their own key (request_context).
+    llm_provider: str = "groq"
+
     # Groq (provider-swappable LLM)
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
+
+    # Ollama (local inference)
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"
 
     # Embeddings (fastembed, local). Dimension MUST match the pgvector column.
     embedding_model: str = "BAAI/bge-small-en-v1.5"

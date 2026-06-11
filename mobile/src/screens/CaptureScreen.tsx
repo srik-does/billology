@@ -20,6 +20,7 @@ import * as DocumentPicker from "expo-document-picker";
 
 import { ApiError, apiPostForm } from "../api/client";
 import { Btn, Card } from "../components/UI";
+import { useT } from "../i18n";
 import type { OriginalFile, RootStackParamList } from "../navigation";
 import { colors } from "../theme";
 
@@ -36,6 +37,7 @@ type Candidate = {
 
 export function CaptureScreen() {
   const navigation = useNavigation<Nav>();
+  const t = useT();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
@@ -97,27 +99,24 @@ export function CaptureScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Add a bill</Text>
-      <Text style={styles.sub}>
-        Snap or pick a bill — it's extracted, checked for errors, and explained.
-        The numbers always come from the bill, never the AI.
-      </Text>
+      <Text style={styles.heading}>{t("addBill")}</Text>
+      <Text style={styles.sub}>{t("addBillSub")}</Text>
 
       <View style={styles.row}>
-        <Btn title="📷 Pick image" onPress={submitImage} disabled={busy} style={styles.grow} />
-        <Btn title="📄 Pick PDF" onPress={submitPdf} disabled={busy} variant="secondary" style={styles.grow} />
+        <Btn title={t("pickImage")} onPress={submitImage} disabled={busy} style={styles.grow} />
+        <Btn title={t("pickPdf")} onPress={submitPdf} disabled={busy} variant="secondary" style={styles.grow} />
       </View>
 
-      <Text style={styles.label}>Or paste bill text</Text>
+      <Text style={styles.label}>{t("orPaste")}</Text>
       <TextInput
         style={styles.input}
         multiline
         value={text}
         onChangeText={setText}
-        placeholder="Paste the bill text here…"
+        placeholder={t("pastePlaceholder")}
         placeholderTextColor={colors.muted}
       />
-      <Btn title="Process pasted text" onPress={submitText} disabled={busy} busy={busy} />
+      <Btn title={t("processText")} onPress={submitText} disabled={busy} busy={busy} />
 
       {busy && <ActivityIndicator style={styles.spinner} color={colors.accent} />}
 
@@ -125,31 +124,26 @@ export function CaptureScreen() {
         <Card style={styles.result}>
           <Text style={styles.resultTitle}>{candidate.merchant?.value ?? "Bill"}</Text>
           <View style={styles.resultRow}>
-            <Text style={styles.resultKey}>Type</Text>
+            <Text style={styles.resultKey}>{t("type")}</Text>
             <Text style={styles.resultVal}>{candidate.bill_type}</Text>
           </View>
           <View style={styles.resultRow}>
-            <Text style={styles.resultKey}>Total</Text>
+            <Text style={styles.resultKey}>{t("total")}</Text>
             <Text style={styles.resultVal}>₹{candidate.total_amount?.value ?? "—"}</Text>
           </View>
           <View style={styles.resultRow}>
-            <Text style={styles.resultKey}>Line items</Text>
+            <Text style={styles.resultKey}>{t("lineItems")}</Text>
             <Text style={styles.resultVal}>
               {candidate.line_items?.length ?? 0}
-              {candidate.nothing_to_verify ? " (nothing to verify)" : ""}
+              {candidate.nothing_to_verify ? t("nothingToVerify") : ""}
             </Text>
           </View>
           {candidate.layout_supported === false && (
-            <Text style={styles.warn}>Unsupported layout — extracted best-effort.</Text>
+            <Text style={styles.warn}>{t("unsupportedLayout")}</Text>
           )}
-          {lowQuality && (
-            <Text style={styles.warn}>
-              ⚠ Couldn't reliably read a total — figures may be incomplete. Try a clearer
-              photo, or fix the values in Review.
-            </Text>
-          )}
+          {lowQuality && <Text style={styles.warn}>{t("lowQuality")}</Text>}
           <Btn
-            title="Review & Save →"
+            title={t("reviewSave")}
             onPress={() => navigation.navigate("Review", { candidate, originalFile })}
             style={{ marginTop: 12 }}
           />

@@ -1,24 +1,34 @@
-"""Provider-swappable LLM access (Groq today, a frontier model later).
+"""Provider-swappable LLM access: Groq (cloud) or Ollama (local inference).
 
 The LLM is a *language tool only* (Principles I & VI): it explains already-extracted
-values, suggests a category from a controlled list, and translates questions into
-queries. It never produces or computes a persisted numeric value. Callers must
-treat every method's output as text/structure to validate — never as a source of
-figures.
+values, suggests a category from a controlled list, labels line ROLES, and translates
+questions into constrained query intents. It never produces or computes a persisted
+numeric value. Callers must treat every method's output as text/structure to
+validate — never as a source of figures.
 
-This is the Phase-2 skeleton: the interface is complete and the Groq calls are
-wired, but prompt bodies are intentionally minimal and are fleshed out in the
-relevant feature phases (T028 explain, T032 suggest_category, T035/T036 Q&A).
+Provider selection is per-request (see ``request_context``): users may run fully
+local via Ollama or bring their own Groq key; the server's configured key is the
+default. All prompt logic lives in ``ChatLLMService`` so providers only implement
+``_chat``.
 """
 
 from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from functools import lru_cache
 from typing import Any
 
 from src.config import get_settings
+from src.services.request_context import language, llm_overrides
+
+# Explanations / summaries answer in the user's UI language; structured outputs
+# (labels, intents, categories) stay English because code validates exact tokens.
+_LANG_NAMES = {"hi": "Hindi (हिन्दी)", "te": "Telugu (తెలుగు)"}
+
+
+def _lang_clause() -> str:
+    name = _LANG_NAMES.get(language.get())
+    return f" Write all explanatory text in {name}." if name else ""
 
 
 class LLMService(ABC):
@@ -66,35 +76,12 @@ class LLMService(ABC):
         """
 
 
-class GroqLLMService(LLMService):
-    def __init__(self) -> None:
-        settings = get_settings()
-        self._model = settings.groq_model
-        self._api_key = settings.groq_api_key
+class ChatLLMService(LLMService):
+    """All prompt logic, provider-agnostic. Subclasses implement ``_chat``."""
 
-    @lru_cache(maxsize=1)
-    def _client(self):  # type: ignore[no-untyped-def]
-        from groq import Groq
-
-        if not self._api_key:
-            raise RuntimeError("GROQ_API_KEY missing. Set it in backend/.env.")
-        return Groq(api_key=self._api_key)
-
+    @abstractmethod
     def _chat(self, system: str, user: str, json_mode: bool = False) -> str:
-        kwargs: dict[str, Any] = {
-            "model": self._model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": 0,
-        }
-        if json_mode:
-            kwargs["response_format"] = {"type": "json_object"}
-        resp = self._client().chat.completions.create(**kwargs)
-        return resp.choices[0].message.content or ""
-
-    # --- Language tasks (skeletons; expanded in feature phases) -----------
+        """Send one system+user exchange; return the assistant text."""
 
     def explain(self, structured_bill: dict[str, Any]) -> dict[str, Any]:
         system = (
@@ -108,6 +95,7 @@ class GroqLLMService(LLMService):
             "that item/charge is. "
             "CRITICAL: do NOT include any numbers, amounts, dates, percentages, or "
             "currency in your text — those are displayed separately from the record."
+            + _lang_clause()
         )
         raw = self._chat(system, json.dumps(structured_bill), json_mode=True)
         try:
@@ -162,6 +150,7 @@ class GroqLLMService(LLMService):
             "because its category is null. Do not invent any figure not present in the "
             "records. Only say the information is unavailable if the records are truly "
             "unrelated to the question."
+            + _lang_clause()
         )
         user = json.dumps({"question": question, "records": retrieved_records})
         return self._chat(system, user).strip()
@@ -171,7 +160,8 @@ class GroqLLMService(LLMService):
     ) -> dict[str, Any]:
         system = (
             "You translate a question about personal spending into a constrained "
-            "query intent over a bills database. Return JSON exactly of the form "
+            "query intent over a bills database. The question may be in English, "
+            "Hindi, or Telugu. Return JSON exactly of the form "
             '{"path": "numeric" | "semantic", "category": string | null, '
             '"month": "YYYY-MM" | null, "merchant": string | null, '
             '"aggregate": "sum" | "count" | "latest" | "average"}. '
@@ -218,7 +208,92 @@ class GroqLLMService(LLMService):
         return {str(k): str(v) for k, v in labels.items()} if isinstance(labels, dict) else {}
 
 
-@lru_cache
+class GroqLLMService(ChatLLMService):
+    def __init__(self, api_key: str, model: str) -> None:
+        self._model = model
+        self._api_key = api_key
+        self._client_instance = None
+
+    def _client(self):  # type: ignore[no-untyped-def]
+        from groq import Groq
+
+        if not self._api_key:
+            raise RuntimeError("GROQ_API_KEY missing. Set it in backend/.env.")
+        if self._client_instance is None:
+            self._client_instance = Groq(api_key=self._api_key)
+        return self._client_instance
+
+    def _chat(self, system: str, user: str, json_mode: bool = False) -> str:
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0,
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = self._client().chat.completions.create(**kwargs)
+        return resp.choices[0].message.content or ""
+
+
+class OllamaLLMService(ChatLLMService):
+    """Local inference via an Ollama server — no data leaves the machine."""
+
+    def __init__(self, base_url: str, model: str) -> None:
+        self._url = base_url.rstrip("/")
+        self._model = model
+
+    def _chat(self, system: str, user: str, json_mode: bool = False) -> str:
+        import httpx  # bundled transitively (supabase/fastapi stack)
+
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            "options": {"temperature": 0},
+        }
+        if json_mode:
+            payload["format"] = "json"
+        resp = httpx.post(f"{self._url}/api/chat", json=payload, timeout=120.0)
+        resp.raise_for_status()
+        return resp.json().get("message", {}).get("content", "")
+
+
+# Small instance cache so per-request construction stays cheap.
+_INSTANCES: dict[tuple, LLMService] = {}
+
+
 def get_llm_service() -> LLMService:
-    """Factory — swap the implementation here to change providers."""
-    return GroqLLMService()
+    """Build the provider chosen for this request (default: server-configured).
+
+    Order of precedence: per-request header overrides (request_context) →
+    server settings. Users can pick local Ollama or bring their own Groq key.
+    """
+    settings = get_settings()
+    over = llm_overrides.get()
+    provider = (over.get("provider") or settings.llm_provider or "groq").lower()
+
+    if provider == "ollama":
+        url = over.get("ollama_url") or settings.ollama_url
+        model = over.get("ollama_model") or settings.ollama_model
+        key = ("ollama", url, model)
+        if key not in _INSTANCES:
+            _INSTANCES[key] = OllamaLLMService(url, model)
+    else:
+        api_key = over.get("groq_key") or settings.groq_api_key
+        model = settings.groq_model
+        key = ("groq", api_key, model)
+        if key not in _INSTANCES:
+            _INSTANCES[key] = GroqLLMService(api_key, model)
+
+    if len(_INSTANCES) > 32:  # bound the cache (many BYO keys)
+        _INSTANCES.clear()
+        _INSTANCES[key] = (
+            OllamaLLMService(key[1], key[2]) if key[0] == "ollama" else GroqLLMService(key[1], key[2])
+        )
+    return _INSTANCES[key]

@@ -26,6 +26,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    """Per-request LLM provider override + UI language (see request_context).
+
+    Headers: X-LLM-Provider (groq|ollama), X-Groq-Key (bring-your-own-token),
+    X-Ollama-Url, X-Ollama-Model, X-Language (en|hi|te). The clients still only
+    ever talk to this backend — never to a provider directly.
+    """
+    from src.services.request_context import SUPPORTED_LANGUAGES, language, llm_overrides
+
+    overrides: dict = {}
+    provider = (request.headers.get("x-llm-provider") or "").strip().lower()
+    if provider in ("groq", "ollama"):
+        overrides["provider"] = provider
+    groq_key = (request.headers.get("x-groq-key") or "").strip()
+    if groq_key:
+        overrides["groq_key"] = groq_key
+    ollama_url = (request.headers.get("x-ollama-url") or "").strip()
+    if ollama_url.startswith(("http://", "https://")):
+        overrides["ollama_url"] = ollama_url
+    ollama_model = (request.headers.get("x-ollama-model") or "").strip()
+    if ollama_model:
+        overrides["ollama_model"] = ollama_model
+
+    lang = (request.headers.get("x-language") or "en").strip().lower()
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = "en"
+
+    token_overrides = llm_overrides.set(overrides)
+    token_language = language.set(lang)
+    try:
+        return await call_next(request)
+    finally:
+        llm_overrides.reset(token_overrides)
+        language.reset(token_language)
+
+
 _WEB_INDEX = Path(__file__).parent / "web" / "index.html"
 
 

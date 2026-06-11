@@ -1,6 +1,6 @@
 // App navigation. Capture is the entry point; it pushes Review with the
 // extracted candidate, Review pushes BillDetail on save, and History /
-// Dashboard / Q&A are reachable from the Capture header.
+// Dashboard / Q&A / Settings are reachable from the Capture header.
 
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -15,6 +15,8 @@ import { BillDetailScreen } from "../screens/BillDetailScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { QAChatScreen } from "../screens/QAChatScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
+import { useT } from "../i18n";
 import { colors } from "../theme";
 
 export type OriginalFile = { uri: string; name: string; type: string };
@@ -26,6 +28,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   QAChat: undefined;
   History: undefined;
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +57,7 @@ function HeaderLink({ label, onPress }: { label: string; onPress: () => void }) 
 }
 
 export function RootNavigator() {
+  const t = useT();
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -69,21 +73,23 @@ export function RootNavigator() {
           name="Capture"
           component={CaptureScreen}
           options={({ navigation }) => ({
-            title: "🧾 Billology",
+            title: t("appTitle"),
             headerRight: () => (
-              <View style={{ flexDirection: "row", gap: 14 }}>
-                <HeaderLink label="Bills" onPress={() => navigation.navigate("History")} />
-                <HeaderLink label="Spending" onPress={() => navigation.navigate("Dashboard")} />
-                <HeaderLink label="Ask" onPress={() => navigation.navigate("QAChat")} />
+              <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
+                <HeaderLink label={t("navBills")} onPress={() => navigation.navigate("History")} />
+                <HeaderLink label={t("navSpending")} onPress={() => navigation.navigate("Dashboard")} />
+                <HeaderLink label={t("navAsk")} onPress={() => navigation.navigate("QAChat")} />
+                <HeaderLink label={t("navSettings")} onPress={() => navigation.navigate("Settings")} />
               </View>
             ),
           })}
         />
-        <Stack.Screen name="Review" component={ReviewRoute} options={{ title: "Review & save" }} />
-        <Stack.Screen name="BillDetail" component={BillDetailRoute} options={{ title: "Bill" }} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Spending" }} />
-        <Stack.Screen name="QAChat" component={QAChatScreen} options={{ title: "Ask" }} />
-        <Stack.Screen name="History" component={HistoryScreen} options={{ title: "My bills" }} />
+        <Stack.Screen name="Review" component={ReviewRoute} options={{ title: t("titleReview") }} />
+        <Stack.Screen name="BillDetail" component={BillDetailRoute} options={{ title: t("titleBill") }} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: t("titleSpending") }} />
+        <Stack.Screen name="QAChat" component={QAChatScreen} options={{ title: t("titleAsk") }} />
+        <Stack.Screen name="History" component={HistoryScreen} options={{ title: t("titleHistory") }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("titleSettings") }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

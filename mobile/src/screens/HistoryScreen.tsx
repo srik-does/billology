@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { apiDelete, apiGet } from "../api/client";
 import { Btn, Chip } from "../components/UI";
+import { useT } from "../i18n";
 import type { RootStackParamList } from "../navigation";
 import { colors, SEED_CATEGORIES } from "../theme";
 
@@ -34,6 +35,7 @@ type Row = {
 
 export function HistoryScreen() {
   const navigation = useNavigation<Nav>();
+  const t = useT();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
@@ -139,7 +141,7 @@ export function HistoryScreen() {
     <View style={styles.container}>
       <TextInput
         style={styles.search}
-        placeholder="Search by merchant…"
+        placeholder={t("searchMerchant")}
         placeholderTextColor={colors.muted}
         value={q}
         onChangeText={setQ}
@@ -147,15 +149,15 @@ export function HistoryScreen() {
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={["All", ...SEED_CATEGORIES]}
+        data={["__all__", ...SEED_CATEGORIES]}
         keyExtractor={(c) => c}
         style={styles.chips}
         contentContainerStyle={{ gap: 8 }}
         renderItem={({ item }) => (
           <Chip
-            label={item}
-            active={item === "All" ? cat === null : cat === item}
-            onPress={() => setCat(item === "All" ? null : item)}
+            label={item === "__all__" ? t("all") : item}
+            active={item === "__all__" ? cat === null : cat === item}
+            onPress={() => setCat(item === "__all__" ? null : item)}
           />
         )}
       />
@@ -166,9 +168,7 @@ export function HistoryScreen() {
         contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {rows.length === 0
-              ? "No saved bills yet — add one from the Capture screen."
-              : "No bills match your search."}
+            {rows.length === 0 ? t("noBillsYet") : t("noMatch")}
           </Text>
         }
         renderItem={({ item }) => (
@@ -190,8 +190,8 @@ export function HistoryScreen() {
           </Pressable>
         )}
       />
-      <Text style={styles.hint}>Tap a bill to open it · long-press to delete it</Text>
-      <Btn title="Clear all data" variant="danger" onPress={confirmClearAll} />
+      <Text style={styles.hint}>{t("historyHint")}</Text>
+      <Btn title={t("clearAll")} variant="danger" onPress={confirmClearAll} />
     </View>
   );
 }

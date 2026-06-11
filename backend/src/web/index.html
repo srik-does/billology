@@ -35,17 +35,40 @@
 </head>
 <body>
 <header>
-  <h1>🧾 Billology</h1>
-  <div class="tag">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <h1>🧾 Billology</h1>
+      <div class="tag" data-i18n="tagline">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <select id="setLang" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="te">తెలుగు</option>
+      </select>
+      <select id="setProvider" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px">
+        <option value="default" data-i18n="provDefault">AI: Cloud (app's key)</option>
+        <option value="groq-byok" data-i18n="provByok">AI: Cloud (my Groq key)</option>
+        <option value="ollama" data-i18n="provOllama">AI: Local (Ollama)</option>
+      </select>
+    </div>
+  </div>
+  <div class="row hidden" id="byokRow" style="margin-top:8px">
+    <input type="password" id="setGroqKey" placeholder="gsk_… (your Groq API key)" style="flex:1;min-width:220px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
+  </div>
+  <div class="row hidden" id="ollamaRow" style="margin-top:8px">
+    <input type="text" id="setOllamaUrl" placeholder="http://localhost:11434" style="flex:1;min-width:180px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
+    <input type="text" id="setOllamaModel" placeholder="llama3.2" style="width:130px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
+  </div>
 </header>
 <main>
   <div class="card">
-    <label class="muted">Paste bill text</label>
-    <textarea id="text" placeholder="Paste a bill here…"></textarea>
+    <label class="muted" data-i18n="pasteLabel">Paste bill text</label>
+    <textarea id="text" data-i18n-ph="pastePh" placeholder="Paste a bill here…"></textarea>
     <div class="row">
       <input type="file" id="file" accept="image/*,application/pdf" />
-      <button id="go">Analyze bill</button>
-      <span class="sample" id="sample">load a sample</span>
+      <button id="go" data-i18n="analyze">Analyze bill</button>
+      <span class="sample" id="sample" data-i18n="loadSample">load a sample</span>
     </div>
     <div id="status" class="muted"></div>
   </div>
@@ -63,16 +86,16 @@
         <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
         <option>Food &amp; Dining</option><option>Shopping</option><option>Other</option>
       </select>
-      <button id="saveBtn">💾 Save bill</button>
+      <button id="saveBtn" data-i18n="saveBill">💾 Save bill</button>
       <span id="saveStatus" class="muted"></span>
     </div>
   </div>
 
   <div class="card">
-    <strong>💬 Ask about your spending</strong>
+    <strong data-i18n="askTitle">💬 Ask about your spending</strong>
     <div class="row">
-      <input type="text" id="qaQ" placeholder="e.g. How much did I spend on groceries in May?" style="flex:1;min-width:200px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
-      <button id="qaGo">Ask</button>
+      <input type="text" id="qaQ" data-i18n-ph="askPh" placeholder="e.g. How much did I spend on groceries in May?" style="flex:1;min-width:200px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
+      <button id="qaGo" data-i18n="ask">Ask</button>
     </div>
     <div id="qaStatus" class="muted"></div>
     <div id="qaAnswer" class="hidden" style="margin-top:10px;padding:12px;background:#0b1220;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap"></div>
@@ -81,21 +104,21 @@
 
   <div class="card">
     <div class="row" style="justify-content:space-between">
-      <strong>📊 Spending</strong>
-      <span class="sample" id="dashRefresh">refresh</span>
+      <strong data-i18n="spendTitle">📊 Spending</strong>
+      <span class="sample" id="dashRefresh" data-i18n="refresh">refresh</span>
     </div>
     <div id="dashCats" style="margin-top:10px"></div>
-    <div class="muted" style="margin-top:14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Monthly trend</div>
+    <div class="muted" data-i18n="monthlyTrend" style="margin-top:14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Monthly trend</div>
     <div id="dashMonths" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
     <div class="row" style="justify-content:space-between">
-      <strong>📂 My bills</strong>
-      <span class="sample" id="histRefresh">refresh</span>
+      <strong data-i18n="billsTitle">📂 My bills</strong>
+      <span class="sample" id="histRefresh" data-i18n="refresh">refresh</span>
     </div>
     <div class="row">
-      <input type="text" id="histQ" placeholder="Search merchant…" style="flex:1;min-width:160px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
+      <input type="text" id="histQ" data-i18n-ph="searchPh" placeholder="Search merchant…" style="flex:1;min-width:160px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
       <select id="histCat" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px">
         <option value="">All categories</option>
         <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
@@ -105,7 +128,7 @@
     <table id="histRows"></table>
     <div class="row" style="justify-content:space-between;margin-top:10px">
       <span class="muted" id="histCount"></span>
-      <button id="histClear" style="background:#7f1d1d;color:#fecaca">Clear all data</button>
+      <button id="histClear" data-i18n="clearAll" style="background:#7f1d1d;color:#fecaca">Clear all data</button>
     </div>
   </div>
 </main>
@@ -122,6 +145,86 @@ Grand Total         826.00`;
 const $ = (id) => document.getElementById(id);
 $("sample").onclick = () => { $("text").value = SAMPLE; };
 
+// --- Settings: language + AI provider (persisted in localStorage) ----------
+const SETTINGS = Object.assign(
+  { lang: "en", provider: "default", groqKey: "", ollamaUrl: "http://localhost:11434", ollamaModel: "llama3.2" },
+  JSON.parse(localStorage.getItem("billology.settings") || "{}")
+);
+function saveSettings() { localStorage.setItem("billology.settings", JSON.stringify(SETTINGS)); }
+
+// Headers consumed by the backend's request-context middleware. The browser
+// still only ever talks to this backend — never to a provider directly.
+function hdrs(extra) {
+  const h = Object.assign({}, extra || {}, { "X-Language": SETTINGS.lang });
+  if (SETTINGS.provider === "ollama") {
+    h["X-LLM-Provider"] = "ollama";
+    if (SETTINGS.ollamaUrl) h["X-Ollama-Url"] = SETTINGS.ollamaUrl;
+    if (SETTINGS.ollamaModel) h["X-Ollama-Model"] = SETTINGS.ollamaModel;
+  } else if (SETTINGS.provider === "groq-byok" && SETTINGS.groqKey) {
+    h["X-LLM-Provider"] = "groq";
+    h["X-Groq-Key"] = SETTINGS.groqKey;
+  }
+  return h;
+}
+
+const I18N = {
+  en: {
+    tagline: "Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.",
+    pasteLabel: "Paste bill text", pastePh: "Paste a bill here…", analyze: "Analyze bill",
+    loadSample: "load a sample", saveBill: "💾 Save bill",
+    askTitle: "💬 Ask about your spending", askPh: "e.g. How much did I spend on groceries in May?", ask: "Ask",
+    spendTitle: "📊 Spending", monthlyTrend: "Monthly trend", refresh: "refresh",
+    billsTitle: "📂 My bills", searchPh: "Search merchant…", clearAll: "Clear all data",
+    provDefault: "AI: Cloud (app's key)", provByok: "AI: Cloud (my Groq key)", provOllama: "AI: Local (Ollama)",
+  },
+  hi: {
+    tagline: "बिल जमा करें (छवि / PDF / टेक्स्ट)। यह डेटा निकालता है, त्रुटियाँ जाँचता है और समझाता है — आँकड़े हमेशा बिल से आते हैं, AI से कभी नहीं।",
+    pasteLabel: "बिल का टेक्स्ट पेस्ट करें", pastePh: "बिल यहाँ पेस्ट करें…", analyze: "बिल विश्लेषण करें",
+    loadSample: "नमूना लोड करें", saveBill: "💾 बिल सहेजें",
+    askTitle: "💬 अपने खर्च के बारे में पूछें", askPh: "जैसे: मई में किराने पर कितना खर्च हुआ?", ask: "पूछें",
+    spendTitle: "📊 खर्च", monthlyTrend: "मासिक रुझान", refresh: "रीफ़्रेश",
+    billsTitle: "📂 मेरे बिल", searchPh: "दुकान खोजें…", clearAll: "सारा डेटा हटाएँ",
+    provDefault: "AI: क्लाउड (ऐप की key)", provByok: "AI: क्लाउड (मेरी Groq key)", provOllama: "AI: लोकल (Ollama)",
+  },
+  te: {
+    tagline: "బిల్లు సమర్పించండి (చిత్రం / PDF / టెక్స్ట్). ఇది డేటాను సంగ్రహించి, లోపాలను తనిఖీ చేసి, వివరిస్తుంది — సంఖ్యలు ఎప్పుడూ బిల్లు నుండే వస్తాయి, AI నుండి కాదు.",
+    pasteLabel: "బిల్లు టెక్స్ట్ పేస్ట్ చేయండి", pastePh: "బిల్లు ఇక్కడ పేస్ట్ చేయండి…", analyze: "బిల్లు విశ్లేషించండి",
+    loadSample: "నమూనా లోడ్ చేయండి", saveBill: "💾 బిల్లు సేవ్ చేయండి",
+    askTitle: "💬 మీ ఖర్చు గురించి అడగండి", askPh: "ఉదా: మేలో కిరాణాపై ఎంత ఖర్చు చేశాను?", ask: "అడగండి",
+    spendTitle: "📊 ఖర్చు", monthlyTrend: "నెలవారీ ధోరణి", refresh: "రిఫ్రెష్",
+    billsTitle: "📂 నా బిల్లులు", searchPh: "దుకాణం వెతకండి…", clearAll: "మొత్తం డేటా తొలగించండి",
+    provDefault: "AI: క్లౌడ్ (యాప్ key)", provByok: "AI: క్లౌడ్ (నా Groq key)", provOllama: "AI: లోకల్ (Ollama)",
+  },
+};
+
+function applyLanguage() {
+  const dict = I18N[SETTINGS.lang] || I18N.en;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const v = dict[el.dataset.i18n]; if (v) el.textContent = v;
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    const v = dict[el.dataset.i18nPh]; if (v) el.placeholder = v;
+  });
+}
+
+function applyProviderUI() {
+  $("byokRow").classList.toggle("hidden", SETTINGS.provider !== "groq-byok");
+  $("ollamaRow").classList.toggle("hidden", SETTINGS.provider !== "ollama");
+}
+
+$("setLang").value = SETTINGS.lang;
+$("setProvider").value = SETTINGS.provider;
+$("setGroqKey").value = SETTINGS.groqKey;
+$("setOllamaUrl").value = SETTINGS.ollamaUrl;
+$("setOllamaModel").value = SETTINGS.ollamaModel;
+$("setLang").onchange = () => { SETTINGS.lang = $("setLang").value; saveSettings(); applyLanguage(); };
+$("setProvider").onchange = () => { SETTINGS.provider = $("setProvider").value; saveSettings(); applyProviderUI(); };
+$("setGroqKey").oninput = () => { SETTINGS.groqKey = $("setGroqKey").value.trim(); saveSettings(); };
+$("setOllamaUrl").oninput = () => { SETTINGS.ollamaUrl = $("setOllamaUrl").value.trim(); saveSettings(); };
+$("setOllamaModel").oninput = () => { SETTINGS.ollamaModel = $("setOllamaModel").value.trim(); saveSettings(); };
+applyLanguage();
+applyProviderUI();
+
 $("go").onclick = async () => {
   const status = $("status"); const result = $("result");
   status.textContent = "Analyzing…"; status.className = "muted"; $("go").disabled = true; result.classList.add("hidden");
@@ -130,7 +233,7 @@ $("go").onclick = async () => {
     const file = $("file").files[0];
     if (file) form.append("files", file);
     if ($("text").value.trim()) form.append("text", $("text").value);
-    const res = await fetch("/bills:process", { method: "POST", body: form });
+    const res = await fetch("/bills:process", { method: "POST", body: form, headers: hdrs() });
     if (res.status === 422) { const b = await res.json(); status.textContent = "⚠ " + (b.reason || "Couldn't read a bill."); status.className = "err"; return; }
     if (!res.ok) { status.textContent = "Error: " + res.status; status.className = "err"; return; }
     render(await res.json()); status.textContent = "";
@@ -191,7 +294,7 @@ async function loadHistory() {
   const params = new URLSearchParams();
   if ($("histQ").value.trim()) params.set("q", $("histQ").value.trim());
   if ($("histCat").value) params.set("category", $("histCat").value);
-  const res = await fetch("/bills?" + params.toString());
+  const res = await fetch("/bills?" + params.toString(), { headers: hdrs() });
   if (!res.ok) { $("histCount").textContent = "Couldn't load history."; return; }
   const rows = await res.json();
   const tbl = $("histRows"); tbl.innerHTML = "";
@@ -206,7 +309,7 @@ async function loadHistory() {
   tbl.querySelectorAll("[data-del]").forEach(el => {
     el.onclick = async () => {
       if (!confirm("Delete this bill?")) return;
-      await fetch("/bills/" + el.dataset.del, { method: "DELETE" });
+      await fetch("/bills/" + el.dataset.del, { method: "DELETE", headers: hdrs() });
       loadHistory();
     };
   });
@@ -221,7 +324,7 @@ $("saveBtn").onclick = async () => {
     form.append("candidate", JSON.stringify(payload));
     const f = $("file").files[0];
     if (f) form.append("files", f); // archive the original alongside the record
-    const res = await fetch("/bills", { method: "POST", body: form });
+    const res = await fetch("/bills", { method: "POST", body: form, headers: hdrs() });
     const body = await res.json();
     if (res.status === 201) {
       $("saveStatus").textContent = "✓ Saved";
@@ -245,7 +348,7 @@ async function ask() {
   try {
     const res = await fetch("/qa", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: hdrs({ "Content-Type": "application/json" }),
       body: JSON.stringify({ question: q }),
     });
     const body = await res.json();
@@ -279,8 +382,8 @@ const DASH_COLORS = ["#38bdf8","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee"
 async function loadDash() {
   try {
     const [cats, months] = await Promise.all([
-      fetch("/dashboard/by-category").then(r => r.json()),
-      fetch("/dashboard/monthly").then(r => r.json()),
+      fetch("/dashboard/by-category", { headers: hdrs() }).then(r => r.json()),
+      fetch("/dashboard/monthly", { headers: hdrs() }).then(r => r.json()),
     ]);
     const cmax = Math.max(...cats.map(c => +c.total), 0);
     $("dashCats").innerHTML = cats.length
@@ -302,7 +405,7 @@ $("histQ").oninput = () => { clearTimeout(window.__hq); window.__hq = setTimeout
 $("histCat").onchange = loadHistory;
 $("histClear").onclick = async () => {
   if (!confirm("Delete ALL saved bills (including seeded demo data)? This cannot be undone.")) return;
-  const res = await fetch("/bills", { method: "DELETE" });
+  const res = await fetch("/bills", { method: "DELETE", headers: hdrs() });
   const body = await res.json();
   alert(res.ok ? `${body.deleted} bill(s) deleted.` : "Clear failed.");
   loadHistory();

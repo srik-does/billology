@@ -54,6 +54,42 @@ def _to_decimal(v) -> Decimal:
         return Decimal("0")
 
 
+# Numeric answers are code-generated template strings; translate the templates
+# (the figures themselves are computed, never translated).
+_TEMPLATES = {
+    "en": {
+        "sum": "You spent ₹{total} on {cat}{who}{when} across {n} bill(s).",
+        "count": "You have {n} {cat} bill(s){who}{when}.",
+        "average": "Your average {cat} bill{who}{when} is ₹{avg} (over {n} bill(s)).",
+        "latest": "Your most recent {cat} bill was ₹{amount} on {date} ({merchant}).",
+        "unanswerable": "I don't have that information in your saved bills.",
+        "ask": "Please ask a question about your spending.",
+    },
+    "hi": {
+        "sum": "आपने {cat}{who}{when} पर {n} बिल में कुल ₹{total} खर्च किए।",
+        "count": "आपके पास {cat}{who}{when} के {n} बिल हैं।",
+        "average": "आपका औसत {cat} बिल{who}{when} ₹{avg} है ({n} बिल पर)।",
+        "latest": "आपका सबसे हालिया {cat} बिल ₹{amount} था, {date} को ({merchant})।",
+        "unanswerable": "आपके सहेजे गए बिलों में यह जानकारी उपलब्ध नहीं है।",
+        "ask": "कृपया अपने खर्च के बारे में कोई प्रश्न पूछें।",
+    },
+    "te": {
+        "sum": "మీరు {cat}{who}{when} పై {n} బిల్లులలో మొత్తం ₹{total} ఖర్చు చేశారు.",
+        "count": "మీ వద్ద {cat}{who}{when} బిల్లులు {n} ఉన్నాయి.",
+        "average": "మీ సగటు {cat} బిల్లు{who}{when} ₹{avg} ({n} బిల్లులపై).",
+        "latest": "మీ ఇటీవలి {cat} బిల్లు ₹{amount}, {date} న ({merchant}).",
+        "unanswerable": "మీ సేవ్ చేసిన బిల్లులలో ఆ సమాచారం లేదు.",
+        "ask": "దయచేసి మీ ఖర్చు గురించి ప్రశ్న అడగండి.",
+    },
+}
+
+
+def _t(key: str) -> str:
+    from src.services.request_context import language
+
+    return _TEMPLATES.get(language.get(), _TEMPLATES["en"]).get(key, _TEMPLATES["en"][key])
+
+
 def _classify(question: str) -> str:
     q = question.lower()
     return "numeric" if any(t in q for t in _NUMERIC_TRIGGERS) else "semantic"
@@ -142,8 +178,13 @@ def _summary(row: dict) -> dict:
     }
 
 
-def _unanswerable(reason: str = "I don't have that information in your saved bills.") -> dict:
-    return {"path": "unanswerable", "answer": reason, "records": [], "executed_query": None}
+def _unanswerable(reason: Optional[str] = None) -> dict:
+    return {
+        "path": "unanswerable",
+        "answer": reason or _t("unanswerable"),
+        "records": [],
+        "executed_query": None,
+    }
 
 
 def _apply_filters(intent: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -181,16 +222,15 @@ def _numeric(question: str, db, intent: Optional[dict[str, Any]] = None) -> dict
 
     if intent["aggregate"] == "latest":
         latest = max(rows, key=lambda r: (r["bill_date"] or ""))
-        answer = (
-            f"Your most recent {cat} bill was ₹{latest['total_amount']} "
-            f"on {latest['bill_date']} ({latest['merchant']})."
+        answer = _t("latest").format(
+            cat=cat, amount=latest["total_amount"], date=latest["bill_date"], merchant=latest["merchant"]
         )
         return {"path": "numeric", "answer": answer, "records": [_summary(latest)], "executed_query": desc}
 
     if intent["aggregate"] == "count":
         return {
             "path": "numeric",
-            "answer": f"You have {len(rows)} {cat} bill(s){who}{when}.",
+            "answer": _t("count").format(n=len(rows), cat=cat, who=who, when=when),
             "records": [_summary(r) for r in rows],
             "executed_query": desc,
         }
@@ -200,13 +240,13 @@ def _numeric(question: str, db, intent: Optional[dict[str, Any]] = None) -> dict
         avg = (total / len(rows)).quantize(Decimal("0.01"))
         return {
             "path": "numeric",
-            "answer": f"Your average {cat} bill{who}{when} is ₹{avg} (over {len(rows)} bill(s)).",
+            "answer": _t("average").format(cat=cat, who=who, when=when, avg=avg, n=len(rows)),
             "records": [_summary(r) for r in rows],
             "executed_query": desc,
         }
     return {
         "path": "numeric",
-        "answer": f"You spent ₹{total} on {cat}{who}{when} across {len(rows)} bill(s).",
+        "answer": _t("sum").format(total=total, cat=cat, who=who, when=when, n=len(rows)),
         "records": [_summary(r) for r in rows],
         "executed_query": desc,
     }
@@ -257,7 +297,7 @@ def answer_question(
 ) -> dict:
     question = (question or "").strip()
     if not question:
-        return _unanswerable("Please ask a question about your spending.")
+        return _unanswerable(_t("ask"))
     # Preferred routing: LLM translates the question into a validated intent
     # (Principle VI). Heuristic keyword routing remains the no-LLM fallback.
     intent = _llm_intent(question, db, llm)
