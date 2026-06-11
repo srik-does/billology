@@ -17,6 +17,7 @@ import {
 
 import { apiPostForm } from "../api/client";
 import { DiscrepancyList, type DiscrepancyFlag } from "../components/DiscrepancyList";
+import { Btn } from "../components/UI";
 
 // Mirrors backend SEED_CATEGORIES (migration 002). Kept client-side because the
 // demo spine has no GET /categories endpoint.
@@ -144,7 +145,7 @@ export function ReviewScreen({
       </View>
 
       <View style={styles.saveBtn}>
-        <Button title={busy ? "Saving…" : "Save bill"} onPress={save} disabled={busy} />
+        <Btn title="Save bill" onPress={save} busy={busy} />
       </View>
     </ScrollView>
   );

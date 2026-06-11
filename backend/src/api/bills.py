@@ -139,6 +139,64 @@ async def save_reviewed_bill(request: Request):
     return bill
 
 
+# --- GET /bills (history list + search) --------------------------------------
+
+@router.get("/bills")
+def list_bills(q: Optional[str] = None, category: Optional[str] = None, limit: int = 100):
+    """List saved bills (newest first) with optional merchant search and
+    category filter — powers the History/Search screens."""
+    cats = {c["id"]: c.get("name") for c in persistence.select("categories")}
+    out = []
+    for b in persistence.select("bills"):
+        if b.get("status") and b["status"] != "saved":
+            continue
+        out.append(
+            {
+                "id": b.get("id"),
+                "merchant": b.get("merchant"),
+                "bill_date": b.get("bill_date"),
+                "total_amount": (
+                    str(b["total_amount"]) if b.get("total_amount") is not None else None
+                ),
+                "bill_type": b.get("bill_type"),
+                "category": cats.get(b.get("category_id")),
+            }
+        )
+    if q:
+        needle = q.strip().lower()
+        out = [r for r in out if needle in (r["merchant"] or "").lower()]
+    if category:
+        out = [r for r in out if (r["category"] or "").lower() == category.strip().lower()]
+    out.sort(key=lambda r: (r["bill_date"] or ""), reverse=True)
+    return out[: max(1, min(limit, 500))]
+
+
+# --- DELETE /bills (clear data) -----------------------------------------------
+
+@router.delete("/bills/{bill_id}")
+def delete_bill(bill_id: str):
+    """Delete one saved bill (children cascade)."""
+    try:
+        deleted = persistence.delete_rows("bills", {"id": bill_id})
+    except PersistenceError as exc:
+        logger.error("delete_bill failed: %s", exc)
+        return JSONResponse(status_code=502, content={"error": "delete_failed", "detail": str(exc)})
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    return {"deleted": deleted}
+
+
+@router.delete("/bills")
+def delete_all_bills():
+    """Delete ALL saved bills — used to clear seeded/test data before a demo."""
+    try:
+        deleted = persistence.delete_all("bills")
+    except PersistenceError as exc:
+        logger.error("delete_all_bills failed: %s", exc)
+        return JSONResponse(status_code=502, content={"error": "delete_failed", "detail": str(exc)})
+    return {"deleted": deleted}
+
+
 # --- GET /bills/{id} --------------------------------------------------------
 
 def _traced(value, provenance=None, source_ref=None, confidence=None) -> Optional[TracedValue]:

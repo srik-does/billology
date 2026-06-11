@@ -86,6 +86,36 @@ def select(table: str, filters: Optional[dict[str, Any]] = None) -> list[dict[st
     return query.execute().data or []
 
 
+def delete_rows(table: str, filters: dict[str, Any]) -> int:
+    """Delete rows matching the filters; return the number deleted."""
+    if not filters:
+        raise PersistenceError("delete_rows requires at least one filter.")
+    try:
+        query = get_client().table(table).delete()
+        for key, value in filters.items():
+            query = query.eq(key, value)
+        resp = query.execute()
+    except Exception as exc:
+        raise PersistenceError(f"Delete from '{table}' failed: {exc}") from exc
+    return len(resp.data or [])
+
+
+def delete_all(table: str) -> int:
+    """Delete every row in a table (children cascade); return the count."""
+    try:
+        # PostgREST requires a filter on DELETE; match every real uuid.
+        resp = (
+            get_client()
+            .table(table)
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000")
+            .execute()
+        )
+    except Exception as exc:
+        raise PersistenceError(f"Delete-all from '{table}' failed: {exc}") from exc
+    return len(resp.data or [])
+
+
 def match_bills(embedding_literal: str, match_count: int = 5) -> list[dict[str, Any]]:
     """Semantic search via the match_bills RPC (pgvector cosine). Returns rows."""
     try:

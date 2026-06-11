@@ -46,4 +46,8 @@ export async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
   );
 }
 
+export async function apiDelete<T>(path: string): Promise<T> {
+  return handle<T>(await fetch(`${API_BASE}${path}`, { method: "DELETE" }));
+}
+
 export { API_BASE };

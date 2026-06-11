@@ -7,7 +7,6 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,7 +19,9 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
 import { ApiError, apiPostForm } from "../api/client";
+import { Btn, Card } from "../components/UI";
 import type { OriginalFile, RootStackParamList } from "../navigation";
+import { colors } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
@@ -92,13 +93,19 @@ export function CaptureScreen() {
     await submit(form, file);
   }
 
+  const lowQuality = candidate && !(Number(candidate.total_amount?.value) > 0);
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Add a bill</Text>
+      <Text style={styles.sub}>
+        Snap or pick a bill — it's extracted, checked for errors, and explained.
+        The numbers always come from the bill, never the AI.
+      </Text>
 
       <View style={styles.row}>
-        <Button title="Take/Pick image" onPress={submitImage} disabled={busy} />
-        <Button title="Pick PDF" onPress={submitPdf} disabled={busy} />
+        <Btn title="📷 Pick image" onPress={submitImage} disabled={busy} style={styles.grow} />
+        <Btn title="📄 Pick PDF" onPress={submitPdf} disabled={busy} variant="secondary" style={styles.grow} />
       </View>
 
       <Text style={styles.label}>Or paste bill text</Text>
@@ -108,57 +115,73 @@ export function CaptureScreen() {
         value={text}
         onChangeText={setText}
         placeholder="Paste the bill text here…"
+        placeholderTextColor={colors.muted}
       />
-      <Button title="Process pasted text" onPress={submitText} disabled={busy} />
+      <Btn title="Process pasted text" onPress={submitText} disabled={busy} busy={busy} />
 
-      {busy && <ActivityIndicator style={styles.spinner} />}
+      {busy && <ActivityIndicator style={styles.spinner} color={colors.accent} />}
 
       {candidate && (
-        <View style={styles.result}>
-          <Text style={styles.resultLine}>Merchant: {candidate.merchant?.value ?? "—"}</Text>
-          <Text style={styles.resultLine}>Type: {candidate.bill_type}</Text>
-          <Text style={styles.resultLine}>Total: ₹{candidate.total_amount?.value ?? "—"}</Text>
-          <Text style={styles.resultLine}>
-            Line items: {candidate.line_items?.length ?? 0}
-            {candidate.nothing_to_verify ? " (nothing to verify)" : ""}
-          </Text>
+        <Card style={styles.result}>
+          <Text style={styles.resultTitle}>{candidate.merchant?.value ?? "Bill"}</Text>
+          <View style={styles.resultRow}>
+            <Text style={styles.resultKey}>Type</Text>
+            <Text style={styles.resultVal}>{candidate.bill_type}</Text>
+          </View>
+          <View style={styles.resultRow}>
+            <Text style={styles.resultKey}>Total</Text>
+            <Text style={styles.resultVal}>₹{candidate.total_amount?.value ?? "—"}</Text>
+          </View>
+          <View style={styles.resultRow}>
+            <Text style={styles.resultKey}>Line items</Text>
+            <Text style={styles.resultVal}>
+              {candidate.line_items?.length ?? 0}
+              {candidate.nothing_to_verify ? " (nothing to verify)" : ""}
+            </Text>
+          </View>
           {candidate.layout_supported === false && (
             <Text style={styles.warn}>Unsupported layout — extracted best-effort.</Text>
           )}
-          {!(Number(candidate.total_amount?.value) > 0) && (
+          {lowQuality && (
             <Text style={styles.warn}>
               ⚠ Couldn't reliably read a total — figures may be incomplete. Try a clearer
               photo, or fix the values in Review.
             </Text>
           )}
-          <View style={styles.reviewBtn}>
-            <Button
-              title="Review & Save →"
-              onPress={() => navigation.navigate("Review", { candidate, originalFile })}
-            />
-          </View>
-        </View>
+          <Btn
+            title="Review & Save →"
+            onPress={() => navigation.navigate("Review", { candidate, originalFile })}
+            style={{ marginTop: 12 }}
+          />
+        </Card>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { backgroundColor: colors.bg },
   container: { padding: 16, gap: 12 },
-  heading: { fontSize: 22, fontWeight: "600" },
-  row: { flexDirection: "row", gap: 12 },
-  label: { marginTop: 8, fontWeight: "500" },
+  heading: { fontSize: 24, fontWeight: "800", color: colors.text },
+  sub: { color: colors.muted, fontSize: 13.5, lineHeight: 19, marginTop: -6 },
+  row: { flexDirection: "row", gap: 10, marginTop: 4 },
+  grow: { flex: 1 },
+  label: { marginTop: 10, fontWeight: "600", color: colors.text },
   input: {
     minHeight: 120,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 8,
+    borderColor: colors.line,
+    borderRadius: 10,
+    padding: 10,
     textAlignVertical: "top",
+    color: colors.text,
   },
-  spinner: { marginTop: 16 },
-  result: { marginTop: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 8, gap: 4 },
-  resultLine: { fontSize: 15 },
-  warn: { color: "#b45309", marginTop: 4 },
-  reviewBtn: { marginTop: 12 },
+  spinner: { marginTop: 12 },
+  result: { marginTop: 8, gap: 6 },
+  resultTitle: { fontSize: 17, fontWeight: "700", color: colors.text, marginBottom: 4 },
+  resultRow: { flexDirection: "row", justifyContent: "space-between" },
+  resultKey: { color: colors.muted, fontSize: 14 },
+  resultVal: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  warn: { color: colors.warn, marginTop: 6, fontSize: 13 },
 });

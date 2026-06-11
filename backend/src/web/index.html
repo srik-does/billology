@@ -59,6 +59,26 @@
     <table id="items"></table>
     <table class="totals" id="totals"></table>
   </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>📂 My bills</strong>
+      <span class="sample" id="histRefresh">refresh</span>
+    </div>
+    <div class="row">
+      <input type="text" id="histQ" placeholder="Search merchant…" style="flex:1;min-width:160px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
+      <select id="histCat" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px">
+        <option value="">All categories</option>
+        <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
+        <option>Food &amp; Dining</option><option>Shopping</option><option>Other</option>
+      </select>
+    </div>
+    <table id="histRows"></table>
+    <div class="row" style="justify-content:space-between;margin-top:10px">
+      <span class="muted" id="histCount"></span>
+      <button id="histClear" style="background:#7f1d1d;color:#fecaca">Clear all data</button>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -129,6 +149,43 @@ function render(bill) {
   }
   totals.innerHTML += `<tr class="grand"><td>Total</td><td class="amt">${money(bill.total_amount)}</td></tr>`;
 }
+
+// --- History / search / clear-data ---------------------------------------
+async function loadHistory() {
+  const params = new URLSearchParams();
+  if ($("histQ").value.trim()) params.set("q", $("histQ").value.trim());
+  if ($("histCat").value) params.set("category", $("histCat").value);
+  const res = await fetch("/bills?" + params.toString());
+  if (!res.ok) { $("histCount").textContent = "Couldn't load history."; return; }
+  const rows = await res.json();
+  const tbl = $("histRows"); tbl.innerHTML = "";
+  rows.forEach(r => {
+    tbl.innerHTML += `<tr>
+      <td>${r.merchant || "Unknown"}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}</div></td>
+      <td class="amt">₹${r.total_amount ?? "—"}</td>
+      <td class="amt" style="width:30px"><span class="sample" data-del="${r.id}">✕</span></td>
+    </tr>`;
+  });
+  $("histCount").textContent = `${rows.length} bill(s)`;
+  tbl.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = async () => {
+      if (!confirm("Delete this bill?")) return;
+      await fetch("/bills/" + el.dataset.del, { method: "DELETE" });
+      loadHistory();
+    };
+  });
+}
+$("histRefresh").onclick = loadHistory;
+$("histQ").oninput = () => { clearTimeout(window.__hq); window.__hq = setTimeout(loadHistory, 300); };
+$("histCat").onchange = loadHistory;
+$("histClear").onclick = async () => {
+  if (!confirm("Delete ALL saved bills (including seeded demo data)? This cannot be undone.")) return;
+  const res = await fetch("/bills", { method: "DELETE" });
+  const body = await res.json();
+  alert(res.ok ? `${body.deleted} bill(s) deleted.` : "Clear failed.");
+  loadHistory();
+};
+loadHistory();
 </script>
 </body>
 </html>

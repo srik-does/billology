@@ -1,6 +1,6 @@
 // App navigation. Capture is the entry point; it pushes Review with the
-// extracted candidate, Review pushes BillDetail on save, and Dashboard / Q&A
-// are reachable from the Capture header.
+// extracted candidate, Review pushes BillDetail on save, and History /
+// Dashboard / Q&A are reachable from the Capture header.
 
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -14,6 +14,8 @@ import { ReviewScreen } from "../screens/ReviewScreen";
 import { BillDetailScreen } from "../screens/BillDetailScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { QAChatScreen } from "../screens/QAChatScreen";
+import { HistoryScreen } from "../screens/HistoryScreen";
+import { colors } from "../theme";
 
 export type OriginalFile = { uri: string; name: string; type: string };
 
@@ -23,6 +25,7 @@ export type RootStackParamList = {
   BillDetail: { bill: any };
   Dashboard: undefined;
   QAChat: undefined;
+  History: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,7 +48,7 @@ function BillDetailRoute({ route }: NativeStackScreenProps<RootStackParamList, "
 function HeaderLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} hitSlop={8}>
-      <Text style={{ color: "#2563eb", fontWeight: "600", fontSize: 15 }}>{label}</Text>
+      <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 14 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -53,14 +56,23 @@ function HeaderLink({ label, onPress }: { label: string; onPress: () => void }) 
 export function RootNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Capture">
+      <Stack.Navigator
+        initialRouteName="Capture"
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.card },
+          headerTitleStyle: { color: colors.text, fontWeight: "700" },
+          headerTintColor: colors.accent,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
         <Stack.Screen
           name="Capture"
           component={CaptureScreen}
           options={({ navigation }) => ({
-            title: "Billology",
+            title: "🧾 Billology",
             headerRight: () => (
-              <View style={{ flexDirection: "row", gap: 16 }}>
+              <View style={{ flexDirection: "row", gap: 14 }}>
+                <HeaderLink label="Bills" onPress={() => navigation.navigate("History")} />
                 <HeaderLink label="Spending" onPress={() => navigation.navigate("Dashboard")} />
                 <HeaderLink label="Ask" onPress={() => navigation.navigate("QAChat")} />
               </View>
@@ -71,6 +83,7 @@ export function RootNavigator() {
         <Stack.Screen name="BillDetail" component={BillDetailRoute} options={{ title: "Bill" }} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Spending" }} />
         <Stack.Screen name="QAChat" component={QAChatScreen} options={{ title: "Ask" }} />
+        <Stack.Screen name="History" component={HistoryScreen} options={{ title: "My bills" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
