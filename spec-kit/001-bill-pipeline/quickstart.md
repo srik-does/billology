@@ -1,0 +1,126 @@
+# Quickstart: Billology (Windows / PowerShell)
+
+Local setup and end-to-end validation for the bill pipeline. Commands use **PowerShell** syntax.
+
+## Prerequisites
+
+- Python 3.11+ (`python --version`)
+- Node.js 18+ and the Expo CLI (`npx expo`)
+- **Tesseract OCR** engine on PATH — install via `winget install UB-Mannheim.TesseractOCR`,
+  then confirm: `tesseract --version`
+- **Poppler** (for PDF rasterization) on PATH — needed by `pdf2image`; confirm `pdftoppm -h`
+- A **Supabase** project (URL + service key) with the `vector` and `pg_trgm` extensions
+- A **Groq** API key
+
+## 1. Backend setup
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Create `backend\.env`:
+
+```powershell
+@'
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+SUPABASE_SERVICE_KEY=YOUR-SERVICE-KEY
+SUPABASE_BUCKET=bills
+GROQ_API_KEY=YOUR-GROQ-KEY
+GROQ_MODEL=llama-3.3-70b-versatile
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+EMBEDDING_DIM=384
+'@ | Out-File -FilePath .env -Encoding utf8
+```
+
+## 2. Database
+
+Apply the migrations in `backend\src\db\migrations\` (creates extensions, `bills`, `line_items`,
+`source_artifacts`, `discrepancy_flags`, `explanations`, `categories`, indexes, and the
+`vector(384)` column). Run them via the Supabase SQL editor or:
+
+```powershell
+# example using psql if installed; otherwise paste files into the Supabase SQL editor
+Get-ChildItem .\src\db\migrations\*.sql | Sort-Object Name | ForEach-Object {
+  psql $env:SUPABASE_DB_URL -f $_.FullName
+}
+```
+
+Create a **private** Storage bucket named `bills`. Seed the category list (Telecom/Recharge,
+Groceries, + common categories) via the seed migration.
+
+> The `EMBEDDING_DIM` (384) MUST equal the `vector(...)` column dimension in the migration.
+
+### Seed demo data (for the dashboard + Q&A demo)
+
+After migrations and with `.env` configured, populate ~14 realistic saved bills (telecom +
+grocery across several months) so the dashboard trend and semantic Q&A have a corpus. The seeder
+persists through the same `bill_writer` path as a live save, so seeded and live bills behave
+identically. It is idempotent (safe to re-run).
+
+```powershell
+# from backend/, venv activated
+python -m src.db.seed_demo_bills            # writes to Supabase
+python -m src.db.seed_demo_bills --dry-run  # build + validate only, no writes
+```
+
+> Run this **before** demoing the dashboard or Q&A — both are empty without it.
+
+## 3. Run the backend
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+uvicorn src.main:app --reload --port 8000
+```
+
+Open `http://localhost:8000/docs` to see the OpenAPI UI (mirrors `contracts/openapi.yaml`).
+
+## 4. Mobile setup
+
+```powershell
+cd ..\mobile
+npm install
+'EXPO_PUBLIC_API_BASE=http://localhost:8000' | Out-File -FilePath .env -Encoding utf8
+npx expo start
+```
+
+Use the Expo Go app (or an emulator). On a physical device, replace `localhost` with your machine's
+LAN IP so the device can reach the backend.
+
+## 5. End-to-end validation scenarios
+
+Run against `http://localhost:8000`. These map to spec Success Criteria.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| 1 | Explain (SC-001) | `POST /bills:process` a clean grocery receipt image | 200 candidate; each line item has a plain-language explanation; amounts match the image |
+| 2 | Same bill, three formats (FR-001) | Submit the same telecom bill as image, PDF, text | Equivalent structured candidates |
+| 3 | Sum mismatch (SC-002) | Submit a bill whose line items don't sum to total | `sum_mismatch` flag with conflicting figures |
+| 4 | Legit non-sum (SC-002) | Submit a bill with a carried-forward balance | No flag |
+| 5 | Tax check (FR-008) | Bill with rate+base where `rate×base≠tax` | `tax_mismatch`; a tax-amount-only bill → no flag |
+| 6 | Recapture (SC-004) | Submit a dark/blurry photo | `409 {action: recapture}` |
+| 7 | Review & save (SC-005) | Edit a field, `POST /bills` | Saved; edited field `provenance=user_provided`; persisted value matches |
+| 8 | Duplicate (SC-008) | Submit a saved bill again | `duplicate_warning`; save without ack → `409` |
+| 9 | Non-bill (SC-008) | Submit a selfie | `422 Declined`, no figures |
+| 10 | Dashboard (SC-006) | With several saved bills, `GET /dashboard/by-category` & `/monthly` | Sums equal direct SQL |
+| 11 | Numeric Q&A (SC-007) | `POST /qa` "groceries spend in March" | `path: numeric`, exact number + `executed_query` |
+| 12 | Unanswerable (SC-007) | `POST /qa` about absent data | `path: unanswerable`, no estimate |
+| 13 | INR parsing (NFR-Localization) | Bill with `₹1,00,000` | Parsed as 100000.00 |
+
+## 6. Tests
+
+```powershell
+cd ..\backend
+.\.venv\Scripts\Activate.ps1
+pytest                      # unit (extraction, arithmetic, discrepancy TP+no-FP, INR), contract, integration
+```
+
+```powershell
+cd ..\mobile
+npm test
+```
+
+See [contracts/](./contracts/) for endpoint contracts and [data-model.md](./data-model.md) for the
+canonical record. Implementation details live in `tasks.md` (generated by `/speckit-tasks`).

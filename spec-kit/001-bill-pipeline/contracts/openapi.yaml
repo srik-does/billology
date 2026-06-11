@@ -1,0 +1,313 @@
+openapi: 3.1.0
+info:
+  title: Billology Backend API
+  version: 0.1.0
+  description: >
+    Single trust boundary for Billology. The mobile client talks only to this API; this API owns
+    extraction, all arithmetic, discrepancy detection, LLM access, embeddings, and the database.
+    All money fields are decimal strings to preserve exact paise.
+
+servers:
+  - url: http://localhost:8000
+
+paths:
+  /bills:process:
+    post:
+      summary: Submit a bill (image/PDF/text) and get a non-persisted candidate record
+      description: >
+        Runs quality gating, deterministic extraction, arithmetic + discrepancy checks, and LLM
+        explanation + category suggestion. Does NOT persist. Non-bill input is declined here.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items: { type: string, format: binary }
+                  description: One or more images, or a (possibly multi-page) PDF.
+                text:
+                  type: string
+                  description: Pasted bill text (alternative to files).
+                bill_type_hint:
+                  type: string
+                  enum: [telecom_recharge, grocery]
+      responses:
+        '200':
+          description: Candidate produced (may be unsupported-layout, low-confidence, or duplicate-warned)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CandidateResponse' }
+        '409':
+          description: Recapture required (low quality) or merge confirmation needed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActionRequired' }
+        '422':
+          description: Input is not a recognizable bill — declined gracefully (no fabricated data)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Declined' }
+
+  /bills:
+    post:
+      summary: Persist a reviewed/corrected candidate as the canonical record
+      description: >
+        Accepts user corrections with provenance, confirmed category/date, and acknowledged
+        duplicate/merge warnings. Generates and stores the embedding. Returns the saved bill.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewedBill' }
+      responses:
+        '201':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bill' }
+        '409':
+          description: Duplicate not acknowledged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DuplicateWarning' }
+
+  /bills/{id}:
+    get:
+      summary: Get one canonical bill (record + line items + flags + explanation)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bill' }
+
+  /bills/search:
+    get:
+      summary: Search saved bills by merchant, category, and/or date
+      parameters:
+        - { name: merchant, in: query, schema: { type: string } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BillSummary' }
+
+  /categories:
+    get:
+      summary: List the controlled category list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+    post:
+      summary: Create a category (with near-duplicate warning)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                force: { type: boolean, default: false }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '409':
+          description: Near-duplicate of an existing category (FR-014)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  similar_to: { $ref: '#/components/schemas/Category' }
+                  message: { type: string }
+
+  /dashboard/by-category:
+    get:
+      summary: Spending grouped by category (donut/pie source)
+      parameters:
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    category: { $ref: '#/components/schemas/Category' }
+                    total: { type: string, description: decimal }
+
+  /dashboard/monthly:
+    get:
+      summary: Spending over time by month (bar/line source)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    month: { type: string, example: '2026-03' }
+                    total: { type: string, description: decimal }
+
+  /qa:
+    post:
+      summary: Dual-path grounded Q&A (numeric SQL or semantic vector)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QAResponse' }
+
+components:
+  schemas:
+    TracedValue:
+      type: object
+      properties:
+        value: { type: string, description: decimal/text/date as string }
+        provenance: { type: string, enum: [extracted, user_provided] }
+        confidence: { type: number, nullable: true }
+        source_ref:
+          type: object
+          nullable: true
+          properties:
+            artifact_id: { type: string }
+            page: { type: integer }
+            bbox: { type: array, items: { type: number } }
+            raw_text: { type: string }
+
+    LineItem:
+      type: object
+      properties:
+        id: { type: string }
+        position: { type: integer }
+        description: { $ref: '#/components/schemas/TracedValue' }
+        quantity: { $ref: '#/components/schemas/TracedValue' }
+        unit_amount: { $ref: '#/components/schemas/TracedValue' }
+        line_total: { $ref: '#/components/schemas/TracedValue' }
+
+    DiscrepancyFlag:
+      type: object
+      properties:
+        kind: { type: string, enum: [sum_mismatch, duplicate_item, tax_mismatch] }
+        conflicting_figures: { type: object }
+        explanation_text: { type: string }
+
+    Bill:
+      type: object
+      properties:
+        id: { type: string }
+        merchant: { $ref: '#/components/schemas/TracedValue' }
+        bill_type: { type: string, enum: [telecom_recharge, grocery, unsupported] }
+        bill_date: { $ref: '#/components/schemas/TracedValue' }
+        total_amount: { $ref: '#/components/schemas/TracedValue' }
+        tax_rate: { $ref: '#/components/schemas/TracedValue' }
+        tax_base: { $ref: '#/components/schemas/TracedValue' }
+        tax_amount: { $ref: '#/components/schemas/TracedValue' }
+        category: { $ref: '#/components/schemas/Category' }
+        line_items: { type: array, items: { $ref: '#/components/schemas/LineItem' } }
+        discrepancies: { type: array, items: { $ref: '#/components/schemas/DiscrepancyFlag' } }
+        explanation: { type: object }
+        layout_supported: { type: boolean }
+        nothing_to_verify: { type: boolean }
+        status: { type: string, enum: [candidate, saved] }
+
+    CandidateResponse:
+      allOf:
+        - $ref: '#/components/schemas/Bill'
+        - type: object
+          properties:
+            suggested_category: { $ref: '#/components/schemas/Category' }
+            duplicate_warning: { $ref: '#/components/schemas/DuplicateWarning' }
+            assembled_pages:
+              type: array
+              description: Page order for multi-image confirm/reorder (FR-006a)
+              items: { type: object }
+
+    ReviewedBill:
+      description: Candidate with user corrections; each corrected field marked user_provided.
+      allOf:
+        - $ref: '#/components/schemas/Bill'
+        - type: object
+          properties:
+            acknowledged_duplicate: { type: boolean }
+            confirmed_page_order: { type: array, items: { type: string } }
+
+    BillSummary:
+      type: object
+      properties:
+        id: { type: string }
+        merchant: { type: string }
+        bill_date: { type: string, format: date, nullable: true }
+        total_amount: { type: string }
+        category: { type: string }
+
+    DuplicateWarning:
+      type: object
+      nullable: true
+      properties:
+        duplicate_of: { type: string, format: uuid }
+        matched_on: { type: string, example: 'merchant+bill_date+total_amount' }
+
+    ActionRequired:
+      type: object
+      properties:
+        action: { type: string, enum: [recapture, confirm_merge] }
+        reason: { type: string }
+
+    Declined:
+      type: object
+      properties:
+        declined: { type: boolean, example: true }
+        reason: { type: string, example: 'Input is not a recognizable bill.' }
+
+    Category:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        is_seeded: { type: boolean }
+
+    QAResponse:
+      type: object
+      properties:
+        path: { type: string, enum: [numeric, semantic, unanswerable] }
+        answer: { type: string, nullable: true }
+        records:
+          type: array
+          description: Real saved records grounding the answer
+          items: { $ref: '#/components/schemas/BillSummary' }
+        executed_query:
+          type: string
+          nullable: true
+          description: Parameterized SQL used for the numeric path (audit/traceability)
