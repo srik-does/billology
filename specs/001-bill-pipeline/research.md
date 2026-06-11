@@ -7,20 +7,37 @@ constitution requires to be documented.
 
 ## 1. OCR engine for images
 
-- **Decision**: Tesseract OCR via `pytesseract`, run on the backend. Images are pre-processed with
-  Pillow (grayscale, deskew, contrast/threshold) before OCR.
-- **Rationale**: Runs locally inside the trust boundary — no third-party OCR cloud sees raw bill
-  images (Principle IV). It is deterministic and free, and emits per-word confidence usable to
-  drive recapture (FR-005) and low-confidence marking (FR-012). Crucially, it is **not** an LLM, so
-  it satisfies "numbers are never invented" — figures come from pixel recognition, not generation.
+- **Decision** *(revised 2026-06-11; originally Tesseract)*: RapidOCR (PP-OCRv4 detection +
+  English recognition on ONNX Runtime, CPU) as the primary engine, run on the backend.
+  Tesseract via `pytesseract` is retained as an automatic fallback if RapidOCR fails to load
+  or errors at runtime.
+- **Rationale**: Same trust-boundary properties as Tesseract — fully local, deterministic
+  pixel recognition, per-line confidence (Principles I and IV) — with substantially better
+  accuracy on phone photos of receipts, which extraction-quality testing showed was the
+  blocking weakness (the risk accepted at the bottom of this document materialized).
+  Benchmarked in `backend/scripts/compare_ocr.py` on a synthetic receipt at three
+  degradation tiers: at the severe tier RapidOCR recovers 8/10 key amount/ID tokens at 0.89
+  mean confidence vs Tesseract's 7/10 at 0.52, with ~89% vs ~75% character accuracy and no
+  junk lines; at clean/moderate tiers it is also ahead. Latency is comparable (~1.5–2s vs
+  ~0.8s per receipt on CPU).
+- **Operational notes** (all encoded in `services/extraction/ocr.py`):
+  - The default ORT session config is effectively single-threaded (~22s/receipt); set
+    `intra_op_num_threads` (≈8) to reach ~1.5s.
+  - The angle classifier costs ~16s/receipt and only fixes upside-down text — disabled.
+  - The engine must be a process-wide singleton created **before** any pytesseract
+    subprocess call; sessions created after one run ~10x slower (observed on Windows).
+  - Models (~20 MB, det + en rec) download from a ModelScope CDN on first use — they are
+    baked into the Docker image at build time so runtime never reaches that CDN.
 - **Alternatives considered**:
   - *Cloud OCR (Google Vision / AWS Textract)*: higher accuracy on thermal receipts but sends raw
-    bill images off-device to a third party — rejected as the default per Principle IV.
+    bill images off-device to a third party — rejected as the default per Principle IV. May be
+    revisited as an explicit user opt-in (bring-your-own-key, like the LLM provider selection).
+  - *PaddleOCR / EasyOCR / docTR*: same model family or comparable accuracy but heavyweight
+    runtimes (PaddlePaddle / PyTorch); RapidOCR delivers the PP-OCR models on lightweight ONNX.
   - *Vision LLM for extraction*: directly violates Principle I (LLM would be producing numbers) —
     rejected outright.
-- **Note**: Tesseract accuracy on faded thermal receipts is the main risk; the quality gate
-  (recapture prompt) and the human review step are the mitigations. Engine choice is isolated
-  behind `services/extraction/ocr.py` so it can be swapped without touching callers.
+- **Note**: Engine choice remains isolated behind `services/extraction/ocr.py`; callers and the
+  `ExtractionResult` line model are unchanged.
 
 ## 2. PDF handling
 
@@ -130,5 +147,6 @@ or the DB directly.
 ## Outstanding / deferred
 
 - Observability (structured logging/metrics) — low impact for v1, deferred to implementation.
-- Tesseract thermal-receipt accuracy — accepted risk, mitigated by quality gate + human review;
-  revisit if extraction quality testing shows it blocks the grocery-receipt use case.
+- ~~Tesseract thermal-receipt accuracy — accepted risk, mitigated by quality gate + human review;
+  revisit if extraction quality testing shows it blocks the grocery-receipt use case.~~
+  Materialized and resolved 2026-06-11: primary OCR engine swapped to RapidOCR (see §1).

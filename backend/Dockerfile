@@ -4,7 +4,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# System deps: Tesseract (image OCR) and Poppler (PDF rasterization for scanned PDFs).
+# System deps: Tesseract (fallback image OCR) and Poppler (PDF rasterization
+# for scanned PDFs). Primary OCR is RapidOCR (pip-installed, no system deps).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr poppler-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -13,6 +14,11 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+# Bake the RapidOCR models (det + en rec) into the image at build time. They
+# are otherwise fetched from a ModelScope CDN on first use, which must not
+# happen at runtime (cold-start latency and an unreliable external dependency).
+RUN python -c "from rapidocr import LangRec, RapidOCR; RapidOCR(params={'Rec.lang_type': LangRec.EN, 'Global.use_cls': False})"
 
 COPY . .
 
