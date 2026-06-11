@@ -58,6 +58,14 @@
     <div id="flags"></div>
     <table id="items"></table>
     <table class="totals" id="totals"></table>
+    <div class="row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <select id="saveCat" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px">
+        <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
+        <option>Food &amp; Dining</option><option>Shopping</option><option>Other</option>
+      </select>
+      <button id="saveBtn">💾 Save bill</button>
+      <span id="saveStatus" class="muted"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -132,7 +140,14 @@ $("go").onclick = async () => {
 
 function money(t) { return t && t.value != null ? "₹" + t.value : "—"; }
 
+let lastBill = null;
+
 function render(bill) {
+  lastBill = bill;
+  $("saveStatus").textContent = "";
+  $("saveBtn").disabled = false;
+  const suggested = (bill.category && bill.category.name) || "Other";
+  if ([...$("saveCat").options].some(o => o.value === suggested)) $("saveCat").value = suggested;
   $("result").classList.remove("hidden");
   $("merchant").textContent = (bill.merchant && bill.merchant.value) || "Bill";
   $("type").textContent = bill.bill_type || "";
@@ -196,6 +211,31 @@ async function loadHistory() {
     };
   });
 }
+// --- Save the analyzed candidate ---------------------------------------------
+$("saveBtn").onclick = async () => {
+  if (!lastBill) return;
+  $("saveBtn").disabled = true; $("saveStatus").textContent = "Saving…";
+  try {
+    const payload = { ...lastBill, category: { name: $("saveCat").value } };
+    const form = new FormData();
+    form.append("candidate", JSON.stringify(payload));
+    const f = $("file").files[0];
+    if (f) form.append("files", f); // archive the original alongside the record
+    const res = await fetch("/bills", { method: "POST", body: form });
+    const body = await res.json();
+    if (res.status === 201) {
+      $("saveStatus").textContent = "✓ Saved";
+      loadHistory(); loadDash();
+    } else {
+      $("saveStatus").textContent = "Save failed: " + (body.detail || body.error || res.status);
+      $("saveBtn").disabled = false;
+    }
+  } catch (e) {
+    $("saveStatus").textContent = "Network error: " + e;
+    $("saveBtn").disabled = false;
+  }
+};
+
 // --- Q&A -------------------------------------------------------------------
 async function ask() {
   const q = $("qaQ").value.trim();
