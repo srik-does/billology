@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 from src.config import get_settings
 

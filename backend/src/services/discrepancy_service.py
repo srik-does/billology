@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections import Counter
 from decimal import Decimal
-from typing import Optional
 
 from src.models import Bill, DiscrepancyFlag, DiscrepancyKind
 from src.services.arithmetic_service import (

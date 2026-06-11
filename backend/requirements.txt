@@ -13,3 +13,4 @@ pillow>=10.3
 numpy>=1.26
 python-dotenv>=1.0
 pytest>=8.2
+pytest-cov>=5.0

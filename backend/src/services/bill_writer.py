@@ -20,7 +20,6 @@ from src.models import Bill, TracedValue
 from src.services import persistence
 from src.services.embedding_service import embed as _default_embed
 
-
 # --- pure helpers -----------------------------------------------------------
 
 def _val(traced: Optional[TracedValue]) -> Optional[str]:

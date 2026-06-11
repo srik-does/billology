@@ -29,7 +29,6 @@ from src.models import (
 )
 from src.services import bill_writer, persistence
 
-
 # --- builders (pure) --------------------------------------------------------
 
 def _tv(value, line: int = 0) -> TracedValue:

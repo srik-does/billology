@@ -20,6 +20,13 @@ web-build/
 .env.*
 !.env.example
 
+# Coverage / tooling artifacts
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
 # OS / editors
 .DS_Store
 Thumbs.db

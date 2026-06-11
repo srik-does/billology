@@ -1,93 +1,116 @@
-# Billology
+# 🧾 Billology
 
+**AI-powered bill ingestion and analysis — where the AI explains, but never invents a number.**
 
+Submit a bill (photo, PDF, or pasted text). Billology extracts it deterministically, checks the
+arithmetic for provable errors, explains every charge in plain language, categorizes it, saves it,
+and answers natural-language questions about your spending.
 
-## Getting started
+**Live demo:** <https://billology.onrender.com> · API docs: <https://billology.onrender.com/docs>
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## The core principle (the project constitution)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+> **The LLM never produces or computes numbers.**
 
-## Add your files
+- A deterministic extraction layer (Tesseract OCR / pdfplumber / text parsers) is the **sole
+  producer** of every monetary value. Each figure carries a provenance flag and a source trace
+  (page/line/raw text).
+- All arithmetic and discrepancy detection run in backend code over `Decimal`s.
+- The LLM is a *language tool only*: it explains already-extracted values (from amount-free
+  payloads), suggests categories, labels the *structural role* of receipt lines (which line is an
+  item vs. a tax-summary row — never the digits), and translates questions into constrained,
+  allowlisted query intents. LLM-proposed structure is accepted **only** when a code-side
+  arithmetic reconciliation proves it more consistent than the heuristic parse.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+## Features
+
+- **Capture** — image (OCR with preprocessing), PDF (native text layer with OCR fallback), or text.
+- **Verify** — sum mismatches, duplicate charges, and tax errors flagged with the conflicting
+  figures as evidence; legitimate non-summing layouts (discounts, tax-inclusive prices) are
+  deliberately not flagged. Unreadable input gets an honest "couldn't read" — never fabrication.
+- **Explain** — plain-language summary and per-line explanations beside (not instead of) the figures.
+- **Review & save** — correct any field before saving; edits are marked `user_provided`.
+- **History** — list, search by merchant, filter by category, delete one or clear all.
+- **Spending dashboard** — by-category and monthly aggregates straight from SQL.
+- **Ask** — dual-path Q&A: numeric (LLM derives a validated intent → code computes from real rows)
+  and semantic (local embeddings → pgvector retrieval → grounded summary). Unanswerable questions
+  return an explicit "not available", never an estimate.
+
+## Architecture
 
 ```
-cd existing_repo
-git remote add origin https://code.swecha.org/srikeerthan_reddy/billology.git
-git branch -M main
-git push -uf origin main
+React Native / Expo app ──┐
+                          ├──► FastAPI backend (single trust boundary)
+Web app (served at /) ────┘         │
+                                    ├── extraction: Tesseract / pdfplumber / text parsers
+                                    ├── parsers + arithmetic + discrepancy checks (Decimal, in code)
+                                    ├── llm_service (Groq, provider-swappable): explain / categorize /
+                                    │   structure labels / query intents — never figures
+                                    ├── fastembed (BAAI/bge-small-en-v1.5, 384-dim)
+                                    └── Supabase: Postgres + pgvector + private Storage
 ```
 
-## Integrate with your tools
+The mobile/web clients never call Groq or the database directly.
 
-- [ ] [Set up project integrations](https://code.swecha.org/srikeerthan_reddy/billology/-/settings/integrations)
+## Repository layout
 
-## Collaborate with your team
+| Path | Contents |
+|---|---|
+| `backend/` | FastAPI service, extraction/parsing/LLM services, migrations, tests |
+| `mobile/` | Expo (React Native) app |
+| `specs/` | Spec-Kit feature specifications (spec, plan, contracts, data model, tasks) |
+| `.specify/` | Spec-Kit configuration, templates, and the project constitution |
+| `render.yaml` | Render deployment blueprint |
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+## Running locally
 
-## Test and Deploy
+### Backend
 
-Use the built-in continuous integration in GitLab.
+```powershell
+cd backend
+python -m venv venv ; .\venv\Scripts\Activate.ps1   # Windows
+pip install -r requirements.txt
+copy .env.example .env                               # fill in real values
+uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+System dependencies: [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) and
+[Poppler](https://poppler.freedesktop.org/) on PATH. Apply `backend/src/db/migrations/*.sql` in the
+Supabase SQL editor (in order) before first use.
 
-***
+Environment variables (see `backend/.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
+`SUPABASE_BUCKET`, `GROQ_API_KEY`, `GROQ_MODEL`. The core extract→verify→explain flow degrades
+gracefully without keys (deterministic fallbacks).
 
-# Editing this README
+### Mobile
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```powershell
+cd mobile
+npm install --legacy-peer-deps
+copy .env.example .env    # set EXPO_PUBLIC_API_BASE (deployed URL or your LAN IP)
+npx expo start -c
+```
 
-## Suggestions for a good README
+Scan the QR with Expo Go (SDK 54).
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Tests
 
-## Name
-Choose a self-explaining name for your project.
+```powershell
+cd backend
+pytest tests/ --cov=src
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## Quality tooling
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+- **Lint:** ruff (`pyproject.toml`), eslint (`mobile/.eslintrc.json`)
+- **Types:** mypy (`pyproject.toml`)
+- **Secrets:** gitleaks (pre-commit + CI)
+- **Dependency audit:** pip-audit / npm audit (CI)
+- **Coverage:** pytest-cov (CI reports)
+- **Changelog:** git-cliff (`cliff.toml`)
+- **Hooks:** `.pre-commit-config.yaml` (`pre-commit install`)
+- **CI:** `.gitlab-ci.yml`
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[AGPL-3.0](LICENSE) — © 2026 Billology contributors.

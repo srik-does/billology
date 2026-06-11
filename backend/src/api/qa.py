@@ -8,7 +8,6 @@ computes a figure.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse

@@ -1,0 +1,10 @@
+{
+  "root": true,
+  "extends": ["eslint:recommended"],
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
+  "env": { "es2022": true, "node": true },
+  "ignorePatterns": ["node_modules/", ".expo/", "dist/"],
+  "rules": {
+    "no-unused-vars": "warn"
+  }
+}
