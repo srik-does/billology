@@ -4,10 +4,12 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# System deps: Tesseract (fallback image OCR) and Poppler (PDF rasterization
-# for scanned PDFs). Primary OCR is RapidOCR (pip-installed, no system deps).
+# System deps: Tesseract (fallback image OCR), Poppler (PDF rasterization for
+# scanned PDFs), and libgl1/libglib2.0-0 (required by opencv-python, which
+# RapidOCR — the primary OCR engine — imports; absent from slim base images).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr poppler-utils \
+    && apt-get install -y --no-install-recommends \
+        tesseract-ocr poppler-utils libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
