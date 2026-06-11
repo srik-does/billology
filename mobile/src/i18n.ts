@@ -67,6 +67,7 @@ const STRINGS = {
     vsLastMonth: "vs last month",
     topCategory: "Top category",
     retry: "Retry",
+    navAdd: "Add",
   },
   hi: {
     appTitle: "🧾 Billology",
@@ -126,6 +127,7 @@ const STRINGS = {
     vsLastMonth: "पिछले महीने की तुलना में",
     topCategory: "शीर्ष श्रेणी",
     retry: "फिर कोशिश करें",
+    navAdd: "जोड़ें",
   },
   te: {
     appTitle: "🧾 Billology",
@@ -185,6 +187,7 @@ const STRINGS = {
     vsLastMonth: "గత నెలతో పోలిస్తే",
     topCategory: "టాప్ వర్గం",
     retry: "మళ్లీ ప్రయత్నించండి",
+    navAdd: "జోడించు",
   },
   ta: {
     appTitle: "🧾 Billology",
@@ -244,6 +247,7 @@ const STRINGS = {
     vsLastMonth: "கடந்த மாதத்துடன் ஒப்பிடுகையில்",
     topCategory: "முதன்மை பிரிவு",
     retry: "மீண்டும் முயற்சி",
+    navAdd: "சேர்",
   },
   kn: {
     appTitle: "🧾 Billology",
@@ -303,6 +307,7 @@ const STRINGS = {
     vsLastMonth: "ಕಳೆದ ತಿಂಗಳಿಗೆ ಹೋಲಿಸಿದರೆ",
     topCategory: "ಟಾಪ್ ವರ್ಗ",
     retry: "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+    navAdd: "ಸೇರಿಸಿ",
   },
   ml: {
     appTitle: "🧾 Billology",
@@ -362,6 +367,7 @@ const STRINGS = {
     vsLastMonth: "കഴിഞ്ഞ മാസവുമായി താരതമ്യം",
     topCategory: "മുൻനിര വിഭാഗം",
     retry: "വീണ്ടും ശ്രമിക്കുക",
+    navAdd: "ചേർക്കുക",
   },
   bn: {
     appTitle: "🧾 Billology",
@@ -421,6 +427,7 @@ const STRINGS = {
     vsLastMonth: "গত মাসের তুলনায়",
     topCategory: "শীর্ষ বিভাগ",
     retry: "আবার চেষ্টা করুন",
+    navAdd: "যোগ করুন",
   },
   mr: {
     appTitle: "🧾 Billology",
@@ -480,6 +487,7 @@ const STRINGS = {
     vsLastMonth: "मागील महिन्याच्या तुलनेत",
     topCategory: "टॉप वर्ग",
     retry: "पुन्हा प्रयत्न करा",
+    navAdd: "जोडा",
   },
   gu: {
     appTitle: "🧾 Billology",
@@ -539,6 +547,7 @@ const STRINGS = {
     vsLastMonth: "ગયા મહિનાની સરખામણીએ",
     topCategory: "ટોચની શ્રેણી",
     retry: "ફરી પ્રયત્ન કરો",
+    navAdd: "ઉમેરો",
   },
   pa: {
     appTitle: "🧾 Billology",
@@ -598,6 +607,7 @@ const STRINGS = {
     vsLastMonth: "ਪਿਛਲੇ ਮਹੀਨੇ ਨਾਲੋਂ",
     topCategory: "ਚੋਟੀ ਦੀ ਸ਼੍ਰੇਣੀ",
     retry: "ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    navAdd: "ਜੋੜੋ",
   },
   or: {
     appTitle: "🧾 Billology",
@@ -657,6 +667,7 @@ const STRINGS = {
     vsLastMonth: "ଗତ ମାସ ତୁଳନାରେ",
     topCategory: "ଶୀର୍ଷ ବର୍ଗ",
     retry: "ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ",
+    navAdd: "ଯୋଡ଼ନ୍ତୁ",
   },
   as: {
     appTitle: "🧾 Billology",
@@ -716,6 +727,7 @@ const STRINGS = {
     vsLastMonth: "যোৱা মাহৰ তুলনাত",
     topCategory: "শীৰ্ষ শ্ৰেণী",
     retry: "আকৌ চেষ্টা কৰক",
+    navAdd: "যোগ কৰক",
   },
   ur: {
     appTitle: "🧾 Billology",
@@ -775,6 +787,7 @@ const STRINGS = {
     vsLastMonth: "گزشتہ ماہ کے مقابلے",
     topCategory: "نمایاں زمرہ",
     retry: "دوبارہ کوشش کریں",
+    navAdd: "شامل کریں",
   },
 } as const;
 

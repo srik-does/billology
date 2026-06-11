@@ -5,32 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Billology — bill analyzer</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --warn:#f59e0b; --good:#34d399; }
+  :root { --bg:#0b1020; --card:#141b2e; --line:#283250; --txt:#e6eaf5; --muted:#94a3c0; --accent:#38bdf8; --accent2:#818cf8; --warn:#f59e0b; --good:#34d399; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--txt); }
-  header { padding:24px 20px; border-bottom:1px solid var(--line); }
-  h1 { margin:0; font-size:22px; } .tag { color:var(--muted); font-size:13px; margin-top:4px; }
-  main { max-width:880px; margin:0 auto; padding:20px; display:grid; gap:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
-  textarea { width:100%; min-height:150px; background:#0b1220; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:10px; font-family:ui-monospace, monospace; font-size:13px; }
+  body { margin:0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; background:linear-gradient(180deg,#0b1020 0%,#0d1326 100%); color:var(--txt); min-height:100vh; }
+  header { padding:26px 20px 22px; background:linear-gradient(135deg,#312e81 0%, #1d4ed8 55%, #0369a1 120%); border-bottom:1px solid rgba(255,255,255,.08); box-shadow:0 10px 30px rgba(2,6,23,.45); }
+  .brand { display:flex; gap:14px; align-items:flex-start; }
+  .logo { width:46px; height:46px; flex:none; display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); border-radius:14px; }
+  h1 { margin:0; font-size:22px; letter-spacing:.2px; color:#fff; }
+  .tag { color:rgba(255,255,255,.78); font-size:13px; margin-top:3px; max-width:560px; }
+  .hsel { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:10px; padding:7px 10px; font-size:13px; }
+  .hsel option { color:var(--txt); background:var(--card); }
+  main { max-width:1100px; margin:0 auto; padding:22px 20px 44px; display:grid; grid-template-columns:1.05fr .95fr; gap:18px; align-items:start; }
+  .col { display:grid; gap:18px; min-width:0; }
+  @media (max-width:920px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 10px 28px rgba(2,6,23,.35); }
+  textarea { width:100%; min-height:140px; background:#0b1220; color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:11px; font-family:ui-monospace, monospace; font-size:13px; }
+  textarea:focus, input:focus, select:focus { outline:2px solid rgba(56,189,248,.4); outline-offset:1px; }
   .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
-  button { background:var(--accent); color:#04293a; border:0; border-radius:8px; padding:10px 16px; font-weight:700; cursor:pointer; }
-  button:disabled { opacity:.5; cursor:default; }
+  button { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#071425; border:0; border-radius:10px; padding:10px 18px; font-weight:700; cursor:pointer; transition:transform .15s ease, filter .15s ease; box-shadow:0 4px 14px rgba(56,189,248,.25); }
+  button:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.07); }
+  button:disabled { opacity:.5; cursor:default; transform:none; box-shadow:none; }
   input[type=file] { color:var(--muted); font-size:13px; }
   .muted { color:var(--muted); font-size:13px; }
   table { width:100%; border-collapse:collapse; margin-top:8px; }
-  td { padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  td { padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
   td.amt { text-align:right; font-variant-numeric:tabular-nums; }
   .totals td { border:0; } .totals .grand { font-weight:700; font-size:16px; }
-  .flag { border-left:4px solid var(--warn); background:#2a210b; padding:10px; border-radius:6px; margin-top:8px; }
+  .flag { border-left:4px solid var(--warn); background:#2a210b; padding:11px 12px; border-radius:10px; margin-top:8px; }
   .flag h4 { margin:0 0 4px; color:var(--warn); font-size:14px; }
   .flag .figs { color:var(--muted); font-size:12px; margin-top:4px; }
-  .pill { display:inline-block; background:#0b3a4a; color:var(--accent); padding:2px 10px; border-radius:12px; font-size:12px; }
+  .pill { display:inline-block; background:rgba(56,189,248,.12); color:var(--accent); padding:2px 10px; border-radius:12px; font-size:12px; border:1px solid rgba(56,189,248,.25); }
   .ok { color:var(--good); }
   .hidden { display:none; }
   .ex { color:var(--muted); font-size:12px; }
   .err { color:#f87171; }
-  .sample { color:var(--accent); cursor:pointer; font-size:12px; text-decoration:underline; }
+  .sample { color:var(--accent); cursor:pointer; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
   .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px; }
   .stat { background:#0b1220; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
   .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
@@ -49,12 +58,15 @@
 <body>
 <header>
   <div class="row" style="justify-content:space-between;align-items:flex-start">
-    <div>
-      <h1>🧾 Billology</h1>
-      <div class="tag" data-i18n="tagline">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
+    <div class="brand">
+      <span class="logo">🧾</span>
+      <div>
+        <h1>Billology</h1>
+        <div class="tag" data-i18n="tagline">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-      <select id="setLang" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px">
+      <select id="setLang" class="hsel">
         <option value="en">English</option>
         <option value="hi">हिन्दी</option>
         <option value="te">తెలుగు</option>
@@ -69,7 +81,7 @@
         <option value="as">অসমীয়া</option>
         <option value="ur">اردو</option>
       </select>
-      <select id="setProvider" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px">
+      <select id="setProvider" class="hsel">
         <option value="default" data-i18n="provDefault">AI: Cloud (app's key)</option>
         <option value="groq-byok" data-i18n="provByok">AI: Cloud (my Groq key)</option>
         <option value="ollama" data-i18n="provOllama">AI: Local (Ollama)</option>
@@ -85,6 +97,7 @@
   </div>
 </header>
 <main>
+<div class="col">
   <div class="card">
     <label class="muted" data-i18n="pasteLabel">Paste bill text</label>
     <textarea id="text" data-i18n-ph="pastePh" placeholder="Paste a bill here…"></textarea>
@@ -124,7 +137,9 @@
     <div id="qaAnswer" class="hidden" style="margin-top:10px;padding:12px;background:#0b1220;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap"></div>
     <table id="qaRecords"></table>
   </div>
+</div>
 
+<div class="col">
   <div class="card">
     <div class="row" style="justify-content:space-between">
       <strong data-i18n="spendTitle">📊 Spending</strong>
@@ -158,9 +173,10 @@
     <table id="histRows"></table>
     <div class="row" style="justify-content:space-between;margin-top:10px">
       <span class="muted" id="histCount"></span>
-      <button id="histClear" data-i18n="clearAll" style="background:#7f1d1d;color:#fecaca">Clear all data</button>
+      <button id="histClear" data-i18n="clearAll" style="background:#7f1d1d;color:#fecaca;box-shadow:none">Clear all data</button>
     </div>
   </div>
+</div>
 </main>
 
 <script>

@@ -1,5 +1,7 @@
 // Q&A chat (US9). Asks the backend; renders the grounded answer plus the real
 // records it's based on. Never shows an estimate — "not available" is honest.
+// Styled as a chat: user questions are accent bubbles on the right, answers
+// are cards on the left.
 
 import { useState } from "react";
 import {
@@ -11,8 +13,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { apiPostJson } from "../api/client";
+import { useT } from "../i18n";
+import { colors, radius, shadow } from "../theme";
 
 type Record = { merchant?: string; bill_date?: string | null; total_amount?: string | null; category?: string };
 type QAResponse = { path: "numeric" | "semantic" | "unanswerable"; answer?: string | null; records?: Record[]; executed_query?: string | null };
@@ -26,6 +31,7 @@ const SUGGESTIONS = [
 ];
 
 export function QAChatScreen() {
+  const t = useT();
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -56,10 +62,15 @@ export function QAChatScreen() {
         ListHeaderComponent={
           turns.length === 0 ? (
             <View style={styles.suggestions}>
-              <Text style={styles.hint}>Ask about your spending:</Text>
+              <Text style={styles.hint}>{t("askPlaceholder")}</Text>
               {SUGGESTIONS.map((s) => (
-                <Pressable key={s} style={styles.chip} onPress={() => ask(s)}>
-                  <Text style={styles.chipText}>{s}</Text>
+                <Pressable
+                  key={s}
+                  style={({ pressed }) => [styles.suggestion, pressed && { opacity: 0.8 }]}
+                  onPress={() => ask(s)}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={colors.accent} />
+                  <Text style={styles.suggestionText}>{s}</Text>
                 </Pressable>
               ))}
             </View>
@@ -67,23 +78,32 @@ export function QAChatScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.turn}>
-            <Text style={styles.q}>{item.question}</Text>
+            <View style={styles.qBubble}>
+              <Text style={styles.qText}>{item.question}</Text>
+            </View>
             {item.error ? (
-              <Text style={styles.err}>{item.error}</Text>
+              <View style={[styles.aBubble, styles.errorBubble]}>
+                <Text style={styles.err}>{item.error}</Text>
+              </View>
             ) : item.res ? (
-              <View style={[styles.answer, item.res.path === "unanswerable" && styles.unanswerable]}>
+              <View style={[styles.aBubble, item.res.path === "unanswerable" && styles.unanswerable]}>
                 <Text style={styles.answerText}>{item.res.answer}</Text>
                 {(item.res.records ?? []).slice(0, 5).map((r, i) => (
-                  <Text key={i} style={styles.record}>
-                    • {r.merchant} — ₹{r.total_amount ?? "—"} {r.bill_date ? `(${r.bill_date})` : ""}
-                  </Text>
+                  <View key={i} style={styles.recordRow}>
+                    <View style={styles.recordDot} />
+                    <Text style={styles.record} numberOfLines={1}>
+                      {r.merchant} — ₹{r.total_amount ?? "—"} {r.bill_date ? `(${r.bill_date})` : ""}
+                    </Text>
+                  </View>
                 ))}
                 {item.res.path !== "unanswerable" && (
                   <Text style={styles.path}>via {item.res.path} path</Text>
                 )}
               </View>
             ) : (
-              <ActivityIndicator style={{ alignSelf: "flex-start", marginTop: 6 }} />
+              <View style={[styles.aBubble, styles.thinking]}>
+                <ActivityIndicator size="small" color={colors.accent} />
+              </View>
             )}
           </View>
         )}
@@ -93,12 +113,17 @@ export function QAChatScreen() {
           style={styles.input}
           value={question}
           onChangeText={setQuestion}
-          placeholder="Ask about your spending…"
+          placeholder={t("askPlaceholder")}
+          placeholderTextColor={colors.muted}
           onSubmitEditing={() => ask(question)}
           editable={!busy}
         />
-        <Pressable style={styles.send} onPress={() => ask(question)} disabled={busy}>
-          <Text style={styles.sendText}>Ask</Text>
+        <Pressable
+          style={({ pressed }) => [styles.send, (busy || !question.trim()) && { opacity: 0.5 }, pressed && { opacity: 0.8 }]}
+          onPress={() => ask(question)}
+          disabled={busy}
+        >
+          <Ionicons name="send" size={18} color="#ffffff" />
         </Pressable>
       </View>
     </View>
@@ -106,22 +131,79 @@ export function QAChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  list: { padding: 16, gap: 14 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  list: { padding: 16, gap: 16 },
   suggestions: { gap: 8 },
-  hint: { color: "#6b7280", marginBottom: 4 },
-  chip: { backgroundColor: "#eff6ff", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
-  chipText: { color: "#2563eb" },
-  turn: { gap: 6 },
-  q: { fontWeight: "700", fontSize: 15 },
-  answer: { backgroundColor: "#f3f4f6", borderRadius: 8, padding: 10, gap: 3 },
-  unanswerable: { backgroundColor: "#fef2f2" },
-  answerText: { fontSize: 15, color: "#111827" },
-  record: { fontSize: 13, color: "#374151" },
-  path: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
-  err: { color: "#dc2626" },
-  inputBar: { flexDirection: "row", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: "#e5e7eb" },
-  input: { flex: 1, borderWidth: 1, borderColor: "#d1d5db", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  send: { backgroundColor: "#2563eb", borderRadius: 20, paddingHorizontal: 18, justifyContent: "center" },
-  sendText: { color: "#fff", fontWeight: "700" },
+  hint: { color: colors.muted, marginBottom: 4, fontSize: 13 },
+  suggestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    ...shadow,
+  },
+  suggestionText: { color: colors.text, fontSize: 14, fontWeight: "600", flex: 1 },
+  turn: { gap: 8 },
+  qBubble: {
+    alignSelf: "flex-end",
+    maxWidth: "85%",
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  qText: { color: "#ffffff", fontSize: 15, fontWeight: "600" },
+  aBubble: {
+    alignSelf: "flex-start",
+    maxWidth: "92%",
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: 4,
+    padding: 12,
+    gap: 5,
+    ...shadow,
+  },
+  unanswerable: { backgroundColor: colors.warnSoft, borderColor: colors.warnSoft },
+  errorBubble: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerSoft },
+  thinking: { paddingHorizontal: 22, paddingVertical: 14 },
+  answerText: { fontSize: 15, color: colors.text, lineHeight: 21 },
+  recordRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  recordDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent },
+  record: { fontSize: 13, color: colors.muted, flex: 1 },
+  path: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  err: { color: colors.danger },
+  inputBar: {
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    color: colors.text,
+  },
+  send: {
+    backgroundColor: colors.accent,
+    borderRadius: 22,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

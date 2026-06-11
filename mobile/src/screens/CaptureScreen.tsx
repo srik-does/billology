@@ -1,7 +1,7 @@
 // Capture screen (US1): submit a bill as a single image, a PDF, or pasted text.
 // Talks only to the backend `/bills:process` endpoint (Principle IV) and surfaces
-// the "couldn't read a bill" decline (HTTP 422). On a successful candidate, it
-// offers to continue to the Review screen to correct + save.
+// the "couldn't read a bill" decline (HTTP 422) as an inline banner. On a
+// successful candidate, it offers to continue to the Review screen.
 
 import { useState } from "react";
 import {
@@ -15,14 +15,15 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
 import { ApiError, apiPostForm } from "../api/client";
-import { Btn, Card } from "../components/UI";
+import { ActionTile, Banner, Btn, Card, SectionTitle } from "../components/UI";
 import { useT } from "../i18n";
 import type { OriginalFile, RootStackParamList } from "../navigation";
-import { colors } from "../theme";
+import { colors, heroGradient, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
@@ -40,11 +41,13 @@ export function CaptureScreen() {
   const t = useT();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [originalFile, setOriginalFile] = useState<OriginalFile | undefined>(undefined);
 
   async function submit(form: FormData, file?: OriginalFile) {
     setBusy(true);
+    setNotice(null);
     setCandidate(null);
     setOriginalFile(file);
     try {
@@ -52,7 +55,8 @@ export function CaptureScreen() {
       setCandidate(result);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
-        Alert.alert("Couldn't read a bill", err.message);
+        // Friendly decline (e.g. "not a bill", page cap) — inline, not a popup.
+        setNotice(err.message);
       } else {
         Alert.alert("Something went wrong", String(err));
       }
@@ -63,7 +67,7 @@ export function CaptureScreen() {
 
   async function submitText() {
     if (!text.trim()) {
-      Alert.alert("Paste some bill text first");
+      setNotice(t("pastePlaceholder"));
       return;
     }
     const form = new FormData();
@@ -96,29 +100,53 @@ export function CaptureScreen() {
   }
 
   const lowQuality = candidate && !(Number(candidate.total_amount?.value) > 0);
+  // The keys carry a leading pictograph for the old buttons; tiles bring
+  // their own icons, so strip it.
+  const tileLabel = (s: string) => s.replace(/^📷 |^📄 /, "");
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>{t("addBill")}</Text>
-      <Text style={styles.sub}>{t("addBillSub")}</Text>
+      <LinearGradient
+        colors={[...heroGradient]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <Text style={styles.heroEmoji}>🧾</Text>
+        <Text style={styles.heroTitle}>{t("addBill")}</Text>
+        <Text style={styles.heroSub}>{t("addBillSub")}</Text>
+      </LinearGradient>
 
       <View style={styles.row}>
-        <Btn title={t("pickImage")} onPress={submitImage} disabled={busy} style={styles.grow} />
-        <Btn title={t("pickPdf")} onPress={submitPdf} disabled={busy} variant="secondary" style={styles.grow} />
+        <ActionTile
+          icon="image-outline"
+          label={tileLabel(t("pickImage"))}
+          onPress={submitImage}
+          disabled={busy}
+        />
+        <ActionTile
+          icon="document-text-outline"
+          label={tileLabel(t("pickPdf"))}
+          onPress={submitPdf}
+          disabled={busy}
+        />
       </View>
 
-      <Text style={styles.label}>{t("orPaste")}</Text>
-      <TextInput
-        style={styles.input}
-        multiline
-        value={text}
-        onChangeText={setText}
-        placeholder={t("pastePlaceholder")}
-        placeholderTextColor={colors.muted}
-      />
-      <Btn title={t("processText")} onPress={submitText} disabled={busy} busy={busy} />
+      <SectionTitle>{t("orPaste")}</SectionTitle>
+      <Card style={styles.pasteCard}>
+        <TextInput
+          style={styles.input}
+          multiline
+          value={text}
+          onChangeText={setText}
+          placeholder={t("pastePlaceholder")}
+          placeholderTextColor={colors.muted}
+        />
+        <Btn title={t("processText")} onPress={submitText} disabled={busy} busy={busy} />
+      </Card>
 
       {busy && <ActivityIndicator style={styles.spinner} color={colors.accent} />}
+      {notice && <Banner kind="warn" text={notice} />}
 
       {candidate && (
         <Card style={styles.result}>
@@ -139,9 +167,9 @@ export function CaptureScreen() {
             </Text>
           </View>
           {candidate.layout_supported === false && (
-            <Text style={styles.warn}>{t("unsupportedLayout")}</Text>
+            <Banner kind="warn" text={t("unsupportedLayout")} />
           )}
-          {lowQuality && <Text style={styles.warn}>{t("lowQuality")}</Text>}
+          {lowQuality && <Banner kind="warn" text={t("lowQuality")} />}
           <Btn
             title={t("reviewSave")}
             onPress={() => navigation.navigate("Review", { candidate, originalFile })}
@@ -155,27 +183,27 @@ export function CaptureScreen() {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.bg },
-  container: { padding: 16, gap: 12 },
-  heading: { fontSize: 24, fontWeight: "800", color: colors.text },
-  sub: { color: colors.muted, fontSize: 13.5, lineHeight: 19, marginTop: -6 },
-  row: { flexDirection: "row", gap: 10, marginTop: 4 },
-  grow: { flex: 1 },
-  label: { marginTop: 10, fontWeight: "600", color: colors.text },
+  container: { padding: 16, gap: 14, paddingBottom: 28 },
+  hero: { borderRadius: radius.xl, padding: 20, gap: 6 },
+  heroEmoji: { fontSize: 34 },
+  heroTitle: { fontSize: 24, fontWeight: "800", color: "#ffffff" },
+  heroSub: { color: "rgba(255,255,255,0.88)", fontSize: 13.5, lineHeight: 19 },
+  row: { flexDirection: "row", gap: 12 },
+  pasteCard: { gap: 12 },
   input: {
-    minHeight: 120,
-    backgroundColor: colors.card,
+    minHeight: 110,
+    backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: radius.md,
+    padding: 12,
     textAlignVertical: "top",
     color: colors.text,
   },
-  spinner: { marginTop: 12 },
-  result: { marginTop: 8, gap: 6 },
-  resultTitle: { fontSize: 17, fontWeight: "700", color: colors.text, marginBottom: 4 },
+  spinner: { marginTop: 4 },
+  result: { gap: 8 },
+  resultTitle: { fontSize: 17, fontWeight: "700", color: colors.text, marginBottom: 2 },
   resultRow: { flexDirection: "row", justifyContent: "space-between" },
   resultKey: { color: colors.muted, fontSize: 14 },
   resultVal: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  warn: { color: colors.warn, marginTop: 6, fontSize: 13 },
 });

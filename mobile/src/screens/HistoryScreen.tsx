@@ -21,7 +21,7 @@ import { apiDelete, apiGet } from "../api/client";
 import { Btn, Chip } from "../components/UI";
 import { useT } from "../i18n";
 import type { RootStackParamList } from "../navigation";
-import { colors, SEED_CATEGORIES } from "../theme";
+import { colors, SEED_CATEGORIES, shadow } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "History">;
 
@@ -177,14 +177,23 @@ export function HistoryScreen() {
             onLongPress={() => confirmDeleteOne(item)}
             style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
           >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {(item.merchant ?? "?").trim().charAt(0).toUpperCase() || "?"}
+              </Text>
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.merchant} numberOfLines={1}>
                 {item.merchant ?? "Unknown merchant"}
               </Text>
-              <Text style={styles.meta}>
-                {item.bill_date ?? "no date"}
-                {item.category ? `  ·  ${item.category}` : ""}
-              </Text>
+              <View style={styles.metaRow}>
+                <Text style={styles.meta}>{item.bill_date ?? "—"}</Text>
+                {item.category ? (
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>{item.category}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <Text style={styles.amount}>₹{item.total_amount ?? "—"}</Text>
           </Pressable>
@@ -213,15 +222,33 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
+    ...shadow,
   },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: colors.accent, fontWeight: "800", fontSize: 16 },
   merchant: { fontSize: 15, fontWeight: "700", color: colors.text },
-  meta: { fontSize: 12.5, color: colors.muted, marginTop: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 3 },
+  meta: { fontSize: 12.5, color: colors.muted },
+  pill: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  pillText: { color: colors.accent, fontSize: 11, fontWeight: "700" },
   amount: { fontSize: 15, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
   empty: { textAlign: "center", color: colors.muted, marginTop: 32, paddingHorizontal: 24 },
   hint: { textAlign: "center", color: colors.muted, fontSize: 12 },
