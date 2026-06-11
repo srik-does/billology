@@ -31,6 +31,19 @@
   .ex { color:var(--muted); font-size:12px; }
   .err { color:#f87171; }
   .sample { color:var(--accent); cursor:pointer; font-size:12px; text-decoration:underline; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#0b1220; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+  .stat .v { font-size:18px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .stat .d { font-size:12px; margin-top:2px; }
+  .d.up { color:#f87171; } .d.down { color:var(--good); }
+  .dash-section { margin-top:16px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .donut-row { display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+  .donut-row > div { flex:1; min-width:220px; }
+  .bar-fill { transition: width .8s ease; }
+  .busy::before { content:""; display:inline-block; width:11px; height:11px; border:2px solid var(--accent);
+    border-top-color:transparent; border-radius:50%; animation:spin .9s linear infinite; margin-right:6px; vertical-align:-1px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -117,9 +130,16 @@
       <strong data-i18n="spendTitle">📊 Spending</strong>
       <span class="sample" id="dashRefresh" data-i18n="refresh">refresh</span>
     </div>
-    <div id="dashCats" style="margin-top:10px"></div>
-    <div class="muted" data-i18n="monthlyTrend" style="margin-top:14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Monthly trend</div>
+    <div id="dashStats" class="stats"></div>
+    <div class="dash-section" data-i18n="byCategory">By category</div>
+    <div class="donut-row">
+      <svg id="dashDonut" width="130" height="130" viewBox="0 0 130 130" style="flex:none"></svg>
+      <div id="dashCats"></div>
+    </div>
+    <div class="dash-section" data-i18n="monthlyTrend">Monthly trend</div>
     <div id="dashMonths" style="margin-top:6px"></div>
+    <div class="dash-section" data-i18n="topMerchants">Top merchants</div>
+    <div id="dashMerchants" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
@@ -186,6 +206,8 @@ const I18N = {
     spendTitle: "📊 Spending", monthlyTrend: "Monthly trend", refresh: "refresh",
     billsTitle: "📂 My bills", searchPh: "Search merchant…", clearAll: "Clear all data",
     provDefault: "AI: Cloud (app's key)", provByok: "AI: Cloud (my Groq key)", provOllama: "AI: Local (Ollama)",
+    byCategory: "By category", topMerchants: "Top merchants", thisMonth: "This month",
+    vsLastMonth: "vs last month", topCategory: "Top category",
   },
   hi: {
     tagline: "बिल जमा करें (छवि / PDF / टेक्स्ट)। यह डेटा निकालता है, त्रुटियाँ जाँचता है और समझाता है — आँकड़े हमेशा बिल से आते हैं, AI से कभी नहीं।",
@@ -195,6 +217,8 @@ const I18N = {
     spendTitle: "📊 खर्च", monthlyTrend: "मासिक रुझान", refresh: "रीफ़्रेश",
     billsTitle: "📂 मेरे बिल", searchPh: "दुकान खोजें…", clearAll: "सारा डेटा हटाएँ",
     provDefault: "AI: क्लाउड (ऐप की key)", provByok: "AI: क्लाउड (मेरी Groq key)", provOllama: "AI: लोकल (Ollama)",
+    byCategory: "श्रेणी अनुसार", topMerchants: "शीर्ष दुकानें", thisMonth: "इस महीने",
+    vsLastMonth: "पिछले महीने की तुलना में", topCategory: "शीर्ष श्रेणी",
   },
   te: {
     tagline: "బిల్లు సమర్పించండి (చిత్రం / PDF / టెక్స్ట్). ఇది డేటాను సంగ్రహించి, లోపాలను తనిఖీ చేసి, వివరిస్తుంది — సంఖ్యలు ఎప్పుడూ బిల్లు నుండే వస్తాయి, AI నుండి కాదు.",
@@ -204,6 +228,8 @@ const I18N = {
     spendTitle: "📊 ఖర్చు", monthlyTrend: "నెలవారీ ధోరణి", refresh: "రిఫ్రెష్",
     billsTitle: "📂 నా బిల్లులు", searchPh: "దుకాణం వెతకండి…", clearAll: "మొత్తం డేటా తొలగించండి",
     provDefault: "AI: క్లౌడ్ (యాప్ key)", provByok: "AI: క్లౌడ్ (నా Groq key)", provOllama: "AI: లోకల్ (Ollama)",
+    byCategory: "వర్గం వారీగా", topMerchants: "టాప్ దుకాణాలు", thisMonth: "ఈ నెల",
+    vsLastMonth: "గత నెలతో పోలిస్తే", topCategory: "టాప్ వర్గం",
   },
   // The ten languages below are machine-authored translations pending
   // native-speaker review; corrections only touch this dictionary.
@@ -215,6 +241,8 @@ const I18N = {
     spendTitle: "📊 செலவு", monthlyTrend: "மாதாந்திர போக்கு", refresh: "புதுப்பி",
     billsTitle: "📂 என் பில்கள்", searchPh: "கடையைத் தேடவும்…", clearAll: "எல்லா தரவையும் அழிக்கவும்",
     provDefault: "AI: கிளவுட் (ஆப்பின் key)", provByok: "AI: கிளவுட் (என் Groq key)", provOllama: "AI: லோக்கல் (Ollama)",
+    byCategory: "பிரிவு வாரியாக", topMerchants: "முதன்மை கடைகள்", thisMonth: "இந்த மாதம்",
+    vsLastMonth: "கடந்த மாதத்துடன் ஒப்பிடுகையில்", topCategory: "முதன்மை பிரிவு",
   },
   kn: {
     tagline: "ಬಿಲ್ ಸಲ್ಲಿಸಿ (ಚಿತ್ರ / PDF / ಪಠ್ಯ). ಡೇಟಾ ಹೊರತೆಗೆದು, ಸಾಬೀತುಪಡಿಸಬಹುದಾದ ದೋಷಗಳನ್ನು ಪರಿಶೀಲಿಸಿ, ವಿವರಿಸುತ್ತದೆ — ಸಂಖ್ಯೆಗಳು ನೇರವಾಗಿ ಬಿಲ್‌ನಿಂದ, AI ಯಿಂದ ಅಲ್ಲ.",
@@ -224,6 +252,8 @@ const I18N = {
     spendTitle: "📊 ಖರ್ಚು", monthlyTrend: "ಮಾಸಿಕ ಪ್ರವೃತ್ತಿ", refresh: "ರಿಫ್ರೆಶ್",
     billsTitle: "📂 ನನ್ನ ಬಿಲ್‌ಗಳು", searchPh: "ಅಂಗಡಿ ಹುಡುಕಿ…", clearAll: "ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಿ",
     provDefault: "AI: ಕ್ಲೌಡ್ (ಆ್ಯಪ್ key)", provByok: "AI: ಕ್ಲೌಡ್ (ನನ್ನ Groq key)", provOllama: "AI: ಲೋಕಲ್ (Ollama)",
+    byCategory: "ವರ್ಗದ ಪ್ರಕಾರ", topMerchants: "ಟಾಪ್ ಅಂಗಡಿಗಳು", thisMonth: "ಈ ತಿಂಗಳು",
+    vsLastMonth: "ಕಳೆದ ತಿಂಗಳಿಗೆ ಹೋಲಿಸಿದರೆ", topCategory: "ಟಾಪ್ ವರ್ಗ",
   },
   ml: {
     tagline: "ബിൽ സമർപ്പിക്കുക (ചിത്രം / PDF / ടെക്സ്റ്റ്). ഡാറ്റ വേർതിരിച്ച്, തെളിയിക്കാവുന്ന പിശകുകൾ പരിശോധിച്ച്, വിശദീകരിക്കുന്നു — സംഖ്യകൾ നേരിട്ട് ബില്ലിൽ നിന്ന്, AI-യിൽ നിന്നല്ല.",
@@ -233,6 +263,8 @@ const I18N = {
     spendTitle: "📊 ചെലവ്", monthlyTrend: "മാസാന്ത പ്രവണത", refresh: "പുതുക്കുക",
     billsTitle: "📂 എന്റെ ബില്ലുകൾ", searchPh: "കട തിരയുക…", clearAll: "എല്ലാ ഡാറ്റയും മായ്ക്കുക",
     provDefault: "AI: ക്ലൗഡ് (ആപ്പ് key)", provByok: "AI: ക്ലൗഡ് (എന്റെ Groq key)", provOllama: "AI: ലോക്കൽ (Ollama)",
+    byCategory: "വിഭാഗം അനുസരിച്ച്", topMerchants: "മുൻനിര കടകൾ", thisMonth: "ഈ മാസം",
+    vsLastMonth: "കഴിഞ്ഞ മാസവുമായി താരതമ്യം", topCategory: "മുൻനിര വിഭാഗം",
   },
   bn: {
     tagline: "বিল জমা দিন (ছবি / PDF / লেখা)। ডেটা বের করে, প্রমাণযোগ্য ভুল যাচাই করে এবং ব্যাখ্যা করে — সংখ্যা সরাসরি বিল থেকে, AI থেকে নয়।",
@@ -242,6 +274,8 @@ const I18N = {
     spendTitle: "📊 খরচ", monthlyTrend: "মাসিক প্রবণতা", refresh: "রিফ্রেশ",
     billsTitle: "📂 আমার বিল", searchPh: "দোকান খুঁজুন…", clearAll: "সব ডেটা মুছুন",
     provDefault: "AI: ক্লাউড (অ্যাপের key)", provByok: "AI: ক্লাউড (আমার Groq key)", provOllama: "AI: লোকাল (Ollama)",
+    byCategory: "বিভাগ অনুযায়ী", topMerchants: "শীর্ষ দোকান", thisMonth: "এই মাসে",
+    vsLastMonth: "গত মাসের তুলনায়", topCategory: "শীর্ষ বিভাগ",
   },
   mr: {
     tagline: "बिल सादर करा (प्रतिमा / PDF / मजकूर). डेटा काढते, सिद्ध करता येणाऱ्या चुका तपासते आणि समजावते — आकडे थेट बिलातून, AI कडून नाही.",
@@ -251,6 +285,8 @@ const I18N = {
     spendTitle: "📊 खर्च", monthlyTrend: "मासिक कल", refresh: "रिफ्रेश",
     billsTitle: "📂 माझी बिले", searchPh: "दुकान शोधा…", clearAll: "सर्व डेटा हटवा",
     provDefault: "AI: क्लाउड (अ‍ॅपची key)", provByok: "AI: क्लाउड (माझी Groq key)", provOllama: "AI: लोकल (Ollama)",
+    byCategory: "वर्गानुसार", topMerchants: "टॉप दुकाने", thisMonth: "या महिन्यात",
+    vsLastMonth: "मागील महिन्याच्या तुलनेत", topCategory: "टॉप वर्ग",
   },
   gu: {
     tagline: "બિલ સબમિટ કરો (છબી / PDF / લખાણ). ડેટા કાઢે છે, સાબિત કરી શકાય તેવી ભૂલો તપાસે છે અને સમજાવે છે — આંકડા સીધા બિલમાંથી, AI માંથી નહીં.",
@@ -260,6 +296,8 @@ const I18N = {
     spendTitle: "📊 ખર્ચ", monthlyTrend: "માસિક વલણ", refresh: "રિફ્રેશ",
     billsTitle: "📂 મારાં બિલ", searchPh: "દુકાન શોધો…", clearAll: "બધો ડેટા કાઢો",
     provDefault: "AI: ક્લાઉડ (ઍપની key)", provByok: "AI: ક્લાઉડ (મારી Groq key)", provOllama: "AI: લોકલ (Ollama)",
+    byCategory: "શ્રેણી પ્રમાણે", topMerchants: "ટોચની દુકાનો", thisMonth: "આ મહિને",
+    vsLastMonth: "ગયા મહિનાની સરખામણીએ", topCategory: "ટોચની શ્રેણી",
   },
   pa: {
     tagline: "ਬਿੱਲ ਜਮ੍ਹਾਂ ਕਰੋ (ਤਸਵੀਰ / PDF / ਟੈਕਸਟ)। ਡਾਟਾ ਕੱਢਦਾ ਹੈ, ਸਾਬਤ ਹੋਣ ਵਾਲੀਆਂ ਗਲਤੀਆਂ ਜਾਂਚਦਾ ਹੈ ਅਤੇ ਸਮਝਾਉਂਦਾ ਹੈ — ਅੰਕੜੇ ਸਿੱਧੇ ਬਿੱਲ ਤੋਂ, AI ਤੋਂ ਨਹੀਂ।",
@@ -269,6 +307,8 @@ const I18N = {
     spendTitle: "📊 ਖਰਚ", monthlyTrend: "ਮਹੀਨਾਵਾਰ ਰੁਝਾਨ", refresh: "ਰੀਫ੍ਰੈਸ਼",
     billsTitle: "📂 ਮੇਰੇ ਬਿੱਲ", searchPh: "ਦੁਕਾਨ ਖੋਜੋ…", clearAll: "ਸਾਰਾ ਡਾਟਾ ਮਿਟਾਓ",
     provDefault: "AI: ਕਲਾਉਡ (ਐਪ ਦੀ key)", provByok: "AI: ਕਲਾਉਡ (ਮੇਰੀ Groq key)", provOllama: "AI: ਲੋਕਲ (Ollama)",
+    byCategory: "ਸ਼੍ਰੇਣੀ ਅਨੁਸਾਰ", topMerchants: "ਚੋਟੀ ਦੀਆਂ ਦੁਕਾਨਾਂ", thisMonth: "ਇਸ ਮਹੀਨੇ",
+    vsLastMonth: "ਪਿਛਲੇ ਮਹੀਨੇ ਨਾਲੋਂ", topCategory: "ਚੋਟੀ ਦੀ ਸ਼੍ਰੇਣੀ",
   },
   or: {
     tagline: "ବିଲ୍ ଦାଖଲ କରନ୍ତୁ (ଛବି / PDF / ଟେକ୍ସଟ୍)। ଡାଟା ବାହାର କରେ, ପ୍ରମାଣଯୋଗ୍ୟ ଭୁଲ୍ ଯାଞ୍ଚ କରେ ଏବଂ ବୁଝାଏ — ସଂଖ୍ୟା ସିଧା ବିଲ୍‌ରୁ, AI ରୁ ନୁହେଁ।",
@@ -278,6 +318,8 @@ const I18N = {
     spendTitle: "📊 ଖର୍ଚ୍ଚ", monthlyTrend: "ମାସିକ ଧାରା", refresh: "ରିଫ୍ରେସ୍",
     billsTitle: "📂 ମୋର ବିଲ୍", searchPh: "ଦୋକାନ ଖୋଜନ୍ତୁ…", clearAll: "ସମସ୍ତ ଡାଟା ଲିଭାନ୍ତୁ",
     provDefault: "AI: କ୍ଲାଉଡ୍ (ଆପ୍ key)", provByok: "AI: କ୍ଲାଉଡ୍ (ମୋ Groq key)", provOllama: "AI: ଲୋକାଲ୍ (Ollama)",
+    byCategory: "ବର୍ଗ ଅନୁସାରେ", topMerchants: "ଶୀର୍ଷ ଦୋକାନ", thisMonth: "ଏହି ମାସ",
+    vsLastMonth: "ଗତ ମାସ ତୁଳନାରେ", topCategory: "ଶୀର୍ଷ ବର୍ଗ",
   },
   as: {
     tagline: "বিল দাখিল কৰক (ছবি / PDF / লিখনি)। ডাটা উলিয়ায়, প্ৰমাণযোগ্য ভুল পৰীক্ষা কৰে আৰু বুজাই দিয়ে — সংখ্যা পোনে বিলৰ পৰা, AI ৰ পৰা নহয়।",
@@ -287,6 +329,8 @@ const I18N = {
     spendTitle: "📊 খৰচ", monthlyTrend: "মাহেকীয়া ধাৰা", refresh: "ৰিফ্ৰেশ্ব",
     billsTitle: "📂 মোৰ বিল", searchPh: "দোকান বিচাৰক…", clearAll: "সকলো ডাটা মচক",
     provDefault: "AI: ক্লাউড (এপৰ key)", provByok: "AI: ক্লাউড (মোৰ Groq key)", provOllama: "AI: লোকেল (Ollama)",
+    byCategory: "শ্ৰেণী অনুযায়ী", topMerchants: "শীৰ্ষ দোকান", thisMonth: "এই মাহত",
+    vsLastMonth: "যোৱা মাহৰ তুলনাত", topCategory: "শীৰ্ষ শ্ৰেণী",
   },
   ur: {
     tagline: "بل جمع کریں (تصویر / PDF / متن)۔ ڈیٹا نکالتا ہے، قابلِ ثبوت غلطیاں جانچتا ہے اور وضاحت کرتا ہے — اعداد سیدھے بل سے، AI سے نہیں۔",
@@ -296,6 +340,8 @@ const I18N = {
     spendTitle: "📊 خرچ", monthlyTrend: "ماہانہ رجحان", refresh: "ریفریش",
     billsTitle: "📂 میرے بل", searchPh: "دکان تلاش کریں…", clearAll: "سارا ڈیٹا حذف کریں",
     provDefault: "AI: کلاؤڈ (ایپ کی key)", provByok: "AI: کلاؤڈ (میری Groq key)", provOllama: "AI: لوکل (Ollama)",
+    byCategory: "زمرے کے لحاظ سے", topMerchants: "نمایاں دکانیں", thisMonth: "اس مہینے",
+    vsLastMonth: "گزشتہ ماہ کے مقابلے", topCategory: "نمایاں زمرہ",
   },
 };
 
@@ -331,7 +377,7 @@ applyProviderUI();
 
 $("go").onclick = async () => {
   const status = $("status"); const result = $("result");
-  status.textContent = "Analyzing…"; status.className = "muted"; $("go").disabled = true; result.classList.add("hidden");
+  status.textContent = "Analyzing…"; status.className = "muted busy"; $("go").disabled = true; result.classList.add("hidden");
   try {
     const form = new FormData();
     const file = $("file").files[0];
@@ -340,7 +386,7 @@ $("go").onclick = async () => {
     const res = await fetch("/bills:process", { method: "POST", body: form, headers: hdrs() });
     if (res.status === 422) { const b = await res.json(); status.textContent = "⚠ " + (b.reason || "Couldn't read a bill."); status.className = "err"; return; }
     if (!res.ok) { status.textContent = "Error: " + res.status; status.className = "err"; return; }
-    render(await res.json()); status.textContent = "";
+    render(await res.json()); status.textContent = ""; status.className = "muted";
   } catch (e) { status.textContent = "Network error: " + e; status.className = "err"; }
   finally { $("go").disabled = false; }
 };
@@ -447,7 +493,7 @@ $("saveBtn").onclick = async () => {
 async function ask() {
   const q = $("qaQ").value.trim();
   if (!q) return;
-  $("qaStatus").textContent = "Thinking…"; $("qaGo").disabled = true;
+  $("qaStatus").textContent = "Thinking…"; $("qaStatus").className = "muted busy"; $("qaGo").disabled = true;
   $("qaAnswer").classList.add("hidden"); $("qaRecords").innerHTML = "";
   try {
     const res = await fetch("/qa", {
@@ -456,8 +502,8 @@ async function ask() {
       body: JSON.stringify({ question: q }),
     });
     const body = await res.json();
-    if (!res.ok) { $("qaStatus").textContent = "Error: " + res.status; return; }
-    $("qaStatus").textContent = body.path ? `(${body.path} path)` : "";
+    if (!res.ok) { $("qaStatus").textContent = "Error: " + res.status; $("qaStatus").className = "err"; return; }
+    $("qaStatus").textContent = body.path ? `(${body.path} path)` : ""; $("qaStatus").className = "muted";
     $("qaAnswer").textContent = body.answer || "No answer.";
     $("qaAnswer").classList.remove("hidden");
     (body.records || []).forEach(r => {
@@ -465,38 +511,109 @@ async function ask() {
         <td>${r.merchant || "Unknown"}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}</div></td>
         <td class="amt">₹${r.total_amount ?? "—"}</td></tr>`;
     });
-  } catch (e) { $("qaStatus").textContent = "Network error: " + e; }
+  } catch (e) { $("qaStatus").textContent = "Network error: " + e; $("qaStatus").className = "err"; }
   finally { $("qaGo").disabled = false; }
 }
 $("qaGo").onclick = ask;
 $("qaQ").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
 
 // --- Spending dashboard ------------------------------------------------------
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const inr = (n) => "₹" + (+n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+
 function bar(label, value, max, color) {
   const pct = max > 0 ? Math.max(2, Math.round(value / max * 100)) : 0;
   return `<div style="margin-top:6px">
-    <div style="display:flex;justify-content:space-between;font-size:13px">
-      <span>${label}</span><span style="font-variant-numeric:tabular-nums">₹${value.toFixed(2)}</span>
+    <div style="display:flex;justify-content:space-between;font-size:13px;gap:8px">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(label)}</span>
+      <span style="font-variant-numeric:tabular-nums;flex:none">${inr(value)}</span>
     </div>
     <div style="background:#0b1220;border-radius:4px;height:8px;margin-top:3px">
-      <div style="width:${pct}%;height:8px;border-radius:4px;background:${color}"></div>
+      <div class="bar-fill" style="width:0%;height:8px;border-radius:4px;background:${color}" data-w="${pct}"></div>
     </div></div>`;
 }
+
+function monthLabel(ym) {
+  try {
+    const [y, m] = ym.split("-");
+    return new Date(+y, +m - 1, 1).toLocaleString(SETTINGS.lang, { month: "short", year: "2-digit" });
+  } catch { return ym; }
+}
+
+// Donut: one SVG stroke segment per category, swept open via CSS transition.
+function renderDonut(cats, total) {
+  const R = 52, C = 2 * Math.PI * R;
+  let offset = 0, segs = "";
+  cats.forEach((c, i) => {
+    const frac = total > 0 ? (+c.total) / total : 0;
+    const len = Math.max(frac * C - 2, 0); // 2px gap between segments
+    segs += `<circle r="${R}" cx="65" cy="65" fill="none" stroke="${DASH_COLORS[i % DASH_COLORS.length]}"
+      stroke-width="15" stroke-linecap="butt" stroke-dasharray="0 ${C}" data-target="${len} ${C - len}"
+      stroke-dashoffset="${-offset}" transform="rotate(-90 65 65)" style="transition:stroke-dasharray .9s ease"></circle>`;
+    offset += frac * C;
+  });
+  $("dashDonut").innerHTML = segs +
+    `<text x="65" y="70" text-anchor="middle" fill="var(--txt)" font-size="15" font-weight="700">${esc(inr(total))}</text>`;
+}
+
+function animateDash() {
+  requestAnimationFrame(() => {
+    document.querySelectorAll(".bar-fill[data-w]").forEach(el => { el.style.width = el.dataset.w + "%"; });
+    document.querySelectorAll("#dashDonut circle[data-target]").forEach(el => el.setAttribute("stroke-dasharray", el.dataset.target));
+  });
+}
+
 const DASH_COLORS = ["#38bdf8","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#94a3b8"];
 async function loadDash() {
+  const dict = I18N[SETTINGS.lang] || I18N.en;
   try {
-    const [cats, months] = await Promise.all([
+    const [cats, months, bills] = await Promise.all([
       fetch("/dashboard/by-category", { headers: hdrs() }).then(r => r.json()),
       fetch("/dashboard/monthly", { headers: hdrs() }).then(r => r.json()),
+      fetch("/bills", { headers: hdrs() }).then(r => r.ok ? r.json() : []),
     ]);
+    cats.sort((a, b) => (+b.total) - (+a.total));
+
+    // Stat cards: this month, change vs last month, top category.
+    const now = new Date();
+    const ym = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const cur = +(months.find(m => m.month === ym(now))?.total ?? 0);
+    const prev = +(months.find(m => m.month === ym(new Date(now.getFullYear(), now.getMonth() - 1, 1)))?.total ?? 0);
+    const deltaPct = prev > 0 ? ((cur - prev) / prev) * 100 : null;
+    const deltaHtml = deltaPct === null ? "" :
+      `<div class="d ${deltaPct >= 0 ? "up" : "down"}">${deltaPct >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct).toFixed(0)}% <span class="muted">${esc(dict.vsLastMonth)}</span></div>`;
+    const top = cats[0];
+    $("dashStats").innerHTML = cats.length ? [
+      `<div class="stat"><div class="l">${esc(dict.thisMonth)}</div><div class="v">${esc(inr(cur))}</div>${deltaHtml}</div>`,
+      top ? `<div class="stat"><div class="l">${esc(dict.topCategory)}</div><div class="v" style="font-size:15px">${esc(top.category)}</div><div class="d muted">${esc(inr(+top.total))}</div></div>` : "",
+      `<div class="stat"><div class="l">${esc(dict.billsTitle.replace(/^\S+\s/, ""))}</div><div class="v">${bills.length}</div></div>`,
+    ].join("") : "";
+
+    const total = cats.reduce((s, c) => s + (+c.total), 0);
+    renderDonut(cats, total);
     const cmax = Math.max(...cats.map(c => +c.total), 0);
     $("dashCats").innerHTML = cats.length
       ? cats.map((c, i) => bar(c.category, +c.total, cmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
       : `<div class="muted">No saved bills yet.</div>`;
+
     const mmax = Math.max(...months.map(m => +m.total), 0);
     $("dashMonths").innerHTML = months.length
-      ? months.map(m => bar(m.month, +m.total, mmax, "#38bdf8")).join("")
+      ? months.map(m => bar(monthLabel(m.month), +m.total, mmax, "#38bdf8")).join("")
       : `<div class="muted">No saved bills yet.</div>`;
+
+    // Top merchants from saved bills (small dataset; aggregated client-side).
+    const byMerchant = {};
+    bills.forEach(b => {
+      const m = b.merchant || "—";
+      byMerchant[m] = (byMerchant[m] || 0) + (+b.total_amount || 0);
+    });
+    const tops = Object.entries(byMerchant).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const tmax = tops.length ? tops[0][1] : 0;
+    $("dashMerchants").innerHTML = tops.length
+      ? tops.map(([m, v], i) => bar(m, v, tmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
+      : `<div class="muted">No saved bills yet.</div>`;
+
+    animateDash();
   } catch (e) {
     $("dashCats").innerHTML = `<div class="err">Couldn't load spending: ${e}</div>`;
   }

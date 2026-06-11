@@ -60,6 +60,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama model",
     settingsNote:
       "Local mode keeps all AI processing on your own machine — the backend must be able to reach your Ollama server. Figures always come from deterministic extraction either way.",
+    byCategory: "By category",
+    monthlyTrend: "Monthly trend",
+    topMerchants: "Top merchants",
+    thisMonth: "This month",
+    vsLastMonth: "vs last month",
+    topCategory: "Top category",
+    retry: "Retry",
   },
   hi: {
     appTitle: "🧾 Billology",
@@ -112,6 +119,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama मॉडल",
     settingsNote:
       "लोकल मोड में सारी AI प्रोसेसिंग आपकी अपनी मशीन पर होती है — बैकएंड को आपके Ollama सर्वर तक पहुँच चाहिए। आँकड़े हर हाल में नियतात्मक निष्कर्षण से ही आते हैं।",
+    byCategory: "श्रेणी अनुसार",
+    monthlyTrend: "मासिक रुझान",
+    topMerchants: "शीर्ष दुकानें",
+    thisMonth: "इस महीने",
+    vsLastMonth: "पिछले महीने की तुलना में",
+    topCategory: "शीर्ष श्रेणी",
+    retry: "फिर कोशिश करें",
   },
   te: {
     appTitle: "🧾 Billology",
@@ -164,6 +178,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama మోడల్",
     settingsNote:
       "లోకల్ మోడ్‌లో AI ప్రాసెసింగ్ అంతా మీ సొంత మెషీన్‌పైనే జరుగుతుంది — బ్యాకెండ్ మీ Ollama సర్వర్‌ను చేరుకోగలగాలి. సంఖ్యలు ఎప్పుడూ నిర్ణాయక సంగ్రహణ నుండే వస్తాయి.",
+    byCategory: "వర్గం వారీగా",
+    monthlyTrend: "నెలవారీ ధోరణి",
+    topMerchants: "టాప్ దుకాణాలు",
+    thisMonth: "ఈ నెల",
+    vsLastMonth: "గత నెలతో పోలిస్తే",
+    topCategory: "టాప్ వర్గం",
+    retry: "మళ్లీ ప్రయత్నించండి",
   },
   ta: {
     appTitle: "🧾 Billology",
@@ -216,6 +237,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama மாடல்",
     settingsNote:
       "லோக்கல் முறையில் AI செயலாக்கம் முழுவதும் உங்கள் கணினியிலேயே நடக்கும் — பேக்எண்ட் உங்கள் Ollama சர்வரை அணுக முடிய வேண்டும். எண்கள் எப்போதும் நிர்ணய பிரித்தெடுப்பிலிருந்தே வரும்.",
+    byCategory: "பிரிவு வாரியாக",
+    monthlyTrend: "மாதாந்திர போக்கு",
+    topMerchants: "முதன்மை கடைகள்",
+    thisMonth: "இந்த மாதம்",
+    vsLastMonth: "கடந்த மாதத்துடன் ஒப்பிடுகையில்",
+    topCategory: "முதன்மை பிரிவு",
+    retry: "மீண்டும் முயற்சி",
   },
   kn: {
     appTitle: "🧾 Billology",
@@ -268,6 +296,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama ಮಾಡೆಲ್",
     settingsNote:
       "ಲೋಕಲ್ ಮೋಡ್‌ನಲ್ಲಿ ಎಲ್ಲಾ AI ಸಂಸ್ಕರಣೆ ನಿಮ್ಮ ಸ್ವಂತ ಯಂತ್ರದಲ್ಲೇ ನಡೆಯುತ್ತದೆ — ಬ್ಯಾಕೆಂಡ್ ನಿಮ್ಮ Ollama ಸರ್ವರ್ ಅನ್ನು ತಲುಪಬೇಕು. ಸಂಖ್ಯೆಗಳು ಯಾವಾಗಲೂ ನಿರ್ಣಾಯಕ ಹೊರತೆಗೆಯುವಿಕೆಯಿಂದಲೇ ಬರುತ್ತವೆ.",
+    byCategory: "ವರ್ಗದ ಪ್ರಕಾರ",
+    monthlyTrend: "ಮಾಸಿಕ ಪ್ರವೃತ್ತಿ",
+    topMerchants: "ಟಾಪ್ ಅಂಗಡಿಗಳು",
+    thisMonth: "ಈ ತಿಂಗಳು",
+    vsLastMonth: "ಕಳೆದ ತಿಂಗಳಿಗೆ ಹೋಲಿಸಿದರೆ",
+    topCategory: "ಟಾಪ್ ವರ್ಗ",
+    retry: "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
   },
   ml: {
     appTitle: "🧾 Billology",
@@ -320,6 +355,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama മോഡൽ",
     settingsNote:
       "ലോക്കൽ മോഡിൽ എല്ലാ AI പ്രോസസ്സിംഗും നിങ്ങളുടെ സ്വന്തം മെഷീനിൽ തന്നെ നടക്കുന്നു — ബാക്കെൻഡിന് നിങ്ങളുടെ Ollama സെർവറിലെത്താൻ കഴിയണം. സംഖ്യകൾ എപ്പോഴും നിർണ്ണായക വേർതിരിക്കലിൽ നിന്നുതന്നെ വരുന്നു.",
+    byCategory: "വിഭാഗം അനുസരിച്ച്",
+    monthlyTrend: "മാസാന്ത പ്രവണത",
+    topMerchants: "മുൻനിര കടകൾ",
+    thisMonth: "ഈ മാസം",
+    vsLastMonth: "കഴിഞ്ഞ മാസവുമായി താരതമ്യം",
+    topCategory: "മുൻനിര വിഭാഗം",
+    retry: "വീണ്ടും ശ്രമിക്കുക",
   },
   bn: {
     appTitle: "🧾 Billology",
@@ -372,6 +414,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama মডেল",
     settingsNote:
       "লোকাল মোডে সব AI প্রসেসিং আপনার নিজের মেশিনেই হয় — ব্যাকএন্ডকে আপনার Ollama সার্ভারে পৌঁছাতে হবে। সংখ্যা সবসময় নির্ণায়ক নিষ্কাশন থেকেই আসে।",
+    byCategory: "বিভাগ অনুযায়ী",
+    monthlyTrend: "মাসিক প্রবণতা",
+    topMerchants: "শীর্ষ দোকান",
+    thisMonth: "এই মাসে",
+    vsLastMonth: "গত মাসের তুলনায়",
+    topCategory: "শীর্ষ বিভাগ",
+    retry: "আবার চেষ্টা করুন",
   },
   mr: {
     appTitle: "🧾 Billology",
@@ -424,6 +473,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama मॉडेल",
     settingsNote:
       "लोकल मोडमध्ये सर्व AI प्रक्रिया तुमच्या स्वतःच्या मशीनवरच होते — बॅकएंडला तुमच्या Ollama सर्व्हरपर्यंत पोहोचता आले पाहिजे. आकडे नेहमी निर्णायक निष्कर्षणातूनच येतात.",
+    byCategory: "वर्गानुसार",
+    monthlyTrend: "मासिक कल",
+    topMerchants: "टॉप दुकाने",
+    thisMonth: "या महिन्यात",
+    vsLastMonth: "मागील महिन्याच्या तुलनेत",
+    topCategory: "टॉप वर्ग",
+    retry: "पुन्हा प्रयत्न करा",
   },
   gu: {
     appTitle: "🧾 Billology",
@@ -476,6 +532,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama મોડેલ",
     settingsNote:
       "લોકલ મોડમાં બધી AI પ્રક્રિયા તમારા પોતાના મશીન પર જ થાય છે — બૅકએન્ડ તમારા Ollama સર્વર સુધી પહોંચી શકવો જોઈએ. આંકડા હંમેશાં નિર્ણાયક નિષ્કર્ષણમાંથી જ આવે છે.",
+    byCategory: "શ્રેણી પ્રમાણે",
+    monthlyTrend: "માસિક વલણ",
+    topMerchants: "ટોચની દુકાનો",
+    thisMonth: "આ મહિને",
+    vsLastMonth: "ગયા મહિનાની સરખામણીએ",
+    topCategory: "ટોચની શ્રેણી",
+    retry: "ફરી પ્રયત્ન કરો",
   },
   pa: {
     appTitle: "🧾 Billology",
@@ -528,6 +591,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama ਮਾਡਲ",
     settingsNote:
       "ਲੋਕਲ ਮੋਡ ਵਿੱਚ ਸਾਰੀ AI ਪ੍ਰੋਸੈਸਿੰਗ ਤੁਹਾਡੀ ਆਪਣੀ ਮਸ਼ੀਨ 'ਤੇ ਹੀ ਹੁੰਦੀ ਹੈ — ਬੈਕਐਂਡ ਨੂੰ ਤੁਹਾਡੇ Ollama ਸਰਵਰ ਤੱਕ ਪਹੁੰਚ ਚਾਹੀਦੀ ਹੈ। ਅੰਕੜੇ ਹਮੇਸ਼ਾ ਨਿਰਣਾਇਕ ਨਿਕਾਸੀ ਤੋਂ ਹੀ ਆਉਂਦੇ ਹਨ।",
+    byCategory: "ਸ਼੍ਰੇਣੀ ਅਨੁਸਾਰ",
+    monthlyTrend: "ਮਹੀਨਾਵਾਰ ਰੁਝਾਨ",
+    topMerchants: "ਚੋਟੀ ਦੀਆਂ ਦੁਕਾਨਾਂ",
+    thisMonth: "ਇਸ ਮਹੀਨੇ",
+    vsLastMonth: "ਪਿਛਲੇ ਮਹੀਨੇ ਨਾਲੋਂ",
+    topCategory: "ਚੋਟੀ ਦੀ ਸ਼੍ਰੇਣੀ",
+    retry: "ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
   },
   or: {
     appTitle: "🧾 Billology",
@@ -580,6 +650,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama ମଡେଲ୍",
     settingsNote:
       "ଲୋକାଲ୍ ମୋଡରେ ସମସ୍ତ AI ପ୍ରକ୍ରିୟା ଆପଣଙ୍କ ନିଜ ମେସିନରେ ହିଁ ହୁଏ — ବ୍ୟାକଏଣ୍ଡ ଆପଣଙ୍କ Ollama ସର୍ଭରରେ ପହଞ୍ଚିପାରିବା ଦରକାର। ସଂଖ୍ୟା ସବୁବେଳେ ନିର୍ଣ୍ଣାୟକ ନିଷ୍କାସନରୁ ହିଁ ଆସେ।",
+    byCategory: "ବର୍ଗ ଅନୁସାରେ",
+    monthlyTrend: "ମାସିକ ଧାରା",
+    topMerchants: "ଶୀର୍ଷ ଦୋକାନ",
+    thisMonth: "ଏହି ମାସ",
+    vsLastMonth: "ଗତ ମାସ ତୁଳନାରେ",
+    topCategory: "ଶୀର୍ଷ ବର୍ଗ",
+    retry: "ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ",
   },
   as: {
     appTitle: "🧾 Billology",
@@ -632,6 +709,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama মডেল",
     settingsNote:
       "লোকেল ম'ডত সকলো AI প্ৰচেছিং আপোনাৰ নিজৰ মেচিনতে হয় — বেকএণ্ডে আপোনাৰ Ollama ছাৰ্ভাৰ পাব লাগিব। সংখ্যা সদায় নিৰ্ণায়ক নিষ্কাশনৰ পৰাই আহে।",
+    byCategory: "শ্ৰেণী অনুযায়ী",
+    monthlyTrend: "মাহেকীয়া ধাৰা",
+    topMerchants: "শীৰ্ষ দোকান",
+    thisMonth: "এই মাহত",
+    vsLastMonth: "যোৱা মাহৰ তুলনাত",
+    topCategory: "শীৰ্ষ শ্ৰেণী",
+    retry: "আকৌ চেষ্টা কৰক",
   },
   ur: {
     appTitle: "🧾 Billology",
@@ -684,6 +768,13 @@ const STRINGS = {
     ollamaModelLabel: "Ollama ماڈل",
     settingsNote:
       "لوکل موڈ میں ساری AI پروسیسنگ آپ کی اپنی مشین پر ہوتی ہے — بیک اینڈ کو آپ کے Ollama سرور تک رسائی چاہیے۔ اعداد ہمیشہ تعین شدہ اخراج سے ہی آتے ہیں۔",
+    byCategory: "زمرے کے لحاظ سے",
+    monthlyTrend: "ماہانہ رجحان",
+    topMerchants: "نمایاں دکانیں",
+    thisMonth: "اس مہینے",
+    vsLastMonth: "گزشتہ ماہ کے مقابلے",
+    topCategory: "نمایاں زمرہ",
+    retry: "دوبارہ کوشش کریں",
   },
 } as const;
 

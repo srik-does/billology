@@ -21,7 +21,9 @@ async function handle<T>(res: Response): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body?.error ?? body?.detail ?? detail;
+      // `reason` carries the friendly decline message (422 {declined, reason})
+      // — e.g. the PDF page-cap text — and must win over generic codes.
+      detail = body?.reason ?? body?.detail ?? body?.error ?? detail;
     } catch {
       // non-JSON error body; keep statusText
     }
