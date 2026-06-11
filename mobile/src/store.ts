@@ -4,7 +4,9 @@
 
 import { useSyncExternalStore } from "react";
 
-export type Language = "en" | "hi" | "te";
+export type Language =
+  | "en" | "hi" | "te" | "ta" | "kn" | "ml" | "bn"
+  | "mr" | "gu" | "pa" | "or" | "as" | "ur";
 export type LLMProvider = "default" | "groq-byok" | "ollama";
 
 export type AppSettings = {

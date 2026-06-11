@@ -13,7 +13,12 @@ from contextvars import ContextVar
 # {"provider": "groq"|"ollama", "groq_key": str, "ollama_url": str, "ollama_model": str}
 llm_overrides: ContextVar[dict] = ContextVar("llm_overrides", default={})
 
-# "en" | "hi" | "te"
+# One of SUPPORTED_LANGUAGES below (ISO 639-1).
 language: ContextVar[str] = ContextVar("language", default="en")
 
-SUPPORTED_LANGUAGES = ("en", "hi", "te")
+# English + 12 Indian languages. Keep in sync with the mobile Language type,
+# the web language <select>, qa_service._TEMPLATES, and llm_service._LANG_NAMES
+# (test_i18n.py enforces the backend side).
+SUPPORTED_LANGUAGES = (
+    "en", "hi", "te", "ta", "kn", "ml", "bn", "mr", "gu", "pa", "or", "as", "ur"
+)

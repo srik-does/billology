@@ -31,8 +31,9 @@ async def request_context_middleware(request: Request, call_next):
     """Per-request LLM provider override + UI language (see request_context).
 
     Headers: X-LLM-Provider (groq|ollama), X-Groq-Key (bring-your-own-token),
-    X-Ollama-Url, X-Ollama-Model, X-Language (en|hi|te). The clients still only
-    ever talk to this backend — never to a provider directly.
+    X-Ollama-Url, X-Ollama-Model, X-Language (one of
+    request_context.SUPPORTED_LANGUAGES). The clients still only ever talk to
+    this backend — never to a provider directly.
     """
     from src.services.request_context import SUPPORTED_LANGUAGES, language, llm_overrides
 

@@ -45,6 +45,16 @@
         <option value="en">English</option>
         <option value="hi">हिन्दी</option>
         <option value="te">తెలుగు</option>
+        <option value="ta">தமிழ்</option>
+        <option value="kn">ಕನ್ನಡ</option>
+        <option value="ml">മലയാളം</option>
+        <option value="bn">বাংলা</option>
+        <option value="mr">मराठी</option>
+        <option value="gu">ગુજરાતી</option>
+        <option value="pa">ਪੰਜਾਬੀ</option>
+        <option value="or">ଓଡ଼ିଆ</option>
+        <option value="as">অসমীয়া</option>
+        <option value="ur">اردو</option>
       </select>
       <select id="setProvider" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px">
         <option value="default" data-i18n="provDefault">AI: Cloud (app's key)</option>
@@ -195,6 +205,98 @@ const I18N = {
     billsTitle: "📂 నా బిల్లులు", searchPh: "దుకాణం వెతకండి…", clearAll: "మొత్తం డేటా తొలగించండి",
     provDefault: "AI: క్లౌడ్ (యాప్ key)", provByok: "AI: క్లౌడ్ (నా Groq key)", provOllama: "AI: లోకల్ (Ollama)",
   },
+  // The ten languages below are machine-authored translations pending
+  // native-speaker review; corrections only touch this dictionary.
+  ta: {
+    tagline: "பில் சமர்ப்பிக்கவும் (படம் / PDF / உரை). தரவு பிரித்தெடுக்கப்பட்டு, நிரூபிக்கக்கூடிய பிழைகள் சரிபார்க்கப்பட்டு, விளக்கப்படும் — எண்கள் நேரடியாக பில்லிலிருந்தே, AI-யிடமிருந்து அல்ல.",
+    pasteLabel: "பில் உரையை ஒட்டவும்", pastePh: "பில்லை இங்கே ஒட்டவும்…", analyze: "பில்லை ஆராயவும்",
+    loadSample: "மாதிரியை ஏற்றவும்", saveBill: "💾 பில் சேமிக்கவும்",
+    askTitle: "💬 உங்கள் செலவு பற்றி கேளுங்கள்", askPh: "உதா: மே மாதம் மளிகைக்கு எவ்வளவு செலவு?", ask: "கேள்",
+    spendTitle: "📊 செலவு", monthlyTrend: "மாதாந்திர போக்கு", refresh: "புதுப்பி",
+    billsTitle: "📂 என் பில்கள்", searchPh: "கடையைத் தேடவும்…", clearAll: "எல்லா தரவையும் அழிக்கவும்",
+    provDefault: "AI: கிளவுட் (ஆப்பின் key)", provByok: "AI: கிளவுட் (என் Groq key)", provOllama: "AI: லோக்கல் (Ollama)",
+  },
+  kn: {
+    tagline: "ಬಿಲ್ ಸಲ್ಲಿಸಿ (ಚಿತ್ರ / PDF / ಪಠ್ಯ). ಡೇಟಾ ಹೊರತೆಗೆದು, ಸಾಬೀತುಪಡಿಸಬಹುದಾದ ದೋಷಗಳನ್ನು ಪರಿಶೀಲಿಸಿ, ವಿವರಿಸುತ್ತದೆ — ಸಂಖ್ಯೆಗಳು ನೇರವಾಗಿ ಬಿಲ್‌ನಿಂದ, AI ಯಿಂದ ಅಲ್ಲ.",
+    pasteLabel: "ಬಿಲ್ ಪಠ್ಯ ಅಂಟಿಸಿ", pastePh: "ಬಿಲ್ ಇಲ್ಲಿ ಅಂಟಿಸಿ…", analyze: "ಬಿಲ್ ವಿಶ್ಲೇಷಿಸಿ",
+    loadSample: "ಮಾದರಿ ಲೋಡ್ ಮಾಡಿ", saveBill: "💾 ಬಿಲ್ ಉಳಿಸಿ",
+    askTitle: "💬 ನಿಮ್ಮ ಖರ್ಚಿನ ಬಗ್ಗೆ ಕೇಳಿ", askPh: "ಉದಾ: ಮೇನಲ್ಲಿ ದಿನಸಿಗೆ ಎಷ್ಟು ಖರ್ಚಾಯಿತು?", ask: "ಕೇಳಿ",
+    spendTitle: "📊 ಖರ್ಚು", monthlyTrend: "ಮಾಸಿಕ ಪ್ರವೃತ್ತಿ", refresh: "ರಿಫ್ರೆಶ್",
+    billsTitle: "📂 ನನ್ನ ಬಿಲ್‌ಗಳು", searchPh: "ಅಂಗಡಿ ಹುಡುಕಿ…", clearAll: "ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಿ",
+    provDefault: "AI: ಕ್ಲೌಡ್ (ಆ್ಯಪ್ key)", provByok: "AI: ಕ್ಲೌಡ್ (ನನ್ನ Groq key)", provOllama: "AI: ಲೋಕಲ್ (Ollama)",
+  },
+  ml: {
+    tagline: "ബിൽ സമർപ്പിക്കുക (ചിത്രം / PDF / ടെക്സ്റ്റ്). ഡാറ്റ വേർതിരിച്ച്, തെളിയിക്കാവുന്ന പിശകുകൾ പരിശോധിച്ച്, വിശദീകരിക്കുന്നു — സംഖ്യകൾ നേരിട്ട് ബില്ലിൽ നിന്ന്, AI-യിൽ നിന്നല്ല.",
+    pasteLabel: "ബിൽ ടെക്സ്റ്റ് പേസ്റ്റ് ചെയ്യുക", pastePh: "ബിൽ ഇവിടെ പേസ്റ്റ് ചെയ്യുക…", analyze: "ബിൽ വിശകലനം ചെയ്യുക",
+    loadSample: "സാമ്പിൾ ലോഡ് ചെയ്യുക", saveBill: "💾 ബിൽ സേവ് ചെയ്യുക",
+    askTitle: "💬 നിങ്ങളുടെ ചെലവിനെക്കുറിച്ച് ചോദിക്കൂ", askPh: "ഉദാ: മേയിൽ പലചരക്കിന് എത്ര ചെലവായി?", ask: "ചോദിക്കൂ",
+    spendTitle: "📊 ചെലവ്", monthlyTrend: "മാസാന്ത പ്രവണത", refresh: "പുതുക്കുക",
+    billsTitle: "📂 എന്റെ ബില്ലുകൾ", searchPh: "കട തിരയുക…", clearAll: "എല്ലാ ഡാറ്റയും മായ്ക്കുക",
+    provDefault: "AI: ക്ലൗഡ് (ആപ്പ് key)", provByok: "AI: ക്ലൗഡ് (എന്റെ Groq key)", provOllama: "AI: ലോക്കൽ (Ollama)",
+  },
+  bn: {
+    tagline: "বিল জমা দিন (ছবি / PDF / লেখা)। ডেটা বের করে, প্রমাণযোগ্য ভুল যাচাই করে এবং ব্যাখ্যা করে — সংখ্যা সরাসরি বিল থেকে, AI থেকে নয়।",
+    pasteLabel: "বিলের লেখা পেস্ট করুন", pastePh: "বিল এখানে পেস্ট করুন…", analyze: "বিল বিশ্লেষণ করুন",
+    loadSample: "নমুনা লোড করুন", saveBill: "💾 বিল সংরক্ষণ",
+    askTitle: "💬 আপনার খরচ নিয়ে জিজ্ঞাসা করুন", askPh: "যেমন: মে মাসে মুদিখানায় কত খরচ হয়েছে?", ask: "জিজ্ঞাসা",
+    spendTitle: "📊 খরচ", monthlyTrend: "মাসিক প্রবণতা", refresh: "রিফ্রেশ",
+    billsTitle: "📂 আমার বিল", searchPh: "দোকান খুঁজুন…", clearAll: "সব ডেটা মুছুন",
+    provDefault: "AI: ক্লাউড (অ্যাপের key)", provByok: "AI: ক্লাউড (আমার Groq key)", provOllama: "AI: লোকাল (Ollama)",
+  },
+  mr: {
+    tagline: "बिल सादर करा (प्रतिमा / PDF / मजकूर). डेटा काढते, सिद्ध करता येणाऱ्या चुका तपासते आणि समजावते — आकडे थेट बिलातून, AI कडून नाही.",
+    pasteLabel: "बिलाचा मजकूर पेस्ट करा", pastePh: "बिल येथे पेस्ट करा…", analyze: "बिलाचे विश्लेषण करा",
+    loadSample: "नमुना लोड करा", saveBill: "💾 बिल जतन करा",
+    askTitle: "💬 तुमच्या खर्चाबद्दल विचारा", askPh: "उदा: मे महिन्यात किराण्यावर किती खर्च झाला?", ask: "विचारा",
+    spendTitle: "📊 खर्च", monthlyTrend: "मासिक कल", refresh: "रिफ्रेश",
+    billsTitle: "📂 माझी बिले", searchPh: "दुकान शोधा…", clearAll: "सर्व डेटा हटवा",
+    provDefault: "AI: क्लाउड (अ‍ॅपची key)", provByok: "AI: क्लाउड (माझी Groq key)", provOllama: "AI: लोकल (Ollama)",
+  },
+  gu: {
+    tagline: "બિલ સબમિટ કરો (છબી / PDF / લખાણ). ડેટા કાઢે છે, સાબિત કરી શકાય તેવી ભૂલો તપાસે છે અને સમજાવે છે — આંકડા સીધા બિલમાંથી, AI માંથી નહીં.",
+    pasteLabel: "બિલનું લખાણ પેસ્ટ કરો", pastePh: "બિલ અહીં પેસ્ટ કરો…", analyze: "બિલનું વિશ્લેષણ કરો",
+    loadSample: "નમૂનો લોડ કરો", saveBill: "💾 બિલ સાચવો",
+    askTitle: "💬 તમારા ખર્ચ વિશે પૂછો", askPh: "દા.ત.: મે માં કરિયાણા પર કેટલો ખર્ચ થયો?", ask: "પૂછો",
+    spendTitle: "📊 ખર્ચ", monthlyTrend: "માસિક વલણ", refresh: "રિફ્રેશ",
+    billsTitle: "📂 મારાં બિલ", searchPh: "દુકાન શોધો…", clearAll: "બધો ડેટા કાઢો",
+    provDefault: "AI: ક્લાઉડ (ઍપની key)", provByok: "AI: ક્લાઉડ (મારી Groq key)", provOllama: "AI: લોકલ (Ollama)",
+  },
+  pa: {
+    tagline: "ਬਿੱਲ ਜਮ੍ਹਾਂ ਕਰੋ (ਤਸਵੀਰ / PDF / ਟੈਕਸਟ)। ਡਾਟਾ ਕੱਢਦਾ ਹੈ, ਸਾਬਤ ਹੋਣ ਵਾਲੀਆਂ ਗਲਤੀਆਂ ਜਾਂਚਦਾ ਹੈ ਅਤੇ ਸਮਝਾਉਂਦਾ ਹੈ — ਅੰਕੜੇ ਸਿੱਧੇ ਬਿੱਲ ਤੋਂ, AI ਤੋਂ ਨਹੀਂ।",
+    pasteLabel: "ਬਿੱਲ ਦਾ ਟੈਕਸਟ ਪੇਸਟ ਕਰੋ", pastePh: "ਬਿੱਲ ਇੱਥੇ ਪੇਸਟ ਕਰੋ…", analyze: "ਬਿੱਲ ਦਾ ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ",
+    loadSample: "ਨਮੂਨਾ ਲੋਡ ਕਰੋ", saveBill: "💾 ਬਿੱਲ ਸੰਭਾਲੋ",
+    askTitle: "💬 ਆਪਣੇ ਖਰਚ ਬਾਰੇ ਪੁੱਛੋ", askPh: "ਜਿਵੇਂ: ਮਈ ਵਿੱਚ ਰਾਸ਼ਨ 'ਤੇ ਕਿੰਨਾ ਖਰਚ ਹੋਇਆ?", ask: "ਪੁੱਛੋ",
+    spendTitle: "📊 ਖਰਚ", monthlyTrend: "ਮਹੀਨਾਵਾਰ ਰੁਝਾਨ", refresh: "ਰੀਫ੍ਰੈਸ਼",
+    billsTitle: "📂 ਮੇਰੇ ਬਿੱਲ", searchPh: "ਦੁਕਾਨ ਖੋਜੋ…", clearAll: "ਸਾਰਾ ਡਾਟਾ ਮਿਟਾਓ",
+    provDefault: "AI: ਕਲਾਉਡ (ਐਪ ਦੀ key)", provByok: "AI: ਕਲਾਉਡ (ਮੇਰੀ Groq key)", provOllama: "AI: ਲੋਕਲ (Ollama)",
+  },
+  or: {
+    tagline: "ବିଲ୍ ଦାଖଲ କରନ୍ତୁ (ଛବି / PDF / ଟେକ୍ସଟ୍)। ଡାଟା ବାହାର କରେ, ପ୍ରମାଣଯୋଗ୍ୟ ଭୁଲ୍ ଯାଞ୍ଚ କରେ ଏବଂ ବୁଝାଏ — ସଂଖ୍ୟା ସିଧା ବିଲ୍‌ରୁ, AI ରୁ ନୁହେଁ।",
+    pasteLabel: "ବିଲ୍ ଟେକ୍ସଟ୍ ପେଷ୍ଟ କରନ୍ତୁ", pastePh: "ବିଲ୍ ଏଠାରେ ପେଷ୍ଟ କରନ୍ତୁ…", analyze: "ବିଲ୍ ବିଶ୍ଳେଷଣ କରନ୍ତୁ",
+    loadSample: "ନମୁନା ଲୋଡ୍ କରନ୍ତୁ", saveBill: "💾 ବିଲ୍ ସେଭ୍ କରନ୍ତୁ",
+    askTitle: "💬 ଆପଣଙ୍କ ଖର୍ଚ୍ଚ ବିଷୟରେ ପଚାରନ୍ତୁ", askPh: "ଯଥା: ମେ ମାସରେ ସଉଦାରେ କେତେ ଖର୍ଚ୍ଚ ହେଲା?", ask: "ପଚାରନ୍ତୁ",
+    spendTitle: "📊 ଖର୍ଚ୍ଚ", monthlyTrend: "ମାସିକ ଧାରା", refresh: "ରିଫ୍ରେସ୍",
+    billsTitle: "📂 ମୋର ବିଲ୍", searchPh: "ଦୋକାନ ଖୋଜନ୍ତୁ…", clearAll: "ସମସ୍ତ ଡାଟା ଲିଭାନ୍ତୁ",
+    provDefault: "AI: କ୍ଲାଉଡ୍ (ଆପ୍ key)", provByok: "AI: କ୍ଲାଉଡ୍ (ମୋ Groq key)", provOllama: "AI: ଲୋକାଲ୍ (Ollama)",
+  },
+  as: {
+    tagline: "বিল দাখিল কৰক (ছবি / PDF / লিখনি)। ডাটা উলিয়ায়, প্ৰমাণযোগ্য ভুল পৰীক্ষা কৰে আৰু বুজাই দিয়ে — সংখ্যা পোনে বিলৰ পৰা, AI ৰ পৰা নহয়।",
+    pasteLabel: "বিলৰ লিখনি পেষ্ট কৰক", pastePh: "বিল ইয়াত পেষ্ট কৰক…", analyze: "বিল বিশ্লেষণ কৰক",
+    loadSample: "নমুনা ল'ড কৰক", saveBill: "💾 বিল সংৰক্ষণ",
+    askTitle: "💬 আপোনাৰ খৰচৰ বিষয়ে সোধক", askPh: "যেনে: মে' মাহত ৰেচনত কিমান খৰচ হ'ল?", ask: "সোধক",
+    spendTitle: "📊 খৰচ", monthlyTrend: "মাহেকীয়া ধাৰা", refresh: "ৰিফ্ৰেশ্ব",
+    billsTitle: "📂 মোৰ বিল", searchPh: "দোকান বিচাৰক…", clearAll: "সকলো ডাটা মচক",
+    provDefault: "AI: ক্লাউড (এপৰ key)", provByok: "AI: ক্লাউড (মোৰ Groq key)", provOllama: "AI: লোকেল (Ollama)",
+  },
+  ur: {
+    tagline: "بل جمع کریں (تصویر / PDF / متن)۔ ڈیٹا نکالتا ہے، قابلِ ثبوت غلطیاں جانچتا ہے اور وضاحت کرتا ہے — اعداد سیدھے بل سے، AI سے نہیں۔",
+    pasteLabel: "بل کا متن پیسٹ کریں", pastePh: "بل یہاں پیسٹ کریں…", analyze: "بل کا تجزیہ کریں",
+    loadSample: "نمونہ لوڈ کریں", saveBill: "💾 بل محفوظ کریں",
+    askTitle: "💬 اپنے خرچ کے بارے میں پوچھیں", askPh: "مثلاً: مئی میں راشن پر کتنا خرچ ہوا؟", ask: "پوچھیں",
+    spendTitle: "📊 خرچ", monthlyTrend: "ماہانہ رجحان", refresh: "ریفریش",
+    billsTitle: "📂 میرے بل", searchPh: "دکان تلاش کریں…", clearAll: "سارا ڈیٹا حذف کریں",
+    provDefault: "AI: کلاؤڈ (ایپ کی key)", provByok: "AI: کلاؤڈ (میری Groq key)", provOllama: "AI: لوکل (Ollama)",
+  },
 };
 
 function applyLanguage() {
@@ -205,6 +307,8 @@ function applyLanguage() {
   document.querySelectorAll("[data-i18n-ph]").forEach(el => {
     const v = dict[el.dataset.i18nPh]; if (v) el.placeholder = v;
   });
+  document.documentElement.lang = SETTINGS.lang;
+  document.documentElement.dir = SETTINGS.lang === "ur" ? "rtl" : "ltr";
 }
 
 function applyProviderUI() {

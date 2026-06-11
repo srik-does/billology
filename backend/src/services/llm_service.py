@@ -23,7 +23,20 @@ from src.services.request_context import language, llm_overrides
 
 # Explanations / summaries answer in the user's UI language; structured outputs
 # (labels, intents, categories) stay English because code validates exact tokens.
-_LANG_NAMES = {"hi": "Hindi (हिन्दी)", "te": "Telugu (తెలుగు)"}
+_LANG_NAMES = {
+    "hi": "Hindi (हिन्दी)",
+    "te": "Telugu (తెలుగు)",
+    "ta": "Tamil (தமிழ்)",
+    "kn": "Kannada (ಕನ್ನಡ)",
+    "ml": "Malayalam (മലയാളം)",
+    "bn": "Bengali (বাংলা)",
+    "mr": "Marathi (मराठी)",
+    "gu": "Gujarati (ગુજરાતી)",
+    "pa": "Punjabi (ਪੰਜਾਬੀ)",
+    "or": "Odia (ଓଡ଼ିଆ)",
+    "as": "Assamese (অসমীয়া)",
+    "ur": "Urdu (اردو)",
+}
 
 
 def _lang_clause() -> str:
@@ -169,8 +182,8 @@ class ChatLLMService(LLMService):
     ) -> dict[str, Any]:
         system = (
             "You translate a question about personal spending into a constrained "
-            "query intent over a bills database. The question may be in English, "
-            "Hindi, or Telugu. Return JSON exactly of the form "
+            "query intent over a bills database. The question may be in English "
+            "or any Indian language. Return JSON exactly of the form "
             '{"path": "numeric" | "semantic", "category": string | null, '
             '"month": "YYYY-MM" | null, "merchant": string | null, '
             '"aggregate": "sum" | "count" | "latest" | "average"}. '
