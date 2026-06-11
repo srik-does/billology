@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Billology — bill analyzer</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --warn:#f59e0b; --good:#34d399; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:24px 20px; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:22px; } .tag { color:var(--muted); font-size:13px; margin-top:4px; }
+  main { max-width:880px; margin:0 auto; padding:20px; display:grid; gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  textarea { width:100%; min-height:150px; background:#0b1220; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:10px; font-family:ui-monospace, monospace; font-size:13px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  button { background:var(--accent); color:#04293a; border:0; border-radius:8px; padding:10px 16px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  input[type=file] { color:var(--muted); font-size:13px; }
+  .muted { color:var(--muted); font-size:13px; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  td { padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  td.amt { text-align:right; font-variant-numeric:tabular-nums; }
+  .totals td { border:0; } .totals .grand { font-weight:700; font-size:16px; }
+  .flag { border-left:4px solid var(--warn); background:#2a210b; padding:10px; border-radius:6px; margin-top:8px; }
+  .flag h4 { margin:0 0 4px; color:var(--warn); font-size:14px; }
+  .flag .figs { color:var(--muted); font-size:12px; margin-top:4px; }
+  .pill { display:inline-block; background:#0b3a4a; color:var(--accent); padding:2px 10px; border-radius:12px; font-size:12px; }
+  .ok { color:var(--good); }
+  .hidden { display:none; }
+  .ex { color:var(--muted); font-size:12px; }
+  .err { color:#f87171; }
+  .sample { color:var(--accent); cursor:pointer; font-size:12px; text-decoration:underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 Billology</h1>
+  <div class="tag">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
+</header>
+<main>
+  <div class="card">
+    <label class="muted">Paste bill text</label>
+    <textarea id="text" placeholder="Paste a bill here…"></textarea>
+    <div class="row">
+      <input type="file" id="file" accept="image/*,application/pdf" />
+      <button id="go">Analyze bill</button>
+      <span class="sample" id="sample">load a sample</span>
+    </div>
+    <div id="status" class="muted"></div>
+  </div>
+
+  <div id="result" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <div><strong id="merchant"></strong> <span class="pill" id="type"></span> <span class="pill" id="category"></span></div>
+    </div>
+    <div id="summary" class="muted" style="margin-top:8px"></div>
+    <div id="flags"></div>
+    <table id="items"></table>
+    <table class="totals" id="totals"></table>
+  </div>
+</main>
+
+<script>
+const SAMPLE = `BigBasket Supermarket
+Rice 5kg            500.00
+Cooking Oil 1L      200.00
+Taxable Value       700.00
+CGST 9%             63.00
+SGST 9%             63.00
+Grand Total         826.00`;
+
+const $ = (id) => document.getElementById(id);
+$("sample").onclick = () => { $("text").value = SAMPLE; };
+
+$("go").onclick = async () => {
+  const status = $("status"); const result = $("result");
+  status.textContent = "Analyzing…"; status.className = "muted"; $("go").disabled = true; result.classList.add("hidden");
+  try {
+    const form = new FormData();
+    const file = $("file").files[0];
+    if (file) form.append("files", file);
+    if ($("text").value.trim()) form.append("text", $("text").value);
+    const res = await fetch("/bills:process", { method: "POST", body: form });
+    if (res.status === 422) { const b = await res.json(); status.textContent = "⚠ " + (b.reason || "Couldn't read a bill."); status.className = "err"; return; }
+    if (!res.ok) { status.textContent = "Error: " + res.status; status.className = "err"; return; }
+    render(await res.json()); status.textContent = "";
+  } catch (e) { status.textContent = "Network error: " + e; status.className = "err"; }
+  finally { $("go").disabled = false; }
+};
+
+function money(t) { return t && t.value != null ? "₹" + t.value : "—"; }
+
+function render(bill) {
+  $("result").classList.remove("hidden");
+  $("merchant").textContent = (bill.merchant && bill.merchant.value) || "Bill";
+  $("type").textContent = bill.bill_type || "";
+  $("category").textContent = (bill.category && bill.category.name) || "";
+  $("summary").textContent = (bill.explanation && bill.explanation.bill_summary) || "";
+
+  const flags = $("flags"); flags.innerHTML = "";
+  if (bill.discrepancies && bill.discrepancies.length) {
+    bill.discrepancies.forEach(f => {
+      const figs = Object.entries(f.conflicting_figures || {}).map(([k,v]) => `${k.replace(/_/g," ")}: ${v}`).join(" · ");
+      flags.innerHTML += `<div class="flag"><h4>⚠ ${f.kind.replace(/_/g," ")}</h4><div>${f.explanation_text||""}</div><div class="figs">${figs}</div></div>`;
+    });
+  } else {
+    flags.innerHTML = `<div class="ok" style="margin-top:8px">✓ No discrepancies — the figures are internally consistent.</div>`;
+  }
+
+  const lineExpl = (bill.explanation && bill.explanation.line_explanations) || {};
+  const items = $("items"); items.innerHTML = "";
+  (bill.line_items || []).forEach(li => {
+    const ex = lineExpl[String(li.position)] ? `<div class="ex">${lineExpl[String(li.position)]}</div>` : "";
+    items.innerHTML += `<tr><td>${(li.description && li.description.value)||"Item"}${ex}</td><td class="amt">${money(li.line_total)}</td></tr>`;
+  });
+  if (bill.nothing_to_verify) items.innerHTML = `<tr><td class="muted">No itemized breakdown — nothing to verify.</td></tr>`;
+
+  const totals = $("totals"); totals.innerHTML = "";
+  if (bill.subtotal && bill.subtotal.value) totals.innerHTML += `<tr><td>Subtotal</td><td class="amt">${money(bill.subtotal)}</td></tr>`;
+  if (bill.tax_amount && bill.tax_amount.value) {
+    const rate = bill.tax_rate && bill.tax_rate.value ? ` (${bill.tax_rate.value}%)` : "";
+    totals.innerHTML += `<tr><td>Tax${rate}</td><td class="amt">${money(bill.tax_amount)}</td></tr>`;
+  }
+  totals.innerHTML += `<tr class="grand"><td>Total</td><td class="amt">${money(bill.total_amount)}</td></tr>`;
+}
+</script>
+</body>
+</html>

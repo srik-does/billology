@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Billology",
+    "slug": "billology",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true },
+    "android": {
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-document-picker"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+python-multipart>=0.0.9
+supabase>=2.5
+fastembed>=0.3
+groq>=0.9
+pytesseract>=0.3.10
+pdfplumber>=0.11
+pdf2image>=1.17
+pillow>=10.3
+numpy>=1.26
+python-dotenv>=1.0
+pytest>=8.2

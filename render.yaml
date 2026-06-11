@@ -1,0 +1,28 @@
+# Render Blueprint — deploys the Billology backend (FastAPI) as a public web service.
+# After connecting this repo in Render, set the secret env vars (GROQ_API_KEY,
+# SUPABASE_URL, SUPABASE_KEY) in the dashboard. The core demo (extract → verify →
+# explain) works even with NONE of them set (deterministic fallbacks); a Groq key
+# upgrades explanations/category suggestions; Supabase enables saving bills.
+services:
+  - type: web
+    name: billology-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: bills
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: EMBEDDING_DIM
+        value: "384"
