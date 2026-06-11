@@ -61,6 +61,27 @@
   </div>
 
   <div class="card">
+    <strong>💬 Ask about your spending</strong>
+    <div class="row">
+      <input type="text" id="qaQ" placeholder="e.g. How much did I spend on groceries in May?" style="flex:1;min-width:200px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
+      <button id="qaGo">Ask</button>
+    </div>
+    <div id="qaStatus" class="muted"></div>
+    <div id="qaAnswer" class="hidden" style="margin-top:10px;padding:12px;background:#0b1220;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap"></div>
+    <table id="qaRecords"></table>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>📊 Spending</strong>
+      <span class="sample" id="dashRefresh">refresh</span>
+    </div>
+    <div id="dashCats" style="margin-top:10px"></div>
+    <div class="muted" style="margin-top:14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Monthly trend</div>
+    <div id="dashMonths" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
     <div class="row" style="justify-content:space-between">
       <strong>📂 My bills</strong>
       <span class="sample" id="histRefresh">refresh</span>
@@ -175,6 +196,67 @@ async function loadHistory() {
     };
   });
 }
+// --- Q&A -------------------------------------------------------------------
+async function ask() {
+  const q = $("qaQ").value.trim();
+  if (!q) return;
+  $("qaStatus").textContent = "Thinking…"; $("qaGo").disabled = true;
+  $("qaAnswer").classList.add("hidden"); $("qaRecords").innerHTML = "";
+  try {
+    const res = await fetch("/qa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
+    const body = await res.json();
+    if (!res.ok) { $("qaStatus").textContent = "Error: " + res.status; return; }
+    $("qaStatus").textContent = body.path ? `(${body.path} path)` : "";
+    $("qaAnswer").textContent = body.answer || "No answer.";
+    $("qaAnswer").classList.remove("hidden");
+    (body.records || []).forEach(r => {
+      $("qaRecords").innerHTML += `<tr>
+        <td>${r.merchant || "Unknown"}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}</div></td>
+        <td class="amt">₹${r.total_amount ?? "—"}</td></tr>`;
+    });
+  } catch (e) { $("qaStatus").textContent = "Network error: " + e; }
+  finally { $("qaGo").disabled = false; }
+}
+$("qaGo").onclick = ask;
+$("qaQ").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
+
+// --- Spending dashboard ------------------------------------------------------
+function bar(label, value, max, color) {
+  const pct = max > 0 ? Math.max(2, Math.round(value / max * 100)) : 0;
+  return `<div style="margin-top:6px">
+    <div style="display:flex;justify-content:space-between;font-size:13px">
+      <span>${label}</span><span style="font-variant-numeric:tabular-nums">₹${value.toFixed(2)}</span>
+    </div>
+    <div style="background:#0b1220;border-radius:4px;height:8px;margin-top:3px">
+      <div style="width:${pct}%;height:8px;border-radius:4px;background:${color}"></div>
+    </div></div>`;
+}
+const DASH_COLORS = ["#38bdf8","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#94a3b8"];
+async function loadDash() {
+  try {
+    const [cats, months] = await Promise.all([
+      fetch("/dashboard/by-category").then(r => r.json()),
+      fetch("/dashboard/monthly").then(r => r.json()),
+    ]);
+    const cmax = Math.max(...cats.map(c => +c.total), 0);
+    $("dashCats").innerHTML = cats.length
+      ? cats.map((c, i) => bar(c.category, +c.total, cmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
+      : `<div class="muted">No saved bills yet.</div>`;
+    const mmax = Math.max(...months.map(m => +m.total), 0);
+    $("dashMonths").innerHTML = months.length
+      ? months.map(m => bar(m.month, +m.total, mmax, "#38bdf8")).join("")
+      : `<div class="muted">No saved bills yet.</div>`;
+  } catch (e) {
+    $("dashCats").innerHTML = `<div class="err">Couldn't load spending: ${e}</div>`;
+  }
+}
+$("dashRefresh").onclick = loadDash;
+loadDash();
+
 $("histRefresh").onclick = loadHistory;
 $("histQ").oninput = () => { clearTimeout(window.__hq); window.__hq = setTimeout(loadHistory, 300); };
 $("histCat").onchange = loadHistory;
