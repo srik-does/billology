@@ -14,6 +14,21 @@ from src.models import ArtifactKind
 
 from .types import ExtractionLine, ExtractionResult
 
+# Bills longer than this are declined with a friendly message instead of
+# tying up the instance for minutes (each scanned page costs an OCR pass).
+MAX_PAGES = 12
+
+# OCR doesn't benefit from more: the detector downscales internally, and
+# 200 DPI (the pdf2image default) doubles the per-page bitmap for nothing.
+_RASTER_DPI = 150
+
+
+class PdfTooLargeError(Exception):
+    def __init__(self, pages: int) -> None:
+        super().__init__(
+            f"This PDF has {pages} pages — bills over {MAX_PAGES} pages aren't supported yet."
+        )
+
 
 def extract_pdf(file_bytes: bytes) -> ExtractionResult:
     import pdfplumber  # lazy: heavy dependency
@@ -23,6 +38,8 @@ def extract_pdf(file_bytes: bytes) -> ExtractionResult:
     image_pages: list[int] = []
 
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        if len(pdf.pages) > MAX_PAGES:
+            raise PdfTooLargeError(len(pdf.pages))
         for page_no, page in enumerate(pdf.pages):
             page_text = page.extract_text() or ""
             if page_text.strip():
@@ -51,11 +68,16 @@ def _ocr_image_pages(file_bytes: bytes, pages: list[int], result: ExtractionResu
 
     from .ocr import extract_image_object
 
-    images = convert_from_bytes(file_bytes)
+    # One page at a time: rasterizing the whole document at once held every
+    # page bitmap in memory simultaneously (~12 MB each), which OOM-killed
+    # 512 MB deployment instances on multi-page scanned PDFs.
     for page_no in pages:
-        if page_no >= len(images):
+        images = convert_from_bytes(
+            file_bytes, dpi=_RASTER_DPI, first_page=page_no + 1, last_page=page_no + 1
+        )
+        if not images:
             continue
-        page_result = extract_image_object(images[page_no])
+        page_result = extract_image_object(images[0])
         for ln in page_result.lines:
             result.lines.append(
                 ExtractionLine(

@@ -14,6 +14,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from src.models import (
@@ -71,19 +72,25 @@ async def process_bill(request: Request):
     text = _clean_str(form.get("text"))
     bill_type_hint = _clean_str(form.get("bill_type_hint"))
 
-    try:
+    def _process() -> Bill:
         candidate = process_inputs(
             files=payload or None, text=text, bill_type_hint=bill_type_hint
         )
+        # Deterministic discrepancy detection over the candidate (Phase 4 / US4).
+        candidate.discrepancies = detect_discrepancies(candidate)
+        # Plain-language explanation from extracted data only (Phase 5 / US3).
+        candidate.explanation = build_explanation(candidate)
+        # Suggested category from the controlled list (Phase 6 / US6).
+        candidate.category = Category(name=suggest_category(candidate))
+        return candidate
+
+    try:
+        # Off the event loop: OCR and LLM calls block for seconds-to-minutes on
+        # big scans, and an async endpoint that blocks freezes every other
+        # request (including platform health checks) until it finishes.
+        candidate = await run_in_threadpool(_process)
     except NotABillError as exc:
         return JSONResponse(status_code=422, content={"declined": True, "reason": exc.reason})
-
-    # Deterministic discrepancy detection over the candidate (Phase 4 / US4).
-    candidate.discrepancies = detect_discrepancies(candidate)
-    # Plain-language explanation from extracted data only (Phase 5 / US3).
-    candidate.explanation = build_explanation(candidate)
-    # Suggested category from the controlled list (Phase 6 / US6).
-    candidate.category = Category(name=suggest_category(candidate))
     return candidate
 
 
@@ -126,7 +133,11 @@ async def save_reviewed_bill(request: Request):
         llm = None
 
     try:
-        saved = save_bill(bill, original_files=originals or None, llm=llm)
+        # Threadpool for the same reason as processing: storage upload,
+        # enrichment LLM call, and embedding all block.
+        saved = await run_in_threadpool(
+            lambda: save_bill(bill, original_files=originals or None, llm=llm)
+        )
     except PersistenceError as exc:
         # Surface the real DB failure instead of a generic 500 / false success.
         logger.error("save_bill failed: %s", exc)

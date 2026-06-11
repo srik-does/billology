@@ -13,7 +13,7 @@ from typing import Optional
 
 from src.models import Bill, BillType
 from src.services.extraction.ocr import extract_image
-from src.services.extraction.pdf import extract_pdf
+from src.services.extraction.pdf import PdfTooLargeError, extract_pdf
 from src.services.extraction.text import extract_text
 from src.services.extraction.types import ExtractionResult
 from src.services.parsers import grocery, telecom
@@ -60,7 +60,10 @@ def _extract(
     combined: Optional[ExtractionResult] = None
     for file_bytes, filename, content_type in files:
         is_pdf = content_type == "application/pdf" or filename.lower().endswith(".pdf")
-        part = extract_pdf(file_bytes) if is_pdf else extract_image(file_bytes)
+        try:
+            part = extract_pdf(file_bytes) if is_pdf else extract_image(file_bytes)
+        except PdfTooLargeError as exc:
+            raise NotABillError(str(exc)) from exc
         combined = part if combined is None else combined.merge(part)
     assert combined is not None
     return combined
