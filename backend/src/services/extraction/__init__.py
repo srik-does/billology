@@ -89,4 +89,8 @@ def process_inputs(
     if candidate.total_amount.value is None and not candidate.line_items:
         raise NotABillError()
 
-    return candidate
+    # LLM structure labeling: refine WHICH lines mean what (never the figures);
+    # accepted only when code-side reconciliation proves it more consistent.
+    from src.services.structure_service import refine
+
+    return refine(result, candidate)

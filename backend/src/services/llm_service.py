@@ -46,6 +46,14 @@ class LLMService(ABC):
     ) -> str:
         """Summarize over already-retrieved real records (semantic path)."""
 
+    @abstractmethod
+    def label_lines(self, lines: list[dict[str, Any]]) -> dict[str, str]:
+        """Label each extracted line's structural ROLE (item/total/tax/...).
+
+        Structure only — the labels say which lines mean what; all figures are
+        re-parsed from the original lines by deterministic code (Principle I).
+        """
+
 
 class GroqLLMService(LLMService):
     def __init__(self) -> None:
@@ -146,6 +154,35 @@ class GroqLLMService(LLMService):
         )
         user = json.dumps({"question": question, "records": retrieved_records})
         return self._chat(system, user).strip()
+
+    def label_lines(self, lines: list[dict[str, Any]]) -> dict[str, str]:
+        system = (
+            "You label the structural role of each numbered OCR line from a retail "
+            "bill or receipt. Roles: "
+            "'merchant' (store/brand name header), "
+            "'meta' (address, GSTIN/CIN/FSSAI numbers, cashier, date, column headers, "
+            "invoice numbers), "
+            "'item' (a purchased product or service charge), "
+            "'continuation' (wrapped continuation of the previous item: barcodes, "
+            "EAN/HSN codes, per-item discounts), "
+            "'subtotal', "
+            "'total' (the bill's grand total amount), "
+            "'due' (net amount due / payable after round-off), "
+            "'tax' (a tax amount line), "
+            "'taxtable' (tax summary table rows), "
+            "'roundoff' (round-off / rounding adjustment lines), "
+            "'discount', "
+            "'payment' (cash/card/UPI/tender/change rows), "
+            "'junk' (separators, illegible noise, terms and conditions). "
+            "The OCR text may be garbled — judge by position and context. "
+            "Label EVERY line. "
+            'Return JSON {"labels": {"<line index>": "<role>"}}. '
+            "Do NOT compute, correct, or output any numbers or amounts."
+        )
+        raw = self._chat(system, json.dumps({"lines": lines}), json_mode=True)
+        parsed = json.loads(raw)
+        labels = parsed.get("labels", parsed)
+        return {str(k): str(v) for k, v in labels.items()} if isinstance(labels, dict) else {}
 
 
 @lru_cache
