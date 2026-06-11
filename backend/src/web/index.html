@@ -99,11 +99,16 @@ function render(bill) {
   $("summary").textContent = (bill.explanation && bill.explanation.bill_summary) || "";
 
   const flags = $("flags"); flags.innerHTML = "";
+  const totalNum = bill.total_amount && bill.total_amount.value != null ? parseFloat(bill.total_amount.value) : null;
   if (bill.discrepancies && bill.discrepancies.length) {
     bill.discrepancies.forEach(f => {
       const figs = Object.entries(f.conflicting_figures || {}).map(([k,v]) => `${k.replace(/_/g," ")}: ${v}`).join(" · ");
       flags.innerHTML += `<div class="flag"><h4>⚠ ${f.kind.replace(/_/g," ")}</h4><div>${f.explanation_text||""}</div><div class="figs">${figs}</div></div>`;
     });
+  } else if (!totalNum) {
+    // No usable total ⇒ extraction was unreliable; an empty discrepancy list
+    // proves nothing, so never show it as a pass.
+    flags.innerHTML = `<div class="flag"><h4>⚠ Low-confidence scan</h4><div>Couldn't reliably read this bill (no total found). Figures may be incomplete — try a clearer, closer photo, a PDF, or pasted text.</div></div>`;
   } else {
     flags.innerHTML = `<div class="ok" style="margin-top:8px">✓ No discrepancies — the figures are internally consistent.</div>`;
   }

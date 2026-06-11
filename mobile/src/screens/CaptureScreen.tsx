@@ -125,6 +125,12 @@ export function CaptureScreen() {
           {candidate.layout_supported === false && (
             <Text style={styles.warn}>Unsupported layout — extracted best-effort.</Text>
           )}
+          {!(Number(candidate.total_amount?.value) > 0) && (
+            <Text style={styles.warn}>
+              ⚠ Couldn't reliably read a total — figures may be incomplete. Try a clearer
+              photo, or fix the values in Review.
+            </Text>
+          )}
           <View style={styles.reviewBtn}>
             <Button
               title="Review & Save →"

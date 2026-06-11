@@ -53,6 +53,8 @@ _SUBTOTAL_KW = ("sub total", "subtotal", "taxable value", "taxable amount")
 _TAX_COMPONENT_KW = ("cgst", "sgst", "igst", "utgst")
 # Generic tax keywords (used when a bill states a single combined tax line).
 _TAX_KW = ("cgst", "sgst", "igst", "utgst", "gst", "vat", "tax")
+# Registration-number lines (GSTIN etc.) carry digits but are not tax amounts.
+_TAX_ID = re.compile(r"gst\s*i?n|gst\s*no|gstn", re.IGNORECASE)
 
 
 def _decimal_str(value: Decimal) -> str:
@@ -68,8 +70,8 @@ def _traced(value: Decimal, ln: ExtractionLine) -> TracedValue:
     )
 
 
-def _trailing_amount(text: str) -> Optional[tuple[Decimal, str]]:
-    """Return (amount, description) using the right-most money token, or None.
+def _trailing_amount(text: str) -> Optional[tuple[Decimal, str, str]]:
+    """Return (amount, description, raw_token) using the right-most money token.
 
     Loose matcher for keyword-guarded total/subtotal/tax lines.
     """
@@ -83,7 +85,18 @@ def _trailing_amount(text: str) -> Optional[tuple[Decimal, str]]:
     except INRParseError:
         return None
     description = (text[: last.start()]).strip(" :-\t")
-    return amount, description
+    return amount, description, token
+
+
+def _total_rank(amount: Decimal, token: str) -> int:
+    """Rank a total candidate: decimal-bearing nonzero > bare-int nonzero > zero.
+
+    Guards against OCR noise like "Total items sold: 10" or "Total: 0.00"
+    (a misread tender row) displacing a real "Total Amount 339.67".
+    """
+    if amount == 0:
+        return 0
+    return 2 if "." in token else 1
 
 
 def _line_item_amount(text: str) -> Optional[tuple[Decimal, str]]:
@@ -109,7 +122,8 @@ def _line_item_amount(text: str) -> Optional[tuple[Decimal, str]]:
 
 
 def _has_kw(text: str, keywords: tuple[str, ...]) -> bool:
-    low = text.lower()
+    # Tolerate common OCR letter substitutions on keyword lines ("Tota!" → "total").
+    low = text.lower().replace("!", "l").replace("|", "l")
     return any(kw in low for kw in keywords)
 
 
@@ -141,11 +155,12 @@ def parse(result: ExtractionResult, bill_type: BillType) -> Bill:
     generic_tax: Optional[tuple[Decimal, ExtractionLine]] = None
     generic_rate: Optional[Decimal] = None
 
+    total_rank = -1
     for ln in lines:
         is_total = _has_kw(ln.text, _TOTAL_KW)
         is_subtotal = _has_kw(ln.text, _SUBTOTAL_KW)
         is_component = _has_kw(ln.text, _TAX_COMPONENT_KW)
-        is_tax = _has_kw(ln.text, _TAX_KW)
+        is_tax = _has_kw(ln.text, _TAX_KW) and not _TAX_ID.search(ln.text)
 
         # Summary-table rows (GST breakup etc.) must not be read as the bill's
         # total/subtotal/tax, nor become line items.
@@ -155,8 +170,12 @@ def parse(result: ExtractionResult, bill_type: BillType) -> Bill:
         if is_total and not is_subtotal:
             parsed = _trailing_amount(ln.text)
             if parsed:
-                # Last total-like line wins (grand total usually appears last).
-                total = _traced(parsed[0], ln)
+                # Best-ranked total wins; within a rank the last line wins
+                # (grand total usually appears last).
+                rank = _total_rank(parsed[0], parsed[2])
+                if rank >= total_rank:
+                    total = _traced(parsed[0], ln)
+                    total_rank = rank
             continue
         if is_subtotal:
             parsed = _trailing_amount(ln.text)
@@ -183,10 +202,13 @@ def parse(result: ExtractionResult, bill_type: BillType) -> Bill:
                     generic_rate = Decimal(rate_match.group(1))
             continue
 
-        if _NON_ITEM.search(ln.text) or _is_table_row(ln.text):
-            continue  # discount/payment/summary rows are not purchases
+        if _NON_ITEM.search(ln.text):
+            continue  # discount/payment/tender rows are not purchases
 
-        item = _line_item_amount(ln.text)
+        # Receipt borders OCR as trailing pipes/braces; strip so the trailing
+        # amount is still recognized. (Genuine multi-column item rows — qty,
+        # MRP, price, total — keep their right-most amount as the line total.)
+        item = _line_item_amount(ln.text.rstrip(" |{}"))
         if item:
             amount, description = item
             line_items.append(
