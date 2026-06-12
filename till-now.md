@@ -31,12 +31,14 @@ Backend tests: 72 passing (`venv\Scripts\python.exe -m pytest backend\tests -q` 
   v2.0.0, Principle IV — deliberate and documented; local-only via Ollama or
   `VISION_EXTRACTION=false`).
 - **v2 vision residual risks** (tested against the full `Downloads\test_bills` set):
-  no per-token confidence — the model self-reports `legibility`, which gates flags to
-  "couldn't confirm" when degraded, but it can report "clear" on a blurry bill and let a
-  single mis-transcribed digit assert a false sum flag (seen once on `unclear.jpg`:
-  48.94→38.94). Scanned PDFs >5 pages send first 3 + last 2 pages (totals recovered) with
-  arithmetic checks suppressed as unprovable-partial. Dates occasionally mis-transcribe
-  on degraded scans (ValueZone year read 23 vs printed 26) — visible to the user in review.
+  no per-token confidence — the model self-reports per-field `uncertain_fields` (only
+  those drop below the 0.6 review/verify threshold; missing tax/subtotal/total are also
+  backfilled deterministically from the model's own transcript — see crumpled `sharma's.jpeg`
+  case). It can still call a blurry field certain and let a mis-transcribed digit assert a
+  false sum flag (seen once on `unclear.jpg`: 48.94→38.94). Scanned PDFs >5 pages send
+  first 3 + last 2 pages (totals recovered) with arithmetic checks suppressed as
+  unprovable-partial. Dates occasionally mis-transcribe on degraded scans (ValueZone year
+  read 23 vs printed 26) — visible to the user in review.
 - **Render free tier ≈100s proxy timeout**: a 9-page scanned PDF still times out there
   (server now survives it gracefully). Proper fix = background-job pattern
   (upload → job id → client polls). Not built yet.

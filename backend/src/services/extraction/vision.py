@@ -11,11 +11,18 @@ checks downstream are unchanged.
 
 Honesty gates mirroring the v1 confidence semantics (Principle II):
 
-* The model self-reports ``legibility``; a degraded read carries a confidence
-  below the discrepancy gate, so flags built on it say "couldn't confirm"
-  instead of asserting a proven error.
+* The model self-reports ``uncertain_fields`` — only the specific fields it
+  could not read with certainty carry a confidence below the discrepancy
+  gate, so flags built on them say "couldn't confirm" instead of asserting a
+  proven error, while cleanly-read fields stay trusted.
 * A known-partial extraction (pages dropped by the cap) sets
   ``nothing_to_verify`` — a subset of pages cannot *prove* a sum mismatch.
+
+Structuring is the model's least reliable step on degraded photos: a row can
+land in the transcript but not in the structured fields. Missing scalars
+(total, subtotal, tax) are therefore backfilled by running the deterministic
+v1 keyword parser over the model's own transcript — the same figures, parsed
+in code.
 
 Any provider failure (no key, timeout, malformed JSON) raises
 ``VisionExtractionError`` so the orchestrator falls back to the deterministic
@@ -33,11 +40,11 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
 
-from src.models import Bill, BillType, LineItem, Provenance, SourceRef, TracedValue
+from src.models import ArtifactKind, Bill, BillType, LineItem, Provenance, SourceRef, TracedValue
 from src.services.parsers import detect_bill_type
 from src.services.parsers.inr import INRParseError, parse_inr
 
-from .types import NotABillError
+from .types import ExtractionLine, ExtractionResult, NotABillError
 
 logger = logging.getLogger("billology.vision")
 
@@ -46,9 +53,16 @@ logger = logging.getLogger("billology.vision")
 # trust (None) reserved for text layers and user-corrected values. Above the
 # discrepancy gate's MIN_VERIFY_CONFIDENCE, so proven flags stay proven.
 VISION_CONFIDENCE = 0.9
-# When the model itself reports the bill as hard to read, figures drop below
-# the verify gate (0.6): conflicts surface as "couldn't confirm", not asserted.
+# A field the model itself lists in uncertain_fields drops below the verify
+# gate (0.6) AND the review screen's check threshold: its conflicts surface
+# as "couldn't confirm" and the UI marks exactly that field for review.
 DEGRADED_CONFIDENCE = 0.5
+
+# Field names the model may report as uncertain (anything else is ignored).
+_UNCERTAIN_FIELDS = {
+    "merchant", "bill_date", "subtotal", "taxable_value", "tax",
+    "total_amount", "line_items",
+}
 
 # Long side cap before JPEG re-encode: keeps the base64 payload well under
 # provider limits while preserving digit-level detail on receipt photos.
@@ -272,6 +286,31 @@ def _swap_computed_totals(items: list[LineItem]) -> Optional[list[LineItem]]:
     return out if swapped else None
 
 
+def _salvage_from_transcript(raw_lines: list[str], bill_type: BillType) -> Bill:
+    """Deterministic keyword parse over the model's own transcript.
+
+    The transcript is far cleaner text than OCR output, so the battle-tested
+    v1 parser (totals ranking, CGST/SGST component summation) recovers rows
+    the model transcribed but failed to structure — same figures, parsed in
+    code (Principle I).
+    """
+    from src.services.parsers import base as keyword_parser
+
+    result = ExtractionResult(
+        kind=ArtifactKind.image,
+        raw_text="\n".join(raw_lines),
+        lines=[
+            ExtractionLine(text=text, page=0, line=idx)
+            for idx, text in enumerate(raw_lines)
+        ],
+    )
+    return keyword_parser.parse(result, bill_type)
+
+
+def _reconf(tv: TracedValue, conf: float) -> TracedValue:
+    return tv.model_copy(update={"confidence": conf})
+
+
 def _bill_type(data: dict[str, Any], raw_text: str, hint: Optional[str]) -> BillType:
     if hint in (BillType.telecom_recharge.value, BillType.grocery.value):
         return BillType(hint)
@@ -303,7 +342,17 @@ def extract_bill(
     if data.get("is_bill") is False:
         raise NotABillError()
 
-    conf = DEGRADED_CONFIDENCE if data.get("legibility") == "degraded" else VISION_CONFIDENCE
+    # Per-field uncertainty: only the fields the model says it struggled to
+    # read drop below the verify/review threshold; the rest stay trusted.
+    raw_uncertain = data.get("uncertain_fields")
+    uncertain = (
+        {f for f in raw_uncertain if isinstance(f, str) and f in _UNCERTAIN_FIELDS}
+        if isinstance(raw_uncertain, list)
+        else set()
+    )
+
+    def conf(field: str) -> float:
+        return DEGRADED_CONFIDENCE if field in uncertain else VISION_CONFIDENCE
 
     raw_lines = [
         ln.strip()
@@ -314,15 +363,32 @@ def extract_bill(
 
     merchant_name = _str(data.get("merchant"))
     merchant = (
-        _traced(merchant_name, raw_lines, conf)
+        _traced(merchant_name, raw_lines, conf("merchant"))
         if merchant_name
         else TracedValue(value=None, provenance=Provenance.extracted)
     )
 
-    total = _traced_amount(data.get("total_amount"), raw_lines, conf)
-    subtotal = _traced_amount(data.get("subtotal"), raw_lines, conf)
-    tax_amount, tax_rate = _tax(data, raw_lines, conf)
-    line_items = _line_items(data, raw_lines, conf)
+    bill_type = _bill_type(data, raw_text, bill_type_hint)
+    total = _traced_amount(data.get("total_amount"), raw_lines, conf("total_amount"))
+    subtotal = _traced_amount(data.get("subtotal"), raw_lines, conf("subtotal"))
+    tax_amount, tax_rate = _tax(data, raw_lines, conf("tax"))
+    line_items = _line_items(data, raw_lines, conf("line_items"))
+
+    # Backfill scalars the model transcribed but failed to structure: parse
+    # the transcript deterministically and lift only the missing fields.
+    if raw_lines and (total is None or subtotal is None or tax_amount is None):
+        salvaged = _salvage_from_transcript(raw_lines, bill_type)
+        if total is None and salvaged.total_amount.value is not None:
+            total = _reconf(salvaged.total_amount, conf("total_amount"))
+            logger.info("vision: total backfilled from transcript")
+        if subtotal is None and salvaged.subtotal is not None:
+            subtotal = _reconf(salvaged.subtotal, conf("subtotal"))
+            logger.info("vision: subtotal backfilled from transcript")
+        if tax_amount is None and salvaged.tax_amount is not None:
+            tax_amount = _reconf(salvaged.tax_amount, conf("tax"))
+            if tax_rate is None and salvaged.tax_rate is not None:
+                tax_rate = _reconf(salvaged.tax_rate, conf("tax"))
+            logger.info("vision: tax backfilled from transcript")
 
     if total is None and not line_items:
         # The model saw a bill but transcribed nothing verifiable — let the
@@ -335,14 +401,14 @@ def extract_bill(
     # The printed taxable value (GST-summary base) outranks the
     # subtotal-as-base assumption — on tax-inclusive receipts the subtotal
     # already contains the tax and would yield a false tax-mismatch flag.
-    tax_base = _traced_amount(data.get("taxable_value"), raw_lines, conf)
+    tax_base = _traced_amount(data.get("taxable_value"), raw_lines, conf("taxable_value"))
     if tax_base is None and tax_rate is not None:
         tax_base = subtotal
 
     bill = Bill(
         merchant=merchant,
-        bill_type=_bill_type(data, raw_text, bill_type_hint),
-        bill_date=_bill_date(data.get("bill_date"), raw_lines, conf),
+        bill_type=bill_type,
+        bill_date=_bill_date(data.get("bill_date"), raw_lines, conf("bill_date")),
         currency=currency,
         subtotal=subtotal,
         tax_rate=tax_rate,

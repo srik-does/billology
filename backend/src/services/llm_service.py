@@ -137,7 +137,7 @@ class ChatLLMService(LLMService):
             '"bill_date": "YYYY-MM-DD" | null, '
             '"bill_type": "grocery" | "telecom_recharge" | "other", '
             '"currency": string | null, '
-            '"legibility": "clear" | "degraded", '
+            '"uncertain_fields": [string], '
             '"subtotal": string | null, '
             '"taxable_value": string | null, '
             '"tax_rate": string | null, '
@@ -152,8 +152,12 @@ class ChatLLMService(LLMService):
             "raw_lines: every visible printed line of text, top to bottom, transcribed "
             "verbatim. Amounts as plain digit strings without currency symbols or "
             "thousands separators (e.g. '1234.56'). "
-            "legibility: 'degraded' when any part of the bill is blurry, faded, "
-            "crumpled, or otherwise hard to read with certainty; 'clear' otherwise. "
+            "uncertain_fields: the names of exactly those fields whose printed value "
+            "you could NOT read with certainty (blurry, faded, crumpled, cut off), "
+            "chosen from: 'merchant', 'bill_date', 'subtotal', 'taxable_value', 'tax', "
+            "'total_amount', 'line_items'. Empty list when everything is legible. Do "
+            "NOT list fields you read clearly. Listing a field never excuses guessing "
+            "— still transcribe your best reading of it, or null. "
             "total_amount: the grand total / net amount payable as printed — never a "
             "GST-summary or taxable-value figure. "
             "taxable_value: the printed total taxable value/amount (often in a GST "

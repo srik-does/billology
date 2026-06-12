@@ -138,14 +138,17 @@ def test_mixed_rate_components_yield_no_single_rate(monkeypatch):
     assert bill.tax_rate is None
 
 
-def test_degraded_legibility_softens_flags(monkeypatch):
-    # Blurry receipt with one misread digit: the conflict must surface as
-    # "couldn't confirm" (verified=False), not an asserted error — the same
-    # behavior v1 derived from low OCR confidence.
+def test_uncertain_field_softens_its_flags_only(monkeypatch):
+    # Blurry total: the conflict must surface as "couldn't confirm"
+    # (verified=False), not an asserted error — the same behavior v1 derived
+    # from low OCR confidence. Crucially the uncertainty is PER FIELD: the
+    # cleanly-read fields keep full confidence so the review screen marks
+    # only the shaky one (seen live on a crumpled bill where a global
+    # "degraded" verdict put a check badge on every correct field).
     payload = _payload()
-    payload["legibility"] = "degraded"
+    payload["uncertain_fields"] = ["total_amount"]
     # A printed-and-transcribed total that doesn't reconcile (items 605 + tax
-    # 15 = 620, stated 720): a genuine conflict, but read off a blurry bill.
+    # 15 = 620, stated 720): a genuine conflict, but read off a blurry line.
     payload["total_amount"] = "720.00"
     payload["raw_lines"][6] = "Total ₹720.00"
     _patch_llm(monkeypatch, FakeLLM(payload=payload))
@@ -153,8 +156,41 @@ def test_degraded_legibility_softens_flags(monkeypatch):
     bill = vision.extract_bill([_img()])
 
     assert bill.total_amount.confidence == vision.DEGRADED_CONFIDENCE
+    assert bill.merchant.confidence == vision.VISION_CONFIDENCE
+    assert bill.line_items[0].line_total.confidence == vision.VISION_CONFIDENCE
     flags = detect_discrepancies(bill)
     assert flags and all(f.verified is False for f in flags)
+
+
+def test_transcribed_but_unstructured_tax_is_backfilled(monkeypatch):
+    # Seen live (crumpled Sharma Restaurant bill): CGST/SGST rows land in the
+    # transcript but the model leaves the structured tax fields empty — the
+    # deterministic keyword parser must recover them from the transcript so
+    # the bill reconciles instead of false-flagging items+0 ≠ total.
+    payload = _payload()
+    payload["tax_components"] = []
+    payload["tax_amount"] = None
+    payload["tax_rate"] = None
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+
+    bill = vision.extract_bill([_img()])
+
+    assert Decimal(bill.tax_amount.value) == Decimal("15.00")  # CGST+SGST from raw_lines
+    assert Decimal(bill.tax_rate.value) == Decimal("5.0")
+    assert bill.tax_amount.source_ref.raw_text == "CGST 2.5% 7.50"
+    assert detect_discrepancies(bill) == []
+
+
+def test_transcribed_but_unstructured_total_is_backfilled(monkeypatch):
+    payload = _payload()
+    payload["total_amount"] = None  # transcript still carries "Total ₹620.00"
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+
+    bill = vision.extract_bill([_img()])
+
+    assert bill.total_amount.value == "620.00"
+    assert bill.total_amount.confidence == vision.VISION_CONFIDENCE
+    assert bill.total_amount.source_ref.raw_text == "Total ₹620.00"
 
 
 def test_printed_taxable_value_is_the_tax_base(monkeypatch):
@@ -183,6 +219,9 @@ def test_unparseable_figures_are_dropped_never_repaired(monkeypatch):
     payload = _payload()
     payload["total_amount"] = "unknown"
     payload["line_items"][1]["line_total"] = "n/a"
+    # No total in the transcript either — otherwise the deterministic
+    # backfill would (correctly) recover the printed one.
+    payload["raw_lines"][6] = "Thank you, visit again"
     _patch_llm(monkeypatch, FakeLLM(payload=payload))
 
     bill = vision.extract_bill([_img()])
