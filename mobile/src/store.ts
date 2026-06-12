@@ -51,6 +51,27 @@ export function useSettings(): AppSettings {
   );
 }
 
+// --- One-shot signal: a bill was just saved ---------------------------------
+// Review fires it; the Capture screen listens and clears its analyzed
+// candidate so the home screen comes back fresh after a save.
+let saveCounter = 0;
+const saveListeners = new Set<() => void>();
+
+export function markBillSaved() {
+  saveCounter++;
+  saveListeners.forEach((l) => l());
+}
+
+export function useBillSavedCounter(): number {
+  return useSyncExternalStore(
+    (cb) => {
+      saveListeners.add(cb);
+      return () => saveListeners.delete(cb);
+    },
+    () => saveCounter
+  );
+}
+
 // Headers consumed by the backend's request-context middleware.
 export function settingsHeaders(): Record<string, string> {
   const h: Record<string, string> = { "X-Language": settings.language };

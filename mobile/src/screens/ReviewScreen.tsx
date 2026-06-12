@@ -22,6 +22,7 @@ import { apiPostForm } from "../api/client";
 import { DiscrepancyList, type DiscrepancyFlag } from "../components/DiscrepancyList";
 import { Btn, Chip } from "../components/UI";
 import { useT } from "../i18n";
+import { markBillSaved } from "../store";
 import { fonts, radius, SEED_CATEGORIES, useTheme } from "../theme";
 
 const LOW_CONFIDENCE = 0.6;
@@ -95,8 +96,12 @@ export function ReviewScreen({
       // retries=0: saving is not idempotent — a retry after a dropped
       // connection could persist the bill twice.
       const saved = await apiPostForm<{ id?: string }>("/bills", form, 0);
-      Alert.alert("Saved", "Your bill has been saved.");
-      onSaved?.(saved.id);
+      // Clear the home screen's analyzed candidate, then head back home
+      // once the user dismisses the confirmation.
+      markBillSaved();
+      Alert.alert("Saved", "Your bill has been saved.", [
+        { text: "OK", onPress: () => onSaved?.(saved.id) },
+      ]);
     } catch (err) {
       Alert.alert("Couldn't save", String(err));
     } finally {

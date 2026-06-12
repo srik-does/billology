@@ -9,7 +9,7 @@
 // full-screen viewfinder, big round shutter at the bottom, captured-page
 // thumbnails beside it, and an upload button once at least one page is shot.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,6 +34,7 @@ import { ApiError, apiPostForm } from "../api/client";
 import { ActionTile, Banner, Btn, Card, SectionTitle } from "../components/UI";
 import { useT } from "../i18n";
 import type { OriginalFile, RootStackParamList } from "../navigation";
+import { useBillSavedCounter } from "../store";
 import { fonts, radius, useTheme, type Palette } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
@@ -130,6 +131,19 @@ export function CaptureScreen() {
   const [snapping, setSnapping] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // Once a bill is saved on the Review screen, this screen's analyzed
+  // candidate is stale — clear everything so home comes back fresh.
+  const savedCount = useBillSavedCounter();
+  useEffect(() => {
+    if (savedCount > 0) {
+      setCandidate(null);
+      setOriginalFiles([]);
+      setText("");
+      setShowPaste(false);
+      setNotice(null);
+    }
+  }, [savedCount]);
 
   async function submit(form: FormData, files: OriginalFile[]) {
     setBusy(true);

@@ -127,13 +127,15 @@ function HomeTabs() {
   );
 }
 
-// Review needs the candidate from route params; on save, show the bill detail.
-function ReviewRoute({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Review">) {
+// Review needs the candidate from route params; on save, head back home —
+// the Capture screen clears its candidate via the save signal (store.ts), so
+// the home screen comes back fresh. The saved bill lives in the Bills tab.
+function ReviewRoute({ navigation, route }: NativeStackScreenProps<RootStackParamList, "Review">) {
   return (
     <ReviewScreen
       candidate={route.params.candidate}
       originalFiles={route.params.originalFiles}
-      onSaved={() => navigation.navigate("BillDetail", { bill: route.params.candidate })}
+      onSaved={() => navigation.popToTop()}
     />
   );
 }

@@ -929,6 +929,18 @@ $("saveBtn").onclick = async () => {
     if (res.status === 201) {
       $("saveStatus").textContent = "✓ Saved";
       loadHistory(); loadDash();
+      // The saved bill now lives under "My bills" — clear the capture area
+      // after a beat so the home view comes back fresh.
+      setTimeout(() => {
+        $("result").classList.add("hidden");
+        lastBill = null;
+        pickedFiles = [];
+        showChips();
+        $("text").value = "";
+        $("pasteWrap").classList.add("hidden");
+        $("btnPaste").classList.remove("active");
+        $("status").textContent = "";
+      }, 1200);
     } else {
       $("saveStatus").textContent = "Save failed: " + (body.detail || body.error || res.status);
       $("saveBtn").disabled = false;
