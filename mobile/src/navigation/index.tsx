@@ -78,6 +78,9 @@ function HomeTabs() {
         headerRightContainerStyle: { paddingRight: 10 },
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.muted,
+        // Don't let the tab bar ride on top of the keyboard (Android) — it
+        // would stack under the input and eat vertical space while typing.
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: c.card,
           borderTopColor: c.line,

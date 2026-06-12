@@ -7,6 +7,8 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useHeaderHeight } from "@react-navigation/elements";
 
 import { apiPostJson } from "../api/client";
 import { useT } from "../i18n";
@@ -33,6 +36,7 @@ const SUGGESTIONS = [
 export function QAChatScreen() {
   const t = useT();
   const { c, mode } = useTheme();
+  const headerHeight = useHeaderHeight();
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -55,7 +59,13 @@ export function QAChatScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: c.bg }]}>
+    // Lift the input bar above the soft keyboard — without this the keypad
+    // covers the text field and you can't see what you're typing.
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: c.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={headerHeight}
+    >
       <FlatList
         data={turns}
         keyExtractor={(_, i) => String(i)}
@@ -149,7 +159,7 @@ export function QAChatScreen() {
           <Ionicons name="send" size={18} color={c.onAccent} />
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
