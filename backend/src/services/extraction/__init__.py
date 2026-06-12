@@ -39,25 +39,30 @@ def _is_pdf(filename: str, content_type: str) -> bool:
     return content_type == "application/pdf" or filename.lower().endswith(".pdf")
 
 
-def _vision_images(files: list[tuple[bytes, str, str]]) -> Optional[list]:
-    """PIL images for the vision path, or None when deterministic parsing wins.
+def _vision_images(files: list[tuple[bytes, str, str]]) -> tuple[Optional[list], bool]:
+    """(PIL images, partial?) for the vision path; images is None when
+    deterministic parsing wins.
 
     Any PDF with a native text layer routes the whole submission to the
-    deterministic path (the text layer is lossless). May raise
+    deterministic path (the text layer is lossless). ``partial`` is True when
+    scanned pages were dropped to fit the vision cap. May raise
     ``PdfTooLargeError`` — an oversized PDF is declined, not processed.
     """
     from PIL import Image  # lazy
 
     images: list = []
+    partial = False
     for file_bytes, filename, content_type in files:
         if _is_pdf(filename, content_type):
-            pages = rasterize_scanned(file_bytes)
-            if pages is None:
-                return None
+            rasterized = rasterize_scanned(file_bytes)
+            if rasterized is None:
+                return None, False
+            pages, page_partial = rasterized
             images.extend(pages)
+            partial = partial or page_partial
         else:
             images.append(Image.open(io.BytesIO(file_bytes)))
-    return images or None
+    return (images or None), partial
 
 
 def _extract(
@@ -122,16 +127,16 @@ def process_inputs(
 ) -> Bill:
     if (not text or not text.strip()) and files and get_settings().vision_extraction:
         try:
-            images = _vision_images(files)
+            images, partial = _vision_images(files)
         except PdfTooLargeError as exc:
             raise NotABillError(str(exc)) from exc
         except Exception:  # noqa: BLE001 - unreadable file: let v1 raise its usual error
-            images = None
+            images, partial = None, False
         if images:
             from src.services.extraction import vision
 
             try:
-                return vision.extract_bill(images, bill_type_hint)
+                return vision.extract_bill(images, bill_type_hint, partial=partial)
             except vision.VisionExtractionError as exc:
                 logger.warning(
                     "vision extraction unavailable, falling back to local OCR: %s", exc

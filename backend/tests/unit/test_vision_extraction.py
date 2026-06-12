@@ -121,6 +121,64 @@ def test_component_rate_sum_outranks_echoed_single_rate(monkeypatch):
     assert Decimal(bill.tax_rate.value) == Decimal("5.0")
 
 
+def test_mixed_rate_components_yield_no_single_rate(monkeypatch):
+    # Seen live (9-page hypermart bill): 18% and 5% GST brackets. Summing
+    # bracket rates fabricates a rate no row prints — the tax check must be
+    # skipped as unverifiable instead of flagging from it.
+    payload = _payload()
+    payload["tax_components"] = [
+        {"name": "GST 18%", "rate": "18", "amount": "68.08"},
+        {"name": "GST 18%", "rate": "18", "amount": "68.08"},
+        {"name": "GST 5%", "rate": "5", "amount": "150.60"},
+        {"name": "GST 5%", "rate": "5", "amount": "150.60"},
+    ]
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+    bill = vision.extract_bill([_img()])
+    assert Decimal(bill.tax_amount.value) == Decimal("437.36")  # summed in code
+    assert bill.tax_rate is None
+
+
+def test_degraded_legibility_softens_flags(monkeypatch):
+    # Blurry receipt with one misread digit: the conflict must surface as
+    # "couldn't confirm" (verified=False), not an asserted error — the same
+    # behavior v1 derived from low OCR confidence.
+    payload = _payload()
+    payload["legibility"] = "degraded"
+    # A printed-and-transcribed total that doesn't reconcile (items 605 + tax
+    # 15 = 620, stated 720): a genuine conflict, but read off a blurry bill.
+    payload["total_amount"] = "720.00"
+    payload["raw_lines"][6] = "Total ₹720.00"
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+
+    bill = vision.extract_bill([_img()])
+
+    assert bill.total_amount.confidence == vision.DEGRADED_CONFIDENCE
+    flags = detect_discrepancies(bill)
+    assert flags and all(f.verified is False for f in flags)
+
+
+def test_printed_taxable_value_is_the_tax_base(monkeypatch):
+    # Tax-inclusive receipts print the taxable value separately (GST summary);
+    # assuming base=subtotal there fabricates a tax-mismatch flag.
+    payload = _payload()
+    payload["taxable_value"] = "590.48"
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+    bill = vision.extract_bill([_img()])
+    assert bill.tax_base.value == "590.48"
+
+
+def test_partial_extraction_suppresses_arithmetic_checks(monkeypatch):
+    # 4 of 9 pages cannot prove a sum mismatch (Principle II).
+    payload = _payload()
+    payload["line_items"] = payload["line_items"][:1]  # items no longer sum
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+
+    bill = vision.extract_bill([_img()], partial=True)
+
+    assert bill.nothing_to_verify is True
+    assert detect_discrepancies(bill) == []
+
+
 def test_unparseable_figures_are_dropped_never_repaired(monkeypatch):
     payload = _payload()
     payload["total_amount"] = "unknown"
@@ -204,7 +262,7 @@ def _classic_result() -> ExtractionResult:
 
 
 def test_vision_failure_falls_back_to_deterministic_pipeline(monkeypatch):
-    def _unavailable(images, bill_type_hint=None):
+    def _unavailable(images, bill_type_hint=None, partial=False):
         raise VisionExtractionError("provider down")
 
     monkeypatch.setattr("src.services.extraction.vision.extract_bill", _unavailable)
@@ -223,7 +281,7 @@ def test_vision_kill_switch_routes_straight_to_classic(monkeypatch):
 
     monkeypatch.setattr(get_settings(), "vision_extraction", False)
 
-    def _must_not_run(images, bill_type_hint=None):  # pragma: no cover
+    def _must_not_run(images, bill_type_hint=None, partial=False):  # pragma: no cover
         raise AssertionError("vision path used despite VISION_EXTRACTION=false")
 
     monkeypatch.setattr("src.services.extraction.vision.extract_bill", _must_not_run)

@@ -81,13 +81,21 @@ def extract_pdf(file_bytes: bytes) -> ExtractionResult:
     return result
 
 
-def rasterize_scanned(file_bytes: bytes) -> "list | None":
-    """Page images for the vision path when the PDF is fully scanned, else None.
+# The vision provider accepts 5 images per request, so a scanned PDF gets one
+# more page than the OCR cap. Selection keeps the first pages plus the LAST
+# TWO: long retail receipts print the grand total on the second-to-last page
+# with a GST summary after it (seen on a real 9-page bill).
+MAX_VISION_PAGES = 5
+
+
+def rasterize_scanned(file_bytes: bytes) -> "tuple[list, bool] | None":
+    """(page images, partial?) for the vision path when the PDF is fully
+    scanned, else None.
 
     A PDF with any native text layer stays on the deterministic path — the text
     layer is lossless, so vision re-reading it could only add transcription
-    risk. Page selection reuses the OCR cap rationale: first pages plus the
-    last, where merchant and grand total live.
+    risk. ``partial`` is True when pages were dropped to fit the cap, so the
+    caller can suppress arithmetic checks that a page subset cannot prove.
     """
     import pdfplumber  # lazy
 
@@ -96,7 +104,11 @@ def rasterize_scanned(file_bytes: bytes) -> "list | None":
             raise PdfTooLargeError(len(pdf.pages))
         if any((page.extract_text() or "").strip() for page in pdf.pages):
             return None
-        page_nos = _select_ocr_pages(list(range(len(pdf.pages))), MAX_OCR_PAGES)
+        all_pages = list(range(len(pdf.pages)))
+        if len(all_pages) > MAX_VISION_PAGES:
+            page_nos = all_pages[: MAX_VISION_PAGES - 2] + all_pages[-2:]
+        else:
+            page_nos = all_pages
 
     from pdf2image import convert_from_bytes  # lazy
 
@@ -107,7 +119,7 @@ def rasterize_scanned(file_bytes: bytes) -> "list | None":
         )
         if page_images:
             images.append(page_images[0])
-    return images
+    return images, len(page_nos) < len(all_pages)
 
 
 def _select_ocr_pages(image_pages: list[int], cap: int) -> list[int]:

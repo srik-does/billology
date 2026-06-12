@@ -9,6 +9,14 @@ field carries the same ``TracedValue`` provenance as the deterministic path,
 pointing at the transcribed raw line it came from. Arithmetic and discrepancy
 checks downstream are unchanged.
 
+Honesty gates mirroring the v1 confidence semantics (Principle II):
+
+* The model self-reports ``legibility``; a degraded read carries a confidence
+  below the discrepancy gate, so flags built on it say "couldn't confirm"
+  instead of asserting a proven error.
+* A known-partial extraction (pages dropped by the cap) sets
+  ``nothing_to_verify`` — a subset of pages cannot *prove* a sum mismatch.
+
 Any provider failure (no key, timeout, malformed JSON) raises
 ``VisionExtractionError`` so the orchestrator falls back to the deterministic
 OCR pipeline; a confident "this is not a bill" from the model is a decline
@@ -38,6 +46,9 @@ logger = logging.getLogger("billology.vision")
 # trust (None) reserved for text layers and user-corrected values. Above the
 # discrepancy gate's MIN_VERIFY_CONFIDENCE, so proven flags stay proven.
 VISION_CONFIDENCE = 0.9
+# When the model itself reports the bill as hard to read, figures drop below
+# the verify gate (0.6): conflicts surface as "couldn't confirm", not asserted.
+DEGRADED_CONFIDENCE = 0.5
 
 # Long side cap before JPEG re-encode: keeps the base64 payload well under
 # provider limits while preserving digit-level detail on receipt photos.
@@ -59,10 +70,10 @@ class VisionExtractionError(Exception):
 
 
 def _select(images: list[Any], cap: int) -> list[Any]:
-    """First ``cap - 1`` images plus the last (totals sit on the final page)."""
+    """First ``cap - 2`` images plus the last two (totals sit on final pages)."""
     if len(images) <= cap:
         return images
-    return images[: cap - 1] + images[-1:]
+    return images[: cap - 2] + images[-2:]
 
 
 def _encode(images: list[Any]) -> list[str]:
@@ -120,26 +131,28 @@ def _trace(raw_lines: list[str], needle: Optional[str]) -> Optional[SourceRef]:
 
 
 def _traced(
-    value: str, raw_lines: list[str], needle: Optional[str] = None
+    value: str, raw_lines: list[str], conf: float, needle: Optional[str] = None
 ) -> TracedValue:
     return TracedValue(
         value=value,
         provenance=Provenance.extracted,
-        confidence=VISION_CONFIDENCE,
+        confidence=conf,
         source_ref=_trace(raw_lines, needle or value),
     )
 
 
 def _traced_amount(
-    value: Any, raw_lines: list[str]
+    value: Any, raw_lines: list[str], conf: float
 ) -> Optional[TracedValue]:
     amount = _amount(value)
     if amount is None:
         return None
-    return _traced(_decimal_str(amount), raw_lines, needle=_str(value) or _decimal_str(amount))
+    return _traced(
+        _decimal_str(amount), raw_lines, conf, needle=_str(value) or _decimal_str(amount)
+    )
 
 
-def _bill_date(value: Any, raw_lines: list[str]) -> Optional[TracedValue]:
+def _bill_date(value: Any, raw_lines: list[str], conf: float) -> Optional[TracedValue]:
     text = _str(value)
     if text is None:
         return None
@@ -147,16 +160,16 @@ def _bill_date(value: Any, raw_lines: list[str]) -> Optional[TracedValue]:
         parsed = date.fromisoformat(text)
     except ValueError:
         return None
-    return _traced(parsed.isoformat(), raw_lines)
+    return _traced(parsed.isoformat(), raw_lines, conf)
 
 
-def _tax(data: dict[str, Any], raw_lines: list[str]) -> tuple[
+def _tax(data: dict[str, Any], raw_lines: list[str], conf: float) -> tuple[
     Optional[TracedValue], Optional[TracedValue]
 ]:
     """(tax_amount, tax_rate): single printed figure, else components summed in code."""
-    tax_amount = _traced_amount(data.get("tax_amount"), raw_lines)
+    tax_amount = _traced_amount(data.get("tax_amount"), raw_lines, conf)
     rate = _amount(data.get("tax_rate"))
-    tax_rate = _traced(_decimal_str(rate), raw_lines) if rate is not None else None
+    tax_rate = _traced(_decimal_str(rate), raw_lines, conf) if rate is not None else None
     if tax_amount is not None:
         return tax_amount, tax_rate
 
@@ -164,7 +177,7 @@ def _tax(data: dict[str, Any], raw_lines: list[str]) -> tuple[
     if not isinstance(components, list):
         return None, tax_rate
     comp_total = Decimal(0)
-    comp_rate = Decimal(0)
+    comp_rates: list[Decimal] = []
     count = 0
     first_ref: Optional[SourceRef] = None
     for comp in components:
@@ -176,31 +189,38 @@ def _tax(data: dict[str, Any], raw_lines: list[str]) -> tuple[
         comp_total += amount
         count += 1
         first_ref = first_ref or _trace(raw_lines, _str(comp.get("amount")))
-        rate = _amount(comp.get("rate"))
-        if rate is not None:
-            comp_rate += rate
+        comp_rate = _amount(comp.get("rate"))
+        if comp_rate is not None:
+            comp_rates.append(comp_rate)
     if count == 0:
         return None, tax_rate
     tax_amount = TracedValue(
         value=_decimal_str(comp_total),
         provenance=Provenance.extracted,
-        confidence=VISION_CONFIDENCE,
+        confidence=conf,
         source_ref=first_ref,
     )
-    # When the printed component rows supply the amount, their summed rate is
-    # the bill's effective rate (CGST 2.5% + SGST 2.5% = 5%) — it outranks any
-    # single-component rate the model echoed into the top-level field.
-    if comp_rate > 0:
-        tax_rate = TracedValue(
-            value=_decimal_str(comp_rate),
-            provenance=Provenance.extracted,
-            confidence=VISION_CONFIDENCE,
-            source_ref=first_ref,
-        )
+    # When every printed component carries the same rate (the standard
+    # CGST 2.5% + SGST 2.5% split), their sum is the bill's effective rate and
+    # outranks any single-component rate the model echoed into the top-level
+    # field. Mixed brackets (a 5% row next to an 18% row) have no single
+    # effective rate — leave it unset so the tax check is skipped as
+    # unverifiable rather than flagged from a fabricated rate.
+    if comp_rates and all(r == comp_rates[0] for r in comp_rates):
+        total_rate = sum(comp_rates, Decimal(0))
+        if total_rate > 0:
+            tax_rate = TracedValue(
+                value=_decimal_str(total_rate),
+                provenance=Provenance.extracted,
+                confidence=conf,
+                source_ref=first_ref,
+            )
+    elif comp_rates:
+        tax_rate = None
     return tax_amount, tax_rate
 
 
-def _line_items(data: dict[str, Any], raw_lines: list[str]) -> list[LineItem]:
+def _line_items(data: dict[str, Any], raw_lines: list[str], conf: float) -> list[LineItem]:
     items: list[LineItem] = []
     raw_items = data.get("line_items")
     if not isinstance(raw_items, list):
@@ -209,7 +229,7 @@ def _line_items(data: dict[str, Any], raw_lines: list[str]) -> list[LineItem]:
         if not isinstance(raw, dict):
             continue
         description = _str(raw.get("description"))
-        line_total = _traced_amount(raw.get("line_total"), raw_lines)
+        line_total = _traced_amount(raw.get("line_total"), raw_lines, conf)
         # An item without a code-validated printed amount cannot be verified —
         # skipped rather than carried with a fabricated/None figure.
         if description is None or line_total is None:
@@ -217,9 +237,9 @@ def _line_items(data: dict[str, Any], raw_lines: list[str]) -> list[LineItem]:
         items.append(
             LineItem(
                 position=len(items),
-                description=_traced(description, raw_lines),
-                quantity=_traced_amount(raw.get("quantity"), raw_lines),
-                unit_amount=_traced_amount(raw.get("unit_amount"), raw_lines),
+                description=_traced(description, raw_lines, conf),
+                quantity=_traced_amount(raw.get("quantity"), raw_lines, conf),
+                unit_amount=_traced_amount(raw.get("unit_amount"), raw_lines, conf),
                 line_total=line_total,
             )
         )
@@ -261,8 +281,15 @@ def _bill_type(data: dict[str, Any], raw_text: str, hint: Optional[str]) -> Bill
     return detect_bill_type(raw_text)
 
 
-def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bill:
-    """Transcribe bill image(s) via the vision LLM and assemble a candidate."""
+def extract_bill(
+    images: list[Any], bill_type_hint: Optional[str] = None, partial: bool = False
+) -> Bill:
+    """Transcribe bill image(s) via the vision LLM and assemble a candidate.
+
+    ``partial=True`` means the caller already dropped pages (cap); when this
+    call drops images beyond ``MAX_IMAGES`` the result is partial too.
+    """
+    partial = partial or len(images) > MAX_IMAGES
     payload = _encode(images)
     try:
         from src.services.llm_service import get_llm_service
@@ -276,6 +303,8 @@ def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bil
     if data.get("is_bill") is False:
         raise NotABillError()
 
+    conf = DEGRADED_CONFIDENCE if data.get("legibility") == "degraded" else VISION_CONFIDENCE
+
     raw_lines = [
         ln.strip()
         for ln in data.get("raw_lines", [])
@@ -285,15 +314,15 @@ def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bil
 
     merchant_name = _str(data.get("merchant"))
     merchant = (
-        _traced(merchant_name, raw_lines)
+        _traced(merchant_name, raw_lines, conf)
         if merchant_name
         else TracedValue(value=None, provenance=Provenance.extracted)
     )
 
-    total = _traced_amount(data.get("total_amount"), raw_lines)
-    subtotal = _traced_amount(data.get("subtotal"), raw_lines)
-    tax_amount, tax_rate = _tax(data, raw_lines)
-    line_items = _line_items(data, raw_lines)
+    total = _traced_amount(data.get("total_amount"), raw_lines, conf)
+    subtotal = _traced_amount(data.get("subtotal"), raw_lines, conf)
+    tax_amount, tax_rate = _tax(data, raw_lines, conf)
+    line_items = _line_items(data, raw_lines, conf)
 
     if total is None and not line_items:
         # The model saw a bill but transcribed nothing verifiable — let the
@@ -303,23 +332,36 @@ def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bil
     currency = _str(data.get("currency")) or ""
     currency = currency.upper() if _CURRENCY.match(currency.upper()) else "INR"
 
+    # The printed taxable value (GST-summary base) outranks the
+    # subtotal-as-base assumption — on tax-inclusive receipts the subtotal
+    # already contains the tax and would yield a false tax-mismatch flag.
+    tax_base = _traced_amount(data.get("taxable_value"), raw_lines, conf)
+    if tax_base is None and tax_rate is not None:
+        tax_base = subtotal
+
     bill = Bill(
         merchant=merchant,
         bill_type=_bill_type(data, raw_text, bill_type_hint),
-        bill_date=_bill_date(data.get("bill_date"), raw_lines),
+        bill_date=_bill_date(data.get("bill_date"), raw_lines, conf),
         currency=currency,
         subtotal=subtotal,
         tax_rate=tax_rate,
-        tax_base=subtotal if tax_rate is not None else None,
+        tax_base=tax_base,
         tax_amount=tax_amount,
         total_amount=total or TracedValue(value=None, provenance=Provenance.extracted),
         line_items=line_items,
-        nothing_to_verify=(total is not None and not line_items),
+        # A known-partial extraction can't itemize the whole bill, so its sums
+        # can't PROVE anything (Principle II) — suppress arithmetic checks.
+        nothing_to_verify=(total is not None and not line_items) or partial,
         # The vision model reads any printed layout, so an off-list bill type
         # (electricity, water, ...) is extracted data, not an unsupported layout.
         layout_supported=True,
         status="candidate",
     )
+    if partial:
+        logger.warning(
+            "vision extraction is partial (pages dropped) — arithmetic checks suppressed"
+        )
 
     # Guard against model-computed line totals: when an untraced total exists
     # alongside a traced printed amount, keep whichever variant the

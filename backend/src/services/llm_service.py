@@ -137,7 +137,9 @@ class ChatLLMService(LLMService):
             '"bill_date": "YYYY-MM-DD" | null, '
             '"bill_type": "grocery" | "telecom_recharge" | "other", '
             '"currency": string | null, '
+            '"legibility": "clear" | "degraded", '
             '"subtotal": string | null, '
+            '"taxable_value": string | null, '
             '"tax_rate": string | null, '
             '"tax_amount": string | null, '
             '"tax_components": [{"name": string, "rate": string | null, "amount": string}], '
@@ -150,7 +152,12 @@ class ChatLLMService(LLMService):
             "raw_lines: every visible printed line of text, top to bottom, transcribed "
             "verbatim. Amounts as plain digit strings without currency symbols or "
             "thousands separators (e.g. '1234.56'). "
-            "total_amount: the grand total / net amount payable as printed. "
+            "legibility: 'degraded' when any part of the bill is blurry, faded, "
+            "crumpled, or otherwise hard to read with certainty; 'clear' otherwise. "
+            "total_amount: the grand total / net amount payable as printed — never a "
+            "GST-summary or taxable-value figure. "
+            "taxable_value: the printed total taxable value/amount (often in a GST "
+            "summary table), when printed. "
             "tax_amount: only a single printed total-tax figure; when tax is printed "
             "split into components (CGST/SGST/IGST), put each printed component row in "
             "tax_components instead and leave tax_amount null. tax_rate: printed "
