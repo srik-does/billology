@@ -21,7 +21,7 @@ import { apiDelete, apiGet } from "../api/client";
 import { Btn, Chip } from "../components/UI";
 import { useT } from "../i18n";
 import type { RootStackParamList } from "../navigation";
-import { colors, SEED_CATEGORIES, shadow } from "../theme";
+import { fonts, SEED_CATEGORIES, shadowFor, useTheme } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "History">;
 
@@ -36,6 +36,7 @@ type Row = {
 export function HistoryScreen() {
   const navigation = useNavigation<Nav>();
   const t = useT();
+  const { c, mode } = useTheme();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
@@ -123,26 +124,26 @@ export function HistoryScreen() {
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
-        <Btn title="Retry" onPress={load} style={{ marginTop: 12 }} />
+      <View style={[styles.center, { backgroundColor: c.bg }]}>
+        <Text style={{ color: c.danger, textAlign: "center", fontFamily: fonts.body }}>{error}</Text>
+        <Btn title={t("retry")} onPress={load} style={{ marginTop: 12 }} />
       </View>
     );
   }
   if (rows === null) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
+      <View style={[styles.center, { backgroundColor: c.bg }]}>
+        <ActivityIndicator color={c.accent} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
       <TextInput
-        style={styles.search}
+        style={[styles.search, { backgroundColor: c.card, borderColor: c.line, color: c.text }]}
         placeholder={t("searchMerchant")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={c.muted}
         value={q}
         onChangeText={setQ}
       />
@@ -150,7 +151,7 @@ export function HistoryScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         data={["__all__", ...SEED_CATEGORIES]}
-        keyExtractor={(c) => c}
+        keyExtractor={(item) => item}
         style={styles.chips}
         contentContainerStyle={{ gap: 8 }}
         renderItem={({ item }) => (
@@ -167,7 +168,7 @@ export function HistoryScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
         ListEmptyComponent={
-          <Text style={styles.empty}>
+          <Text style={[styles.empty, { color: c.muted }]}>
             {rows.length === 0 ? t("noBillsYet") : t("noMatch")}
           </Text>
         }
@@ -175,82 +176,75 @@ export function HistoryScreen() {
           <Pressable
             onPress={() => openBill(item)}
             onLongPress={() => confirmDeleteOne(item)}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [
+              styles.row,
+              { backgroundColor: c.card, borderColor: c.line },
+              shadowFor(mode),
+              pressed && { opacity: 0.7 },
+            ]}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
+            <View style={[styles.avatar, { backgroundColor: c.accentSoft }]}>
+              <Text style={[styles.avatarText, { color: c.accent }]}>
                 {(item.merchant ?? "?").trim().charAt(0).toUpperCase() || "?"}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.merchant} numberOfLines={1}>
+              <Text style={[styles.merchant, { color: c.text }]} numberOfLines={1}>
                 {item.merchant ?? "Unknown merchant"}
               </Text>
               <View style={styles.metaRow}>
-                <Text style={styles.meta}>{item.bill_date ?? "—"}</Text>
+                <Text style={[styles.meta, { color: c.muted }]}>{item.bill_date ?? "—"}</Text>
                 {item.category ? (
-                  <View style={styles.pill}>
-                    <Text style={styles.pillText}>{item.category}</Text>
+                  <View style={[styles.pill, { backgroundColor: c.accentSoft }]}>
+                    <Text style={[styles.pillText, { color: c.accent }]}>{item.category}</Text>
                   </View>
                 ) : null}
               </View>
             </View>
-            <Text style={styles.amount}>₹{item.total_amount ?? "—"}</Text>
+            <Text style={[styles.amount, { color: c.text }]}>₹{item.total_amount ?? "—"}</Text>
           </Pressable>
         )}
       />
-      <Text style={styles.hint}>{t("historyHint")}</Text>
+      <Text style={[styles.hint, { color: c.muted }]}>{t("historyHint")}</Text>
       <Btn title={t("clearAll")} variant="danger" onPress={confirmClearAll} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: 14, gap: 10 },
+  container: { flex: 1, padding: 14, gap: 10 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   search: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: colors.text,
+    fontFamily: fonts.body,
   },
   chips: { flexGrow: 0 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 16,
     padding: 14,
-    ...shadow,
   },
   avatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: colors.accent, fontWeight: "800", fontSize: 16 },
-  merchant: { fontSize: 15, fontWeight: "700", color: colors.text },
+  avatarText: { fontFamily: fonts.display, fontSize: 16 },
+  merchant: { fontSize: 15, fontFamily: fonts.bodyBold },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 3 },
-  meta: { fontSize: 12.5, color: colors.muted },
-  pill: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  pillText: { color: colors.accent, fontSize: 11, fontWeight: "700" },
-  amount: { fontSize: 15, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
-  empty: { textAlign: "center", color: colors.muted, marginTop: 32, paddingHorizontal: 24 },
-  hint: { textAlign: "center", color: colors.muted, fontSize: 12 },
-  error: { color: colors.danger, textAlign: "center" },
+  meta: { fontSize: 12.5, fontFamily: fonts.body },
+  pill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  pillText: { fontSize: 11, fontFamily: fonts.bodyBold },
+  amount: { fontSize: 15, fontFamily: fonts.bodySemi, fontVariant: ["tabular-nums"] },
+  empty: { textAlign: "center", marginTop: 32, paddingHorizontal: 24, fontFamily: fonts.body },
+  hint: { textAlign: "center", fontSize: 12, fontFamily: fonts.body },
 });

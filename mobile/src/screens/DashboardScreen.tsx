@@ -18,21 +18,43 @@ import { BarChart, PieChart } from "react-native-gifted-charts";
 import { apiGet } from "../api/client";
 import { Chip } from "../components/UI";
 import { useT } from "../i18n";
-import { colors } from "../theme";
+import { fonts, useTheme } from "../theme";
 
 type CategoryRow = { category: string; total: string };
 type MonthRow = { month: string; total: string };
 type BillRow = { id: string; merchant?: string | null; total_amount?: string | null };
-
-const PALETTE = ["#2563eb", "#16a34a", "#f59e0b", "#db2777", "#7c3aed", "#0891b2", "#9ca3af"];
 
 const inr = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
+// --- Nice y-axis (#7): standard 1/2/5 × 10^k steps -------------------------
+// Instead of whatever maxValue/4 happens to be (e.g. 437.25, 874.5 …), the
+// axis climbs in familiar steps — 100, 200, 500, 1000 — sized to the data.
+function niceStep(rough: number): number {
+  const pow = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1))));
+  for (const m of [1, 2, 5, 10]) {
+    if (rough <= m * pow) return m * pow;
+  }
+  return 10 * pow;
+}
+
+function niceAxis(rawMax: number): { maxValue: number; sections: number; labels: string[] } {
+  if (rawMax <= 0) return { maxValue: 400, sections: 4, labels: ["0", "100", "200", "300", "400"] };
+  const step = niceStep(rawMax / 4); // aim for ~4 bands
+  const sections = Math.max(1, Math.ceil(rawMax / step));
+  const maxValue = step * sections;
+  const labels = Array.from({ length: sections + 1 }, (_, i) =>
+    (step * i).toLocaleString("en-IN")
+  );
+  return { maxValue, sections, labels };
+}
+
 export function DashboardScreen() {
   const t = useT();
+  const { c } = useTheme();
+  const PALETTE = c.series;
   const [byCategory, setByCategory] = useState<CategoryRow[] | null>(null);
   const [monthly, setMonthly] = useState<MonthRow[] | null>(null);
   const [bills, setBills] = useState<BillRow[]>([]);
@@ -68,7 +90,7 @@ export function DashboardScreen() {
   if (error) {
     return (
       <Centered>
-        <Text style={styles.err}>{error}</Text>
+        <Text style={[styles.err, { color: c.danger }]}>{error}</Text>
         <View style={{ marginTop: 12 }}>
           <Chip label={t("retry")} onPress={load} />
         </View>
@@ -76,12 +98,12 @@ export function DashboardScreen() {
     );
   }
   if (!byCategory || !monthly) {
-    return <Centered><ActivityIndicator /></Centered>;
+    return <Centered><ActivityIndicator color={c.accent} /></Centered>;
   }
 
   const hasData = byCategory.length > 0 || monthly.length > 0;
   if (!hasData) {
-    return <Centered><Text style={styles.empty}>{t("noBillsYet")}</Text></Centered>;
+    return <Centered><Text style={[styles.empty, { color: c.muted }]}>{t("noBillsYet")}</Text></Centered>;
   }
 
   // Stat cards: current month, delta vs previous month, top category.
@@ -92,17 +114,18 @@ export function DashboardScreen() {
   const deltaPct = prev > 0 ? ((cur - prev) / prev) * 100 : null;
   const topCat = byCategory[0];
 
-  const pieData = byCategory.map((c, i) => ({
-    value: Number(c.total),
+  const pieData = byCategory.map((cRow, i) => ({
+    value: Number(cRow.total),
     color: PALETTE[i % PALETTE.length],
-    text: c.category,
+    text: cRow.category,
   }));
-  const total = byCategory.reduce((s, c) => s + Number(c.total), 0);
+  const total = byCategory.reduce((s, cRow) => s + Number(cRow.total), 0);
 
   const barData = monthly.map((m) => ({
     value: Number(m.total),
     label: m.month.slice(5), // MM
   }));
+  const axis = niceAxis(Math.max(...barData.map((d) => d.value), 0));
 
   // Top merchants from saved bills (small dataset; aggregated client-side).
   const byMerchant = new Map<string, number>();
@@ -115,69 +138,76 @@ export function DashboardScreen() {
 
   return (
     <ScrollView
+      style={{ backgroundColor: c.bg }}
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
-      <Text style={styles.title}>{t("titleSpending")}</Text>
-
       <View style={styles.statsRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>{t("thisMonth")}</Text>
-          <Text style={styles.statValue}>{inr(cur)}</Text>
+        <View style={[styles.stat, { backgroundColor: c.card, borderColor: c.line }]}>
+          <Text style={[styles.statLabel, { color: c.muted }]}>{t("thisMonth")}</Text>
+          <Text style={[styles.statValue, { color: c.text }]}>{inr(cur)}</Text>
           {deltaPct !== null && (
-            <Text style={[styles.delta, deltaPct >= 0 ? styles.deltaUp : styles.deltaDown]}>
+            <Text style={[styles.delta, { color: deltaPct >= 0 ? c.danger : c.good }]}>
               {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(0)}%{" "}
-              <Text style={styles.deltaMuted}>{t("vsLastMonth")}</Text>
+              <Text style={[styles.deltaMuted, { color: c.muted }]}>{t("vsLastMonth")}</Text>
             </Text>
           )}
         </View>
         {topCat && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>{t("topCategory")}</Text>
-            <Text style={styles.statValueSmall} numberOfLines={1}>{topCat.category}</Text>
-            <Text style={styles.deltaMuted}>{inr(Number(topCat.total))}</Text>
+          <View style={[styles.stat, { backgroundColor: c.card, borderColor: c.line }]}>
+            <Text style={[styles.statLabel, { color: c.muted }]}>{t("topCategory")}</Text>
+            <Text style={[styles.statValueSmall, { color: c.text }]} numberOfLines={1}>
+              {topCat.category}
+            </Text>
+            <Text style={[styles.deltaMuted, { color: c.muted }]}>{inr(Number(topCat.total))}</Text>
           </View>
         )}
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>{t("navBills")}</Text>
-          <Text style={styles.statValue}>{bills.length}</Text>
+        <View style={[styles.stat, { backgroundColor: c.card, borderColor: c.line }]}>
+          <Text style={[styles.statLabel, { color: c.muted }]}>{t("navBills")}</Text>
+          <Text style={[styles.statValue, { color: c.text }]}>{bills.length}</Text>
         </View>
       </View>
 
-      <Text style={styles.section}>{t("byCategory")}</Text>
+      <Text style={[styles.section, { color: c.muted }]}>{t("byCategory")}</Text>
       <View style={styles.center}>
         <PieChart
           data={pieData}
           donut
           radius={110}
           innerRadius={70}
+          backgroundColor={c.bg}
           centerLabelComponent={() => (
             <View style={styles.center}>
-              <Text style={styles.totalLabel}>{t("total")}</Text>
-              <Text style={styles.totalValue}>{inr(total)}</Text>
+              <Text style={[styles.totalLabel, { color: c.muted }]}>{t("total")}</Text>
+              <Text style={[styles.totalValue, { color: c.text }]}>{inr(total)}</Text>
             </View>
           )}
         />
       </View>
       <View style={styles.legend}>
-        {byCategory.map((c, i) => (
-          <View key={c.category} style={styles.legendRow}>
+        {byCategory.map((cRow, i) => (
+          <View key={cRow.category} style={styles.legendRow}>
             <View style={[styles.swatch, { backgroundColor: PALETTE[i % PALETTE.length] }]} />
-            <Text style={styles.legendText}>{c.category}</Text>
-            <Text style={styles.legendValue}>{inr(Number(c.total))}</Text>
+            <Text style={[styles.legendText, { color: c.text }]}>{cRow.category}</Text>
+            <Text style={[styles.legendValue, { color: c.text }]}>{inr(Number(cRow.total))}</Text>
           </View>
         ))}
       </View>
 
-      <Text style={styles.section}>{t("monthlyTrend")}</Text>
+      <Text style={[styles.section, { color: c.muted }]}>{t("monthlyTrend")}</Text>
       <BarChart
         data={barData}
-        frontColor={colors.accent}
+        frontColor={c.accent}
         barWidth={28}
         spacing={18}
         yAxisThickness={0}
         xAxisThickness={0}
-        noOfSections={4}
+        maxValue={axis.maxValue}
+        noOfSections={axis.sections}
+        yAxisLabelTexts={axis.labels}
+        yAxisTextStyle={{ color: c.muted, fontSize: 11, fontFamily: fonts.body }}
+        xAxisLabelTextStyle={{ color: c.muted, fontSize: 11, fontFamily: fonts.body }}
+        rulesColor={c.line}
         isAnimated
         animationDuration={700}
         barBorderTopLeftRadius={4}
@@ -186,15 +216,17 @@ export function DashboardScreen() {
 
       {topMerchants.length > 0 && (
         <>
-          <Text style={styles.section}>{t("topMerchants")}</Text>
+          <Text style={[styles.section, { color: c.muted }]}>{t("topMerchants")}</Text>
           <View style={styles.merchants}>
             {topMerchants.map(([name, value], i) => (
               <View key={name} style={styles.merchantRow}>
                 <View style={styles.merchantHead}>
-                  <Text style={styles.legendText} numberOfLines={1}>{name}</Text>
-                  <Text style={styles.legendValue}>{inr(value)}</Text>
+                  <Text style={[styles.legendText, { color: c.text }]} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  <Text style={[styles.legendValue, { color: c.text }]}>{inr(value)}</Text>
                 </View>
-                <View style={styles.track}>
+                <View style={[styles.track, { backgroundColor: c.line }]}>
                   <View
                     style={[
                       styles.fill,
@@ -215,44 +247,40 @@ export function DashboardScreen() {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <View style={styles.centeredFull}>{children}</View>;
+  const { c } = useTheme();
+  return <View style={[styles.centeredFull, { backgroundColor: c.bg }]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 10, paddingBottom: 32 },
   centeredFull: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   center: { alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 22, fontWeight: "700" },
   statsRow: { flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 6 },
-  stat: {
-    flexGrow: 1, flexBasis: 100, backgroundColor: colors.card, borderColor: colors.line,
-    borderWidth: 1, borderRadius: 12, padding: 12,
-  },
-  statLabel: {
-    color: colors.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5,
-  },
-  statValue: { fontSize: 18, fontWeight: "700", marginTop: 4, fontVariant: ["tabular-nums"] },
-  statValueSmall: { fontSize: 15, fontWeight: "700", marginTop: 4 },
-  delta: { fontSize: 12, marginTop: 2 },
-  deltaUp: { color: "#dc2626" },
-  deltaDown: { color: "#16a34a" },
-  deltaMuted: { color: colors.muted, fontSize: 12 },
+  stat: { flexGrow: 1, flexBasis: 100, borderWidth: 1, borderRadius: 12, padding: 12 },
+  statLabel: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: fonts.bodySemi },
+  statValue: { fontSize: 18, fontFamily: fonts.display, marginTop: 4, fontVariant: ["tabular-nums"] },
+  statValueSmall: { fontSize: 15, fontFamily: fonts.bodyBold, marginTop: 4 },
+  delta: { fontSize: 12, marginTop: 2, fontFamily: fonts.bodySemi },
+  deltaMuted: { fontSize: 12, fontFamily: fonts.body },
   section: {
-    marginTop: 18, fontSize: 13, fontWeight: "700", color: colors.muted,
+    marginTop: 18,
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  totalLabel: { color: colors.muted, fontSize: 12 },
-  totalValue: { fontWeight: "700", fontSize: 16 },
+  totalLabel: { fontSize: 12, fontFamily: fonts.body },
+  totalValue: { fontFamily: fonts.display, fontSize: 16 },
   legend: { marginTop: 12, gap: 6 },
   legendRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   swatch: { width: 12, height: 12, borderRadius: 3 },
-  legendText: { flex: 1, fontSize: 14 },
-  legendValue: { fontSize: 14, fontVariant: ["tabular-nums"] },
+  legendText: { flex: 1, fontSize: 14, fontFamily: fonts.body },
+  legendValue: { fontSize: 14, fontFamily: fonts.bodySemi, fontVariant: ["tabular-nums"] },
   merchants: { gap: 10, marginTop: 4 },
   merchantRow: { gap: 4 },
   merchantHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  track: { backgroundColor: colors.line, borderRadius: 4, height: 8 },
+  track: { borderRadius: 4, height: 8 },
   fill: { height: 8, borderRadius: 4 },
-  empty: { color: colors.muted, textAlign: "center" },
-  err: { color: "#dc2626", textAlign: "center" },
+  empty: { textAlign: "center", fontFamily: fonts.body },
+  err: { textAlign: "center", fontFamily: fonts.body },
 });

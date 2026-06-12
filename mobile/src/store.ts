@@ -3,11 +3,13 @@
 // re-render on change; client.ts reads the snapshot to build request headers.
 
 import { useSyncExternalStore } from "react";
+import { Appearance } from "react-native";
 
 export type Language =
   | "en" | "hi" | "te" | "ta" | "kn" | "ml" | "bn"
   | "mr" | "gu" | "pa" | "or" | "as" | "ur";
 export type LLMProvider = "default" | "groq-byok" | "ollama";
+export type ThemeSetting = "light" | "dark";
 
 export type AppSettings = {
   language: Language;
@@ -15,6 +17,7 @@ export type AppSettings = {
   groqKey: string;
   ollamaUrl: string;
   ollamaModel: string;
+  theme: ThemeSetting;
 };
 
 let settings: AppSettings = {
@@ -23,6 +26,8 @@ let settings: AppSettings = {
   groqKey: "",
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "llama3.2",
+  // Start from the device's appearance; the in-app toggle takes over from there.
+  theme: Appearance.getColorScheme() === "dark" ? "dark" : "light",
 };
 
 const listeners = new Set<() => void>();

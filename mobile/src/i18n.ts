@@ -1,4 +1,4 @@
-// UI translations — 13 languages (English + 12 Indian languages). Chrome only —
+﻿// UI translations — 13 languages (English + 12 Indian languages). Chrome only —
 // bill data and figures come from the record; LLM text is localized server-side
 // via the X-Language header.
 //
@@ -10,7 +10,7 @@ import { useSettings, type Language } from "./store";
 
 const STRINGS = {
   en: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "Bills",
     navSpending: "Spending",
     navAsk: "Ask",
@@ -68,9 +68,46 @@ const STRINGS = {
     topCategory: "Top category",
     retry: "Retry",
     navAdd: "Add",
+    takePhoto: "Take photo",
+    pasteTextBtn: "Paste text",
+    cameraHint: "Snap each page of the bill — up to 5 photos.",
+    cameraShot: "Capture",
+    cameraDone: "Upload {n} photo(s)",
+    cameraMax: "Limit of 5 photos per bill reached.",
+    photosReady: "{n} photo(s) ready",
+    appearance: "Appearance",
+    themeLight: "Light",
+    themeDark: "Dark",
+    helpLink: "Help & guide",
+    helpTitle: "How Billology works",
+    helpIntro:
+      "Four steps from a paper bill to answers about your spending. Figures always come from the bill itself — the AI only reads and explains, it never invents a number.",
+    h1t: "Add a bill",
+    h1b: "On the Add tab, take photos of the bill (multiple pages are fine), pick an image or PDF from your device, or paste the bill's text.",
+    h2t: "Check the extraction",
+    h2b: "Billology reads the merchant, date, items, taxes, and total, and runs arithmetic checks. Anything that doesn't add up is flagged with the conflicting figures as evidence; shaky reads are marked 'check'.",
+    h3t: "Review & save",
+    h3b: "Fix any field before saving — your corrections are remembered as yours. If the date is missing you'll be asked to set it. Saved bills become part of your history.",
+    h4t: "Browse your bills",
+    h4b: "The Bills tab lists everything you saved — search by merchant, filter by category, tap to open a bill, long-press to delete it.",
+    h5t: "See your spending",
+    h5b: "The Spending tab shows this month's total, category breakdown, monthly trend, and top merchants — all computed from your saved bills.",
+    h6t: "Ask questions",
+    h6b: "The Ask tab answers questions like 'How much did I spend on groceries in May?' from your saved records only. If the data isn't there, it says so instead of guessing.",
+    helpPrivacyT: "Privacy & AI",
+    helpPrivacyB:
+      "Bill images are read by a cloud AI by default. In Settings you can switch to your own key or a fully local model (Ollama) — or change the app's look with the light/dark toggle.",
+    dateNeededTitle: "When is this bill from?",
+    dateNeededBody: "No date was found on this bill. Set it so your spending lands in the right month.",
+    dateFromBill: "Read it off the bill",
+    dateFromBillHint: "Find the printed date on the bill below, then type it in.",
+    dateSetManual: "Set the date myself",
+    dateToday: "Today",
+    dateDone: "Use this date",
+    dateSkip: "Skip for now",
   },
   hi: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "बिल",
     navSpending: "खर्च",
     navAsk: "पूछें",
@@ -128,9 +165,46 @@ const STRINGS = {
     topCategory: "शीर्ष श्रेणी",
     retry: "फिर कोशिश करें",
     navAdd: "जोड़ें",
+    takePhoto: "फ़ोटो लें",
+    pasteTextBtn: "टेक्स्ट पेस्ट करें",
+    cameraHint: "बिल के हर पन्ने की फ़ोटो लें — अधिकतम 5 फ़ोटो।",
+    cameraShot: "खींचें",
+    cameraDone: "{n} फ़ोटो अपलोड करें",
+    cameraMax: "एक बिल के लिए अधिकतम 5 फ़ोटो की सीमा पूरी हो गई।",
+    photosReady: "{n} फ़ोटो तैयार",
+    appearance: "रूप",
+    themeLight: "लाइट",
+    themeDark: "डार्क",
+    helpLink: "मदद और गाइड",
+    helpTitle: "Billology कैसे काम करता है",
+    helpIntro:
+      "कागज़ के बिल से खर्च के जवाब तक — चार कदम। आँकड़े हमेशा बिल से ही आते हैं — AI केवल पढ़ता और समझाता है, कभी कोई संख्या नहीं गढ़ता।",
+    h1t: "बिल जोड़ें",
+    h1b: "Add टैब पर बिल की फ़ोटो लें (कई पन्ने भी चलेंगे), डिवाइस से छवि या PDF चुनें, या बिल का टेक्स्ट पेस्ट करें।",
+    h2t: "निकाले गए आँकड़े जाँचें",
+    h2b: "Billology दुकान, तारीख़, आइटम, टैक्स और कुल पढ़ता है और गणित की जाँच करता है। जो जुड़ता नहीं, वह आँकड़ों समेत फ़्लैग होता है; कमज़ोर रीडिंग पर 'check' का निशान लगता है।",
+    h3t: "जाँचें और सहेजें",
+    h3b: "सहेजने से पहले कोई भी फ़ील्ड सुधारें — आपके सुधार आपकी ओर से दर्ज होते हैं। तारीख़ न मिले तो आपसे पूछा जाएगा। सहेजे बिल आपके इतिहास में जुड़ते हैं।",
+    h4t: "अपने बिल देखें",
+    h4b: "Bills टैब में सहेजे सारे बिल — दुकान से खोजें, श्रेणी से छाँटें, खोलने के लिए टैप करें, हटाने के लिए देर तक दबाएँ।",
+    h5t: "खर्च देखें",
+    h5b: "Spending टैब इस महीने का कुल, श्रेणीवार बँटवारा, मासिक रुझान और शीर्ष दुकानें दिखाता है — सब आपके सहेजे बिलों से।",
+    h6t: "सवाल पूछें",
+    h6b: "Ask टैब 'मई में किराने पर कितना खर्च हुआ?' जैसे सवालों के जवाब केवल सहेजे रिकॉर्ड से देता है। डेटा न हो तो अनुमान नहीं, साफ़ कह देता है।",
+    helpPrivacyT: "निजता और AI",
+    helpPrivacyB:
+      "बिल की छवियाँ डिफ़ॉल्ट रूप से क्लाउड AI पढ़ता है। Settings में अपनी key या पूरी तरह लोकल मॉडल (Ollama) चुन सकते हैं — और लाइट/डार्क टॉगल से ऐप का रूप बदल सकते हैं।",
+    dateNeededTitle: "यह बिल कब का है?",
+    dateNeededBody: "इस बिल पर तारीख़ नहीं मिली। सेट करें ताकि खर्च सही महीने में गिना जाए।",
+    dateFromBill: "बिल से पढ़कर भरें",
+    dateFromBillHint: "नीचे बिल पर छपी तारीख़ देखें, फिर टाइप करें।",
+    dateSetManual: "मैं ख़ुद तारीख़ सेट करूँ",
+    dateToday: "आज",
+    dateDone: "यही तारीख़ रखें",
+    dateSkip: "अभी छोड़ें",
   },
   te: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "బిల్లులు",
     navSpending: "ఖర్చు",
     navAsk: "అడగండి",
@@ -188,9 +262,46 @@ const STRINGS = {
     topCategory: "టాప్ వర్గం",
     retry: "మళ్లీ ప్రయత్నించండి",
     navAdd: "జోడించు",
+    takePhoto: "ఫోటో తీయండి",
+    pasteTextBtn: "టెక్స్ట్ పేస్ట్ చేయండి",
+    cameraHint: "బిల్లు ప్రతి పేజీని ఫోటో తీయండి — గరిష్ఠంగా 5 ఫోటోలు.",
+    cameraShot: "తీయండి",
+    cameraDone: "{n} ఫోటోలు అప్‌లోడ్ చేయండి",
+    cameraMax: "ఒక బిల్లుకు గరిష్ఠంగా 5 ఫోటోల పరిమితి చేరింది.",
+    photosReady: "{n} ఫోటోలు సిద్ధం",
+    appearance: "రూపం",
+    themeLight: "లైట్",
+    themeDark: "డార్క్",
+    helpLink: "సహాయం & గైడ్",
+    helpTitle: "Billology ఎలా పనిచేస్తుంది",
+    helpIntro:
+      "కాగితపు బిల్లు నుండి ఖర్చు సమాధానాల వరకు — నాలుగు అడుగులు. సంఖ్యలు ఎప్పుడూ బిల్లు నుండే వస్తాయి — AI చదివి వివరించడమే చేస్తుంది, ఎప్పుడూ సంఖ్యలు సృష్టించదు.",
+    h1t: "బిల్లు జోడించండి",
+    h1b: "Add ట్యాబ్‌లో బిల్లు ఫోటోలు తీయండి (పలు పేజీలు సరే), పరికరం నుండి చిత్రం/PDF ఎంచుకోండి, లేదా బిల్లు టెక్స్ట్ పేస్ట్ చేయండి.",
+    h2t: "సంగ్రహించినది తనిఖీ చేయండి",
+    h2b: "Billology దుకాణం, తేదీ, వస్తువులు, పన్నులు, మొత్తం చదివి లెక్కలు సరిచూస్తుంది. సరిపోనివి ఆధారాలతో ఫ్లాగ్ అవుతాయి; అనుమానాస్పద రీడింగ్‌లకు 'check' గుర్తు ఉంటుంది.",
+    h3t: "సరిచూసి సేవ్ చేయండి",
+    h3b: "సేవ్ చేసే ముందు ఏ ఫీల్డ్ అయినా సరిదిద్దండి — మీ సవరణలు మీవిగా నమోదవుతాయి. తేదీ లేకపోతే మిమ్మల్ని అడుగుతుంది. సేవ్ చేసిన బిల్లులు మీ చరిత్రలో చేరతాయి.",
+    h4t: "మీ బిల్లులు చూడండి",
+    h4b: "Bills ట్యాబ్‌లో సేవ్ చేసినవన్నీ — దుకాణంతో వెతకండి, వర్గంతో వడపోయండి, తెరవడానికి ట్యాప్, తొలగించడానికి లాంగ్-ప్రెస్.",
+    h5t: "ఖర్చు చూడండి",
+    h5b: "Spending ట్యాబ్ ఈ నెల మొత్తం, వర్గాల వారీ విభజన, నెలవారీ ధోరణి, టాప్ దుకాణాలు చూపుతుంది — అన్నీ మీ సేవ్ చేసిన బిల్లుల నుండే.",
+    h6t: "ప్రశ్నలు అడగండి",
+    h6b: "Ask ట్యాబ్ 'మేలో కిరాణాపై ఎంత ఖర్చు?' వంటి ప్రశ్నలకు సేవ్ చేసిన రికార్డుల నుండే జవాబిస్తుంది. డేటా లేకపోతే ఊహించదు — లేదని చెబుతుంది.",
+    helpPrivacyT: "గోప్యత & AI",
+    helpPrivacyB:
+      "బిల్లు చిత్రాలను డిఫాల్ట్‌గా క్లౌడ్ AI చదువుతుంది. Settings లో మీ సొంత key లేదా పూర్తిగా లోకల్ మోడల్ (Ollama) ఎంచుకోవచ్చు — లైట్/డార్క్ టోగుల్‌తో రూపం మార్చుకోవచ్చు.",
+    dateNeededTitle: "ఈ బిల్లు ఎప్పటిది?",
+    dateNeededBody: "ఈ బిల్లుపై తేదీ కనబడలేదు. ఖర్చు సరైన నెలలో లెక్కకు రావాలంటే తేదీ సెట్ చేయండి.",
+    dateFromBill: "బిల్లు చూసి రాయండి",
+    dateFromBillHint: "కింద బిల్లుపై ముద్రించిన తేదీని చూసి టైప్ చేయండి.",
+    dateSetManual: "నేనే తేదీ సెట్ చేస్తాను",
+    dateToday: "ఈరోజు",
+    dateDone: "ఈ తేదీనే ఉంచండి",
+    dateSkip: "ప్రస్తుతానికి దాటవేయి",
   },
   ta: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "பில்கள்",
     navSpending: "செலவு",
     navAsk: "கேளுங்கள்",
@@ -250,7 +361,7 @@ const STRINGS = {
     navAdd: "சேர்",
   },
   kn: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "ಬಿಲ್‌ಗಳು",
     navSpending: "ಖರ್ಚು",
     navAsk: "ಕೇಳಿ",
@@ -310,7 +421,7 @@ const STRINGS = {
     navAdd: "ಸೇರಿಸಿ",
   },
   ml: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "ബില്ലുകൾ",
     navSpending: "ചെലവ്",
     navAsk: "ചോദിക്കൂ",
@@ -370,7 +481,7 @@ const STRINGS = {
     navAdd: "ചേർക്കുക",
   },
   bn: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "বিল",
     navSpending: "খরচ",
     navAsk: "জিজ্ঞাসা",
@@ -430,7 +541,7 @@ const STRINGS = {
     navAdd: "যোগ করুন",
   },
   mr: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "बिले",
     navSpending: "खर्च",
     navAsk: "विचारा",
@@ -490,7 +601,7 @@ const STRINGS = {
     navAdd: "जोडा",
   },
   gu: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "બિલ",
     navSpending: "ખર્ચ",
     navAsk: "પૂછો",
@@ -550,7 +661,7 @@ const STRINGS = {
     navAdd: "ઉમેરો",
   },
   pa: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "ਬਿੱਲ",
     navSpending: "ਖਰਚ",
     navAsk: "ਪੁੱਛੋ",
@@ -610,7 +721,7 @@ const STRINGS = {
     navAdd: "ਜੋੜੋ",
   },
   or: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "ବିଲ୍",
     navSpending: "ଖର୍ଚ୍ଚ",
     navAsk: "ପଚାରନ୍ତୁ",
@@ -670,7 +781,7 @@ const STRINGS = {
     navAdd: "ଯୋଡ଼ନ୍ତୁ",
   },
   as: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "বিল",
     navSpending: "খৰচ",
     navAsk: "সোধক",
@@ -730,7 +841,7 @@ const STRINGS = {
     navAdd: "যোগ কৰক",
   },
   ur: {
-    appTitle: "🧾 Billology",
+    appTitle: "Billology",
     navBills: "بل",
     navSpending: "خرچ",
     navAsk: "پوچھیں",
@@ -793,8 +904,11 @@ const STRINGS = {
 
 export type TKey = keyof (typeof STRINGS)["en"];
 
+// Newer keys may exist only in the reviewed languages (en/hi/te) until the
+// other translations are authored — every lookup falls back to English.
 export function t(lang: Language, key: TKey): string {
-  return STRINGS[lang]?.[key] ?? STRINGS.en[key];
+  const dict = STRINGS[lang] as Partial<Record<TKey, string>> | undefined;
+  return dict?.[key] ?? STRINGS.en[key];
 }
 
 export function useT(): (key: TKey) => string {

@@ -1,9 +1,19 @@
 // Small shared UI primitives so every screen speaks the same visual language.
+// Each primitive reads the active palette via useTheme(), so the whole set
+// restyles instantly when the light/dark toggle flips.
 import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, radius, shadow } from "../theme";
+import { fonts, radius, shadowFor, useTheme } from "../theme";
 
 type BtnProps = {
   title: string;
@@ -11,14 +21,16 @@ type BtnProps = {
   variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;
   busy?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
-export function Btn({ title, onPress, variant = "primary", disabled, busy, style }: BtnProps) {
+export function Btn({ title, onPress, variant = "primary", disabled, busy, style, icon }: BtnProps) {
+  const { c, mode } = useTheme();
   const palette = {
-    primary: { bg: colors.accent, fg: "#ffffff", border: colors.accent },
-    secondary: { bg: colors.card, fg: colors.accent, border: colors.accentSoft },
-    danger: { bg: colors.card, fg: colors.danger, border: colors.dangerSoft },
+    primary: { bg: c.accent, fg: c.onAccent, border: c.accent },
+    secondary: { bg: c.card, fg: c.accent, border: c.accentSoft },
+    danger: { bg: c.card, fg: c.danger, border: c.dangerSoft },
   }[variant];
   return (
     <Pressable
@@ -26,7 +38,7 @@ export function Btn({ title, onPress, variant = "primary", disabled, busy, style
       disabled={disabled || busy}
       style={({ pressed }) => [
         styles.btn,
-        variant === "primary" && shadow,
+        variant === "primary" && shadowFor(mode),
         { backgroundColor: palette.bg, borderColor: palette.border },
         (disabled || busy) && { opacity: 0.5 },
         pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
@@ -36,14 +48,29 @@ export function Btn({ title, onPress, variant = "primary", disabled, busy, style
       {busy ? (
         <ActivityIndicator color={palette.fg} size="small" />
       ) : (
-        <Text style={[styles.btnText, { color: palette.fg }]}>{title}</Text>
+        <View style={styles.btnInner}>
+          {icon ? <Ionicons name={icon} size={17} color={palette.fg} /> : null}
+          <Text style={[styles.btnText, { color: palette.fg }]}>{title}</Text>
+        </View>
       )}
     </Pressable>
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { c, mode } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: c.card, borderColor: c.line },
+        shadowFor(mode),
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function Chip({
@@ -55,16 +82,18 @@ export function Chip({
   active?: boolean;
   onPress?: () => void;
 }) {
+  const { c } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
-        active && { backgroundColor: colors.accent, borderColor: colors.accent },
+        { borderColor: c.line, backgroundColor: c.card },
+        active && { backgroundColor: c.accent, borderColor: c.accent },
         pressed && { opacity: 0.8 },
       ]}
     >
-      <Text style={[styles.chipText, active && { color: "#ffffff" }]}>{label}</Text>
+      <Text style={[styles.chipText, { color: active ? c.onAccent : c.muted }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -76,29 +105,35 @@ export function ActionTile({
   onPress,
   disabled,
   style,
+  active,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  active?: boolean;
 }) {
+  const { c, mode } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.tile,
-        shadow,
+        { backgroundColor: c.card, borderColor: active ? c.accent : c.line },
+        shadowFor(mode),
         disabled && { opacity: 0.5 },
         pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
         style,
       ]}
     >
-      <View style={styles.tileIcon}>
-        <Ionicons name={icon} size={24} color={colors.accent} />
+      <View style={[styles.tileIcon, { backgroundColor: c.accentSoft }]}>
+        <Ionicons name={icon} size={24} color={c.accent} />
       </View>
-      <Text style={styles.tileLabel}>{label}</Text>
+      <Text style={[styles.tileLabel, { color: c.text }]} numberOfLines={2}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -111,10 +146,11 @@ export function Banner({
   kind?: "info" | "warn" | "error";
   text: string;
 }) {
+  const { c } = useTheme();
   const palette = {
-    info: { bg: colors.accentSoft, fg: colors.accent, icon: "information-circle" as const },
-    warn: { bg: colors.warnSoft, fg: colors.warn, icon: "alert-circle" as const },
-    error: { bg: colors.dangerSoft, fg: colors.danger, icon: "close-circle" as const },
+    info: { bg: c.accentSoft, fg: c.accentDeep, icon: "information-circle" as const },
+    warn: { bg: c.warnSoft, fg: c.warn, icon: "alert-circle" as const },
+    error: { bg: c.dangerSoft, fg: c.danger, icon: "close-circle" as const },
   }[kind];
   return (
     <View style={[styles.banner, { backgroundColor: palette.bg }]}>
@@ -125,7 +161,8 @@ export function Banner({
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+  const { c } = useTheme();
+  return <Text style={[styles.sectionTitle, { color: c.muted }]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
@@ -138,31 +175,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 46,
   },
-  btnText: { fontWeight: "700", fontSize: 15 },
+  btnInner: { flexDirection: "row", alignItems: "center", gap: 8 },
+  btnText: { fontFamily: fonts.bodyBold, fontSize: 15 },
   card: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: 16,
-    ...shadow,
   },
   chip: {
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
   },
-  chipText: { fontSize: 13, color: colors.muted, fontWeight: "600" },
+  chipText: { fontSize: 13, fontFamily: fonts.bodySemi },
   tile: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingVertical: 18,
+    paddingHorizontal: 8,
     alignItems: "center",
     gap: 10,
   },
@@ -170,11 +202,10 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  tileLabel: { fontWeight: "700", fontSize: 14, color: colors.text },
+  tileLabel: { fontFamily: fonts.bodyBold, fontSize: 13.5, textAlign: "center" },
   banner: {
     flexDirection: "row",
     gap: 8,
@@ -182,11 +213,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "flex-start",
   },
-  bannerText: { flex: 1, fontSize: 13.5, lineHeight: 19, fontWeight: "600" },
+  bannerText: { flex: 1, fontSize: 13.5, lineHeight: 19, fontFamily: fonts.bodySemi },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: "700",
-    color: colors.muted,
+    fontFamily: fonts.bodyBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 6,

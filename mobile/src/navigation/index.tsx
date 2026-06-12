@@ -1,14 +1,16 @@
 // App navigation: a bottom tab bar (Add / Bills / Spending / Ask / Settings)
 // with the Review → BillDetail flow pushed on a stack above it. Tabs put every
 // primary destination one thumb-tap away instead of crowding header links.
+// Every header carries the light/dark toggle; Help lives on the stack.
 
 import { Ionicons } from "@expo/vector-icons";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
 } from "@react-navigation/native-stack";
+import { Pressable } from "react-native";
 
 import { CaptureScreen } from "../screens/CaptureScreen";
 import { ReviewScreen } from "../screens/ReviewScreen";
@@ -17,22 +19,24 @@ import { DashboardScreen } from "../screens/DashboardScreen";
 import { QAChatScreen } from "../screens/QAChatScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { HelpScreen } from "../screens/HelpScreen";
 import { useT } from "../i18n";
-import { colors } from "../theme";
+import { fonts, useTheme } from "../theme";
 
 export type OriginalFile = { uri: string; name: string; type: string };
 
 // One param list for the whole app: tab screens navigate to stack routes
-// (Review/BillDetail) through the parent navigator.
+// (Review/BillDetail/Help) through the parent navigator.
 export type RootStackParamList = {
   Tabs: undefined;
   Capture: undefined;
-  Review: { candidate: any; originalFile?: OriginalFile };
+  Review: { candidate: any; originalFiles?: OriginalFile[] };
   BillDetail: { bill: any };
   Dashboard: undefined;
   QAChat: undefined;
   History: undefined;
   Settings: undefined;
+  Help: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -46,25 +50,42 @@ const TAB_ICONS: Record<string, [keyof typeof Ionicons.glyphMap, keyof typeof Io
   Settings: ["settings", "settings-outline"],
 };
 
+function ThemeToggle() {
+  const { mode, toggle, c } = useTheme();
+  return (
+    <Pressable
+      onPress={toggle}
+      hitSlop={10}
+      style={({ pressed }) => [{ paddingHorizontal: 6 }, pressed && { opacity: 0.6 }]}
+      accessibilityLabel="Toggle light/dark theme"
+    >
+      <Ionicons name={mode === "light" ? "moon-outline" : "sunny-outline"} size={21} color={c.accent} />
+    </Pressable>
+  );
+}
+
 function HomeTabs() {
   const t = useT();
+  const { c } = useTheme();
   return (
     <Tabs.Navigator
       initialRouteName="Capture"
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: colors.card },
+        headerStyle: { backgroundColor: c.card },
         headerShadowVisible: false,
-        headerTitleStyle: { color: colors.text, fontWeight: "700" },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.muted,
+        headerTitleStyle: { color: c.text, fontFamily: fonts.bodyHeavy, fontSize: 17 },
+        headerRight: () => <ThemeToggle />,
+        headerRightContainerStyle: { paddingRight: 10 },
+        tabBarActiveTintColor: c.accent,
+        tabBarInactiveTintColor: c.muted,
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.line,
+          backgroundColor: c.card,
+          borderTopColor: c.line,
           height: 62,
           paddingBottom: 8,
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarLabelStyle: { fontSize: 11, fontFamily: fonts.bodySemi },
         tabBarIcon: ({ color, size, focused }) => (
           <Ionicons
             name={TAB_ICONS[route.name]?.[focused ? 0 : 1] ?? "ellipse"}
@@ -108,7 +129,7 @@ function ReviewRoute({ route, navigation }: NativeStackScreenProps<RootStackPara
   return (
     <ReviewScreen
       candidate={route.params.candidate}
-      originalFile={route.params.originalFile}
+      originalFiles={route.params.originalFiles}
       onSaved={() => navigation.navigate("BillDetail", { bill: route.params.candidate })}
     />
   );
@@ -120,20 +141,36 @@ function BillDetailRoute({ route }: NativeStackScreenProps<RootStackParamList, "
 
 export function RootNavigator() {
   const t = useT();
+  const { c, mode } = useTheme();
+
+  const navTheme = {
+    ...DefaultTheme,
+    dark: mode === "dark",
+    colors: {
+      ...DefaultTheme.colors,
+      primary: c.accent,
+      background: c.bg,
+      card: c.card,
+      text: c.text,
+      border: c.line,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: colors.card },
+          headerStyle: { backgroundColor: c.card },
           headerShadowVisible: false,
-          headerTitleStyle: { color: colors.text, fontWeight: "700" },
-          headerTintColor: colors.accent,
-          contentStyle: { backgroundColor: colors.bg },
+          headerTitleStyle: { color: c.text, fontFamily: fonts.bodyHeavy, fontSize: 17 },
+          headerTintColor: c.accent,
+          contentStyle: { backgroundColor: c.bg },
         }}
       >
         <Stack.Screen name="Tabs" component={HomeTabs} options={{ headerShown: false }} />
         <Stack.Screen name="Review" component={ReviewRoute} options={{ title: t("titleReview") }} />
         <Stack.Screen name="BillDetail" component={BillDetailRoute} options={{ title: t("titleBill") }} />
+        <Stack.Screen name="Help" component={HelpScreen} options={{ title: t("helpTitle") }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

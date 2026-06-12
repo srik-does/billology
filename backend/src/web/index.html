@@ -1,151 +1,337 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Billology — bill analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  :root { --bg:#0b1020; --card:#141b2e; --line:#283250; --txt:#e6eaf5; --muted:#94a3c0; --accent:#38bdf8; --accent2:#818cf8; --warn:#f59e0b; --good:#34d399; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; background:linear-gradient(180deg,#0b1020 0%,#0d1326 100%); color:var(--txt); min-height:100vh; }
-  header { padding:26px 20px 22px; background:linear-gradient(135deg,#312e81 0%, #1d4ed8 55%, #0369a1 120%); border-bottom:1px solid rgba(255,255,255,.08); box-shadow:0 10px 30px rgba(2,6,23,.45); }
-  .brand { display:flex; gap:14px; align-items:flex-start; }
-  .logo { width:46px; height:46px; flex:none; display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); border-radius:14px; }
-  h1 { margin:0; font-size:22px; letter-spacing:.2px; color:#fff; }
-  .tag { color:rgba(255,255,255,.78); font-size:13px; margin-top:3px; max-width:560px; }
-  .hsel { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:10px; padding:7px 10px; font-size:13px; }
-  .hsel option { color:var(--txt); background:var(--card); }
-  main { max-width:1100px; margin:0 auto; padding:22px 20px 44px; display:grid; grid-template-columns:1.05fr .95fr; gap:18px; align-items:start; }
+  /* ------ Paper & ink identity: warm neutrals, emerald-teal, saffron-gold ------ */
+  :root {
+    --bg:#F6F3EC; --card:#FFFFFF; --well:#F3EFE6; --line:#E6E0D2;
+    --txt:#1F1B16; --muted:#7C7468;
+    --accent:#0F766E; --accent-deep:#115E59; --accent-soft:#DDEEE9; --on-accent:#FFFFFF;
+    --gold:#B45309; --gold-soft:#FBEED7;
+    --good:#047857; --good-soft:#D7F0E4;
+    --warn:#B45309; --warn-soft:#FBEED7;
+    --danger:#C2410C; --danger-soft:#FBE3D4;
+    --hero1:#134E4A; --hero2:#0F766E; --hero3:#3B8C5E;
+    --shadow:0 10px 28px rgba(61,53,40,.10);
+  }
+  html[data-theme="dark"] {
+    --bg:#161310; --card:#211D18; --well:#1A1713; --line:#373027;
+    --txt:#F1ECE2; --muted:#A89E8F;
+    --accent:#3BBFAD; --accent-deep:#5CD6C3; --accent-soft:#173B36; --on-accent:#0C1311;
+    --gold:#E9A23B; --gold-soft:#3A2D14;
+    --good:#43C695; --good-soft:#143527;
+    --warn:#E9A23B; --warn-soft:#3A2D14;
+    --danger:#F08C5A; --danger-soft:#3D2114;
+    --hero1:#0D2B28; --hero2:#11463F; --hero3:#1C5A40;
+    --shadow:0 10px 28px rgba(0,0,0,.45);
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family:"Manrope", system-ui, sans-serif; background:var(--bg);
+    color:var(--txt); min-height:100vh; transition:background .25s ease, color .25s ease;
+  }
+  .display { font-family:"Fraunces", Georgia, serif; }
+
+  /* ------ Splash: wordmark fades in, holds, fades away ------ */
+  #splash {
+    position:fixed; inset:0; z-index:50; background:#0D2B28;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    animation:splashOut .5s ease 1.9s forwards;
+  }
+  #splash .word { font-family:"Fraunces", Georgia, serif; font-style:italic; font-weight:700;
+    font-size:clamp(44px, 9vw, 72px); letter-spacing:.5px;
+    opacity:0; transform:translateY(10px); animation:riseIn .55s cubic-bezier(.2,.7,.3,1) .1s forwards; }
+  #splash .word .b { color:#F1ECE2; }
+  #splash .word .o { color:#5CD6C3; }
+  #splash .rule { width:64px; height:3px; border-radius:2px; background:#E9A23B;
+    opacity:0; animation:riseIn .55s ease .3s forwards; }
+  #splash .tg { color:rgba(241,236,226,.75); font-size:13px; letter-spacing:.6px; font-weight:600;
+    opacity:0; animation:riseIn .55s ease .4s forwards; }
+  @keyframes riseIn { to { opacity:1; transform:translateY(0); } }
+  @keyframes splashOut { to { opacity:0; visibility:hidden; } }
+
+  /* ------ Header ------ */
+  header {
+    padding:24px 20px 20px;
+    background:linear-gradient(135deg, var(--hero1) 0%, var(--hero2) 60%, var(--hero3) 130%);
+    box-shadow:var(--shadow);
+  }
+  .brand-line { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+  .wordmark { font-family:"Fraunces", Georgia, serif; font-style:italic; font-weight:700;
+    font-size:30px; margin:0; line-height:1.1; }
+  .wordmark .b { color:#F7F3EA; } .wordmark .o { color:#7BE3D2; }
+  .tag { color:rgba(255,255,255,.82); font-size:13px; margin-top:6px; max-width:560px; line-height:1.5; }
+  .hctrl { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+  .hsel, .hbtn {
+    background:rgba(255,255,255,.13); color:#fff; border:1px solid rgba(255,255,255,.28);
+    border-radius:10px; padding:7px 10px; font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  .hbtn { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
+  .hbtn svg { width:15px; height:15px; }
+  .hsel option { color:#1F1B16; background:#fff; }
+
+  main { max-width:1100px; margin:0 auto; padding:22px 20px 44px;
+    display:grid; grid-template-columns:1.05fr .95fr; gap:18px; align-items:start; }
   .col { display:grid; gap:18px; min-width:0; }
   @media (max-width:920px) { main { grid-template-columns:1fr; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 10px 28px rgba(2,6,23,.35); }
-  textarea { width:100%; min-height:140px; background:#0b1220; color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:11px; font-family:ui-monospace, monospace; font-size:13px; }
-  textarea:focus, input:focus, select:focus { outline:2px solid rgba(56,189,248,.4); outline-offset:1px; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:18px; box-shadow:var(--shadow); }
+  .card h3 { margin:0 0 4px; display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; }
+  .card h3 svg { width:17px; height:17px; color:var(--accent); flex:none; }
+
+  /* ------ Capture / landing ------ */
+  .capture-hero { display:flex; gap:18px; align-items:center; }
+  .capture-hero .lead { flex:1; }
+  .capture-hero h2 { margin:0 0 6px; font-size:24px; font-weight:700; font-family:"Fraunces", Georgia, serif; }
+  .capture-hero p { margin:0; color:var(--muted); font-size:13.5px; line-height:1.55; }
+  .actions { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-top:16px; }
+  .action {
+    display:flex; flex-direction:column; align-items:center; gap:9px;
+    background:var(--card); border:1.5px solid var(--line); border-radius:14px;
+    padding:16px 10px; cursor:pointer; font-family:inherit; font-weight:700; font-size:13.5px;
+    color:var(--txt); transition:transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .action:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .action.active { border-color:var(--accent); background:var(--accent-soft); }
+  .action .ic { width:46px; height:46px; border-radius:50%; background:var(--accent-soft);
+    display:flex; align-items:center; justify-content:center; }
+  .action .ic svg { width:22px; height:22px; color:var(--accent); }
+  #pasteWrap { margin-top:14px; }
+  textarea { width:100%; min-height:130px; background:var(--well); color:var(--txt);
+    border:1px solid var(--line); border-radius:10px; padding:11px;
+    font-family:ui-monospace, monospace; font-size:13px; }
+  textarea:focus, input:focus, select:focus { outline:2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset:1px; }
   .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
-  button { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#071425; border:0; border-radius:10px; padding:10px 18px; font-weight:700; cursor:pointer; transition:transform .15s ease, filter .15s ease; box-shadow:0 4px 14px rgba(56,189,248,.25); }
-  button:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.07); }
-  button:disabled { opacity:.5; cursor:default; transform:none; box-shadow:none; }
-  input[type=file] { color:var(--muted); font-size:13px; }
+  button.primary {
+    background:var(--accent); color:var(--on-accent); border:0; border-radius:10px;
+    padding:10px 18px; font-weight:800; font-family:inherit; cursor:pointer;
+    transition:transform .15s ease, filter .15s ease; box-shadow:var(--shadow);
+  }
+  button.primary:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.07); }
+  button.primary:disabled { opacity:.5; cursor:default; transform:none; box-shadow:none; }
+  button.ghost { background:transparent; border:1.5px solid var(--line); color:var(--txt);
+    border-radius:10px; padding:9px 14px; font-weight:700; font-family:inherit; cursor:pointer; }
+  .filechips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .filechip { display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft);
+    color:var(--accent-deep); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:700; }
+
+  input[type=text], input[type=password], input[type=date], select {
+    background:var(--well); color:var(--txt); border:1px solid var(--line);
+    border-radius:8px; padding:8px; font-family:inherit; font-size:13.5px;
+  }
   .muted { color:var(--muted); font-size:13px; }
   table { width:100%; border-collapse:collapse; margin-top:8px; }
   td { padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
   td.amt { text-align:right; font-variant-numeric:tabular-nums; }
-  .totals td { border:0; } .totals .grand { font-weight:700; font-size:16px; }
-  .flag { border-left:4px solid var(--warn); background:#2a210b; padding:11px 12px; border-radius:10px; margin-top:8px; }
+  .totals td { border:0; } .totals .grand td { font-weight:800; font-size:16px; }
+  .totals .grand td.amt { font-family:"Fraunces", Georgia, serif; font-size:18px; }
+
+  .flag { border-left:4px solid var(--warn); background:var(--warn-soft); padding:11px 12px; border-radius:10px; margin-top:8px; }
   .flag h4 { margin:0 0 4px; color:var(--warn); font-size:14px; }
-  /* Unverified (low-confidence scan): a "please check" prompt, not a confirmed error. */
-  .flag.unverified { border-left-color:var(--accent); background:#0f1a2e; }
-  .flag.unverified h4 { color:var(--accent); }
+  .flag.unverified { border-left-color:var(--accent); background:var(--accent-soft); }
+  .flag.unverified h4 { color:var(--accent-deep); }
   .flag .figs { color:var(--muted); font-size:12px; margin-top:4px; }
-  .pill { display:inline-block; background:rgba(56,189,248,.12); color:var(--accent); padding:2px 10px; border-radius:12px; font-size:12px; border:1px solid rgba(56,189,248,.25); }
-  .ok { color:var(--good); }
-  .hidden { display:none; }
+  .pill { display:inline-block; background:var(--accent-soft); color:var(--accent-deep);
+    padding:2px 10px; border-radius:12px; font-size:12px; font-weight:700; }
+  .ok { color:var(--good); font-weight:600; }
+  .hidden { display:none !important; }
   .ex { color:var(--muted); font-size:12px; }
-  .err { color:#f87171; }
+  .err { color:var(--danger); }
   .sample { color:var(--accent); cursor:pointer; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+
   .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px; }
-  .stat { background:#0b1220; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
-  .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
-  .stat .v { font-size:18px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .stat { background:var(--well); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .stat .v { font-size:19px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums;
+    font-family:"Fraunces", Georgia, serif; }
   .stat .d { font-size:12px; margin-top:2px; }
-  .d.up { color:#f87171; } .d.down { color:var(--good); }
-  .dash-section { margin-top:16px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .d.up { color:var(--danger); } .d.down { color:var(--good); }
+  .dash-section { margin-top:16px; font-size:12px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); font-weight:800; }
   .donut-row { display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:8px; }
   .donut-row > div { flex:1; min-width:220px; }
-  .bar-fill { transition: width .8s ease; }
+  .bar-fill { transition:width .8s ease; }
   .busy::before { content:""; display:inline-block; width:11px; height:11px; border:2px solid var(--accent);
     border-top-color:transparent; border-radius:50%; animation:spin .9s linear infinite; margin-right:6px; vertical-align:-1px; }
   @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ------ Modals (date prompt, help) ------ */
+  .modal { position:fixed; inset:0; z-index:40; background:rgba(15,12,8,.55);
+    display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-card { background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:22px; max-width:480px; width:100%; max-height:86vh; overflow:auto; box-shadow:var(--shadow); }
+  .modal-card h3 { margin:0 0 6px; font-family:"Fraunces", Georgia, serif; font-size:21px; }
+  .modal-card p { margin:6px 0 12px; color:var(--muted); font-size:13.5px; line-height:1.55; }
+  .opt { display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:var(--well); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; font-family:inherit; font-weight:700; font-size:14px; color:var(--txt);
+    cursor:pointer; margin-top:8px; }
+  .opt:hover { border-color:var(--accent); }
+  .opt svg { width:18px; height:18px; color:var(--accent); flex:none; }
+  .skiplink { display:block; text-align:center; margin-top:12px; color:var(--muted);
+    background:none; border:0; font-family:inherit; font-size:13px; cursor:pointer; width:100%; }
+  #dateBillPreview { width:100%; max-height:300px; object-fit:contain; border:1px solid var(--line);
+    border-radius:10px; margin:8px 0; background:var(--well); }
+  .helpstep { display:flex; gap:12px; margin-top:14px; }
+  .helpstep .n { width:26px; height:26px; border-radius:50%; background:var(--accent);
+    color:var(--on-accent); font-weight:800; font-size:13px; display:flex; align-items:center;
+    justify-content:center; flex:none; margin-top:1px; }
+  .helpstep b { display:block; margin-bottom:2px; }
+  .helpstep .t { font-size:13.5px; color:var(--muted); line-height:1.5; }
+  .helpstep.gold .n { background:var(--gold); }
 </style>
 </head>
 <body>
+
+<div id="splash" aria-hidden="true">
+  <div class="word"><span class="b">Bill</span><span class="o">ology</span></div>
+  <div class="rule"></div>
+  <div class="tg">every number, straight from the bill</div>
+</div>
+
 <header>
-  <div class="row" style="justify-content:space-between;align-items:flex-start">
-    <div class="brand">
-      <span class="logo">🧾</span>
-      <div>
-        <h1>Billology</h1>
-        <div class="tag" data-i18n="tagline">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
-      </div>
+  <div class="brand-line">
+    <div>
+      <h1 class="wordmark"><span class="b">Bill</span><span class="o">ology</span></h1>
+      <div class="tag" data-i18n="tagline">Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.</div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-      <select id="setLang" class="hsel">
-        <option value="en">English</option>
-        <option value="hi">हिन्दी</option>
-        <option value="te">తెలుగు</option>
-        <option value="ta">தமிழ்</option>
-        <option value="kn">ಕನ್ನಡ</option>
-        <option value="ml">മലയാളം</option>
-        <option value="bn">বাংলা</option>
-        <option value="mr">मराठी</option>
-        <option value="gu">ગુજરાતી</option>
-        <option value="pa">ਪੰਜਾਬੀ</option>
-        <option value="or">ଓଡ଼ିଆ</option>
-        <option value="as">অসমীয়া</option>
+    <div class="hctrl">
+      <select id="setLang" class="hsel" aria-label="Language">
+        <option value="en">English</option><option value="hi">हिन्दी</option><option value="te">తెలుగు</option>
+        <option value="ta">தமிழ்</option><option value="kn">ಕನ್ನಡ</option><option value="ml">മലയാളം</option>
+        <option value="bn">বাংলা</option><option value="mr">मराठी</option><option value="gu">ગુજરાતી</option>
+        <option value="pa">ਪੰਜਾਬੀ</option><option value="or">ଓଡ଼ିଆ</option><option value="as">অসমীয়া</option>
         <option value="ur">اردو</option>
       </select>
-      <select id="setProvider" class="hsel">
+      <select id="setProvider" class="hsel" aria-label="AI provider">
         <option value="default" data-i18n="provDefault">AI: Cloud (app's key)</option>
         <option value="groq-byok" data-i18n="provByok">AI: Cloud (my Groq key)</option>
         <option value="ollama" data-i18n="provOllama">AI: Local (Ollama)</option>
       </select>
+      <button id="helpBtn" class="hbtn" aria-label="Help">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.36-1.2.9-1.2 1.8"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg>
+        <span data-i18n="help">Help</span>
+      </button>
+      <button id="themeBtn" class="hbtn" aria-label="Toggle dark/light theme">
+        <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z"/></svg>
+        <svg id="iconSun" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/></svg>
+      </button>
     </div>
   </div>
   <div class="row hidden" id="byokRow" style="margin-top:8px">
-    <input type="password" id="setGroqKey" placeholder="gsk_… (your Groq API key)" style="flex:1;min-width:220px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
+    <input type="password" id="setGroqKey" placeholder="gsk_… (your Groq API key)" style="flex:1;min-width:220px" />
   </div>
   <div class="row hidden" id="ollamaRow" style="margin-top:8px">
-    <input type="text" id="setOllamaUrl" placeholder="http://localhost:11434" style="flex:1;min-width:180px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
-    <input type="text" id="setOllamaModel" placeholder="llama3.2" style="width:130px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px" />
+    <input type="text" id="setOllamaUrl" placeholder="http://localhost:11434" style="flex:1;min-width:180px" />
+    <input type="text" id="setOllamaModel" placeholder="llama3.2" style="width:130px" />
   </div>
 </header>
+
 <main>
 <div class="col">
   <div class="card">
-    <label class="muted" data-i18n="pasteLabel">Paste bill text</label>
-    <textarea id="text" data-i18n-ph="pastePh" placeholder="Paste a bill here…"></textarea>
-    <div class="row">
-      <input type="file" id="file" accept="image/*,application/pdf" />
-      <button id="go" data-i18n="analyze">Analyze bill</button>
-      <span class="sample" id="sample" data-i18n="loadSample">load a sample</span>
+    <div class="capture-hero">
+      <div class="lead">
+        <h2 data-i18n="addBill">Add a bill</h2>
+        <p data-i18n="addBillSub">Photograph it, pick a file, or paste its text — it's read, checked for errors, and explained.</p>
+      </div>
+      <!-- Decorative receipt illustration (drawn, not an emoji) -->
+      <svg width="86" height="100" viewBox="0 0 86 100" fill="none" aria-hidden="true" style="flex:none">
+        <g transform="rotate(-4 43 50)">
+          <path d="M12 8a5 5 0 0 1 5-5h50a5 5 0 0 1 5 5v82l-6-4-6 4-6-4-6 4-6-4-6 4-6-4-6 4-6-4-6 4z" fill="var(--card)" stroke="var(--line)" stroke-width="1.6"/>
+          <rect x="22" y="16" width="34" height="5" rx="2.5" fill="var(--line)"/>
+          <rect x="22" y="26" width="24" height="5" rx="2.5" fill="var(--line)"/>
+          <rect x="22" y="40" width="22" height="5" rx="2.5" fill="var(--line)"/>
+          <rect x="52" y="40" width="11" height="5" rx="2.5" fill="var(--line)"/>
+          <rect x="22" y="50" width="26" height="5" rx="2.5" fill="var(--line)"/>
+          <rect x="52" y="50" width="11" height="5" rx="2.5" fill="var(--line)"/>
+          <path d="M22 63h41" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 4"/>
+          <rect x="22" y="70" width="17" height="7" rx="3" fill="var(--muted)"/>
+          <rect x="48" y="70" width="15" height="7" rx="3" fill="var(--accent)"/>
+        </g>
+        <circle cx="70" cy="84" r="12" fill="var(--gold)"/>
+        <path d="M64.5 84.3l3.6 3.6 7-7" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
     </div>
-    <div id="status" class="muted"></div>
+
+    <!-- Buttons only — pickers and the paste box stay hidden until asked for (#4) -->
+    <div class="actions">
+      <button class="action" id="btnCamera">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.6l1.3-2h7.2l1.3 2h1.6A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/><circle cx="12" cy="12.4" r="3.6"/></svg></span>
+        <span data-i18n="takePhoto">Take photo</span>
+      </button>
+      <button class="action" id="btnImage">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17.5l5-4.5 3.4 3 3.1-3.5 4.5 5"/></svg></span>
+        <span data-i18n="pickImage">Choose image</span>
+      </button>
+      <button class="action" id="btnPdf">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8L19 8.5v10A2.5 2.5 0 0 1 16.5 21h-10A2.5 2.5 0 0 1 4 18.5v-13A2 2 0 0 1 6 3.5z"/><path d="M14 3.5V9h5"/><path d="M8 13.5h8M8 17h5.5"/></svg></span>
+        <span data-i18n="pickPdf">Choose PDF</span>
+      </button>
+      <button class="action" id="btnPaste">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.7l3.8 3.8L8.8 19l-4.6 1.2L5.4 15.6z"/><path d="M14 6.2l3.8 3.8"/></svg></span>
+        <span data-i18n="pasteTextBtn">Paste text</span>
+      </button>
+    </div>
+
+    <input type="file" id="fileCamera" accept="image/*" capture="environment" multiple class="hidden" />
+    <input type="file" id="fileImage" accept="image/*" multiple class="hidden" />
+    <input type="file" id="filePdf" accept="application/pdf" class="hidden" />
+
+    <div id="pasteWrap" class="hidden">
+      <textarea id="text" data-i18n-ph="pastePh" placeholder="Paste a bill here…"></textarea>
+      <div class="row">
+        <button id="go" class="primary" data-i18n="analyze">Analyze bill</button>
+        <span class="sample" id="sample" data-i18n="loadSample">load a sample</span>
+      </div>
+    </div>
+
+    <div class="filechips" id="fileChips"></div>
+    <div id="status" class="muted" style="margin-top:8px"></div>
   </div>
 
   <div id="result" class="card hidden">
-    <div class="row" style="justify-content:space-between">
-      <div><strong id="merchant"></strong> <span class="pill" id="type"></span> <span class="pill" id="category"></span></div>
+    <div class="row" style="justify-content:space-between;margin-top:0">
+      <div><strong id="merchant" class="display" style="font-size:18px"></strong> <span class="pill" id="type"></span> <span class="pill" id="category"></span></div>
+      <span class="muted" id="billDateShow"></span>
     </div>
     <div id="summary" class="muted" style="margin-top:8px"></div>
     <div id="flags"></div>
     <table id="items"></table>
     <table class="totals" id="totals"></table>
     <div class="row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-      <select id="saveCat" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px">
+      <select id="saveCat">
         <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
         <option>Food &amp; Dining</option><option>Shopping</option><option>Other</option>
       </select>
-      <button id="saveBtn" data-i18n="saveBill">💾 Save bill</button>
+      <button id="saveBtn" class="primary" data-i18n="saveBill">Save bill</button>
       <span id="saveStatus" class="muted"></span>
     </div>
   </div>
 
   <div class="card">
-    <strong data-i18n="askTitle">💬 Ask about your spending</strong>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.2-5A8.5 8.5 0 1 1 21 11.5z"/></svg><span data-i18n="askTitle">Ask about your spending</span></h3>
     <div class="row">
-      <input type="text" id="qaQ" data-i18n-ph="askPh" placeholder="e.g. How much did I spend on groceries in May?" style="flex:1;min-width:200px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
-      <button id="qaGo" data-i18n="ask">Ask</button>
+      <input type="text" id="qaQ" data-i18n-ph="askPh" placeholder="e.g. How much did I spend on groceries in May?" style="flex:1;min-width:200px" />
+      <button id="qaGo" class="primary" data-i18n="ask">Ask</button>
     </div>
     <div id="qaStatus" class="muted"></div>
-    <div id="qaAnswer" class="hidden" style="margin-top:10px;padding:12px;background:#0b1220;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap"></div>
+    <div id="qaAnswer" class="hidden" style="margin-top:10px;padding:12px;background:var(--well);border:1px solid var(--line);border-radius:8px;white-space:pre-wrap"></div>
     <table id="qaRecords"></table>
   </div>
 </div>
 
 <div class="col">
   <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <strong data-i18n="spendTitle">📊 Spending</strong>
+    <div class="row" style="justify-content:space-between;margin-top:0">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M14.5 2.5a9 9 0 0 1 7 7h-7z"/></svg><span data-i18n="spendTitle">Spending</span></h3>
       <span class="sample" id="dashRefresh" data-i18n="refresh">refresh</span>
     </div>
     <div id="dashStats" class="stats"></div>
@@ -161,13 +347,13 @@
   </div>
 
   <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <strong data-i18n="billsTitle">📂 My bills</strong>
+    <div class="row" style="justify-content:space-between;margin-top:0">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h9l5 5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" transform="translate(0 -0.5)"/><path d="M8 12.5h8M8 16h8"/></svg><span data-i18n="billsTitle">My bills</span></h3>
       <span class="sample" id="histRefresh" data-i18n="refresh">refresh</span>
     </div>
     <div class="row">
-      <input type="text" id="histQ" data-i18n-ph="searchPh" placeholder="Search merchant…" style="flex:1;min-width:160px;background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px" />
-      <select id="histCat" style="background:#0b1220;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px">
+      <input type="text" id="histQ" data-i18n-ph="searchPh" placeholder="Search merchant…" style="flex:1;min-width:160px" />
+      <select id="histCat">
         <option value="">All categories</option>
         <option>Telecom/Recharge</option><option>Groceries</option><option>Utilities</option>
         <option>Food &amp; Dining</option><option>Shopping</option><option>Other</option>
@@ -176,11 +362,54 @@
     <table id="histRows"></table>
     <div class="row" style="justify-content:space-between;margin-top:10px">
       <span class="muted" id="histCount"></span>
-      <button id="histClear" data-i18n="clearAll" style="background:#7f1d1d;color:#fecaca;box-shadow:none">Clear all data</button>
+      <button id="histClear" class="ghost" style="color:var(--danger);border-color:var(--danger-soft)" data-i18n="clearAll">Clear all data</button>
     </div>
   </div>
 </div>
 </main>
+
+<!-- ------ Missing-date prompt (#8) ------ -->
+<div id="dateModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <h3 data-i18n="dateNeededTitle">When is this bill from?</h3>
+    <div id="dateChoice">
+      <p data-i18n="dateNeededBody">No date was found on this bill. Set it so your spending lands in the right month.</p>
+      <button class="opt" id="dateOptBill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-3-2-3 2-3-2-3 2V4.5a1 1 0 0 1 1-1z"/><path d="M9 8.5h6M9 12h6"/></svg>
+        <span data-i18n="dateFromBill">Read it off the bill</span>
+      </button>
+      <button class="opt" id="dateOptManual">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+        <span data-i18n="dateSetManual">Set the date myself</span>
+      </button>
+    </div>
+    <div id="datePick" class="hidden">
+      <p id="dateHint" data-i18n="dateFromBillHint">Find the printed date on the bill below, then enter it.</p>
+      <img id="dateBillPreview" class="hidden" alt="Your bill" />
+      <div class="row">
+        <input type="date" id="dateInput" style="flex:1" />
+        <button class="primary" id="dateUse" data-i18n="dateDone">Use this date</button>
+      </div>
+    </div>
+    <button class="skiplink" id="dateSkip" data-i18n="dateSkip">Skip for now</button>
+  </div>
+</div>
+
+<!-- ------ Help (#9) ------ -->
+<div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <h3 data-i18n="helpTitle">How Billology works</h3>
+    <p data-i18n="helpIntro">Four steps from a paper bill to answers about your spending. Figures always come from the bill itself — the AI only reads and explains, it never invents a number.</p>
+    <div class="helpstep"><span class="n">1</span><div><b data-i18n="h1t">Add a bill</b><div class="t" data-i18n="h1b">Take a photo, choose an image or PDF, or paste the bill's text using the buttons at the top.</div></div></div>
+    <div class="helpstep"><span class="n">2</span><div><b data-i18n="h2t">Check the extraction</b><div class="t" data-i18n="h2b">Billology reads the merchant, date, items, taxes, and total, and runs arithmetic checks. Anything that doesn't add up is flagged with the conflicting figures as evidence.</div></div></div>
+    <div class="helpstep"><span class="n">3</span><div><b data-i18n="h3t">Review & save</b><div class="t" data-i18n="h3b">Pick a category and save. If the date is missing you'll be asked to set it. Saved bills become part of your history.</div></div></div>
+    <div class="helpstep"><span class="n">4</span><div><b data-i18n="h4t">Browse your bills</b><div class="t" data-i18n="h4b">"My bills" lists everything you saved — search by merchant, filter by category, delete what you don't need.</div></div></div>
+    <div class="helpstep"><span class="n">5</span><div><b data-i18n="h5t">See your spending</b><div class="t" data-i18n="h5b">The Spending panel shows this month's total, category breakdown, monthly trend, and top merchants — all computed from your saved bills.</div></div></div>
+    <div class="helpstep"><span class="n">6</span><div><b data-i18n="h6t">Ask questions</b><div class="t" data-i18n="h6b">Ask things like "How much did I spend on groceries in May?" — answered from your saved records only. If the data isn't there, it says so instead of guessing.</div></div></div>
+    <div class="helpstep gold"><span class="n">!</span><div><b data-i18n="helpPrivacyT">Privacy & AI</b><div class="t" data-i18n="helpPrivacyB">Bill images are read by a cloud AI by default. The provider menu lets you use your own key or a fully local model (Ollama). The moon/sun button switches dark and light themes.</div></div></div>
+    <button class="skiplink" id="helpClose">✕ <span data-i18n="close">Close</span></button>
+  </div>
+</div>
 
 <script>
 const SAMPLE = `BigBasket Supermarket
@@ -194,12 +423,27 @@ Grand Total         826.00`;
 const $ = (id) => document.getElementById(id);
 $("sample").onclick = () => { $("text").value = SAMPLE; };
 
-// --- Settings: language + AI provider (persisted in localStorage) ----------
+// --- Settings: language + AI provider + theme (persisted in localStorage) ---
+const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 const SETTINGS = Object.assign(
-  { lang: "en", provider: "default", groqKey: "", ollamaUrl: "http://localhost:11434", ollamaModel: "llama3.2" },
+  { lang: "en", provider: "default", groqKey: "", ollamaUrl: "http://localhost:11434",
+    ollamaModel: "llama3.2", theme: prefersDark ? "dark" : "light" },
   JSON.parse(localStorage.getItem("billology.settings") || "{}")
 );
 function saveSettings() { localStorage.setItem("billology.settings", JSON.stringify(SETTINGS)); }
+
+// --- Theme toggle (#5) -------------------------------------------------------
+function applyTheme() {
+  document.documentElement.dataset.theme = SETTINGS.theme;
+  $("iconMoon").classList.toggle("hidden", SETTINGS.theme === "dark");
+  $("iconSun").classList.toggle("hidden", SETTINGS.theme !== "dark");
+}
+$("themeBtn").onclick = () => {
+  SETTINGS.theme = SETTINGS.theme === "dark" ? "light" : "dark";
+  saveSettings(); applyTheme();
+  if (DASH_CACHE) renderDash(DASH_CACHE); // re-tint charts without refetching
+};
+applyTheme();
 
 // Headers consumed by the backend's request-context middleware. The browser
 // still only ever talks to this backend — never to a provider directly.
@@ -217,12 +461,6 @@ function hdrs(extra) {
 }
 
 // --- Resilient fetch (Render free-tier cold starts) -------------------------
-// The backend sleeps after ~15 min idle; the first hits during wake-up come
-// back as a 502/503/504 from the edge proxy with an EMPTY body (so r.json()
-// throws "Unexpected end of JSON input") or as an outright network error.
-// apiFetch retries those transparently with backoff while signalling onWake.
-// An app-level 502 (e.g. a save/persist failure) carries a JSON body and is
-// NOT a cold start — we return it to the caller untouched.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const GATEWAY_STATUS = new Set([502, 503, 504]);
 
@@ -233,14 +471,11 @@ async function apiFetch(path, opts = {}, { retries = 9, onWake } = {}) {
     try {
       res = await fetch(path, opts);
     } catch (netErr) {
-      // Connection refused/reset — typical of the very first hit on a cold service.
       if (attempt >= retries) throw netErr;
       if (onWake) onWake(attempt);
       await sleep(delay); delay = Math.min(delay * 1.6, 8000); continue;
     }
     if (GATEWAY_STATUS.has(res.status) && attempt < retries) {
-      // Only retry a true edge wake-up: empty or non-JSON body. An app 502
-      // (JSON {error, detail}) is a real failure and must reach the caller.
       const text = await res.clone().text();
       if (!text.trim() || !text.trim().startsWith("{")) {
         if (onWake) onWake(attempt);
@@ -251,8 +486,6 @@ async function apiFetch(path, opts = {}, { retries = 9, onWake } = {}) {
   }
 }
 
-// Resilient fetch + JSON parse. Throws an Error (with .status) on a non-ok
-// response, reading the friendly reason/detail/error field when present.
 async function apiJson(path, opts = {}, cfg = {}) {
   const res = await apiFetch(path, opts, cfg);
   if (!res.ok) {
@@ -263,163 +496,220 @@ async function apiJson(path, opts = {}, cfg = {}) {
   return res.json();
 }
 
+// --- i18n -------------------------------------------------------------------
+// en/hi/te carry the full (reviewed) dictionaries including the newer keys;
+// the other ten fall back to English for any key they don't define yet.
 const I18N = {
   en: {
     tagline: "Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.",
-    pasteLabel: "Paste bill text", pastePh: "Paste a bill here…", analyze: "Analyze bill",
-    loadSample: "load a sample", saveBill: "💾 Save bill",
-    askTitle: "💬 Ask about your spending", askPh: "e.g. How much did I spend on groceries in May?", ask: "Ask",
-    spendTitle: "📊 Spending", monthlyTrend: "Monthly trend", refresh: "refresh",
-    billsTitle: "📂 My bills", searchPh: "Search merchant…", clearAll: "Clear all data",
+    addBill: "Add a bill",
+    addBillSub: "Photograph it, pick a file, or paste its text — it's read, checked for errors, and explained.",
+    takePhoto: "Take photo", pickImage: "Choose image", pickPdf: "Choose PDF", pasteTextBtn: "Paste text",
+    pastePh: "Paste a bill here…", analyze: "Analyze bill",
+    loadSample: "load a sample", saveBill: "Save bill",
+    askTitle: "Ask about your spending", askPh: "e.g. How much did I spend on groceries in May?", ask: "Ask",
+    spendTitle: "Spending", monthlyTrend: "Monthly trend", refresh: "refresh",
+    billsTitle: "My bills", searchPh: "Search merchant…", clearAll: "Clear all data",
     provDefault: "AI: Cloud (app's key)", provByok: "AI: Cloud (my Groq key)", provOllama: "AI: Local (Ollama)",
     byCategory: "By category", topMerchants: "Top merchants", thisMonth: "This month",
     vsLastMonth: "vs last month", topCategory: "Top category",
     wakingServer: "Waking the server… (free hosting sleeps when idle; this can take ~30–60s on first use)",
+    help: "Help", close: "Close",
+    helpTitle: "How Billology works",
+    helpIntro: "Four steps from a paper bill to answers about your spending. Figures always come from the bill itself — the AI only reads and explains, it never invents a number.",
+    h1t: "Add a bill", h1b: "Take a photo, choose an image or PDF, or paste the bill's text using the buttons at the top.",
+    h2t: "Check the extraction", h2b: "Billology reads the merchant, date, items, taxes, and total, and runs arithmetic checks. Anything that doesn't add up is flagged with the conflicting figures as evidence.",
+    h3t: "Review & save", h3b: "Pick a category and save. If the date is missing you'll be asked to set it. Saved bills become part of your history.",
+    h4t: "Browse your bills", h4b: "“My bills” lists everything you saved — search by merchant, filter by category, delete what you don't need.",
+    h5t: "See your spending", h5b: "The Spending panel shows this month's total, category breakdown, monthly trend, and top merchants — all computed from your saved bills.",
+    h6t: "Ask questions", h6b: "Ask things like “How much did I spend on groceries in May?” — answered from your saved records only. If the data isn't there, it says so instead of guessing.",
+    helpPrivacyT: "Privacy & AI", helpPrivacyB: "Bill images are read by a cloud AI by default. The provider menu lets you use your own key or a fully local model (Ollama). The moon/sun button switches dark and light themes.",
+    dateNeededTitle: "When is this bill from?",
+    dateNeededBody: "No date was found on this bill. Set it so your spending lands in the right month.",
+    dateFromBill: "Read it off the bill",
+    dateFromBillHint: "Find the printed date on the bill below, then enter it.",
+    dateSetManual: "Set the date myself", dateDone: "Use this date", dateSkip: "Skip for now",
   },
   hi: {
     tagline: "बिल जमा करें (छवि / PDF / टेक्स्ट)। यह डेटा निकालता है, त्रुटियाँ जाँचता है और समझाता है — आँकड़े हमेशा बिल से आते हैं, AI से कभी नहीं।",
-    pasteLabel: "बिल का टेक्स्ट पेस्ट करें", pastePh: "बिल यहाँ पेस्ट करें…", analyze: "बिल विश्लेषण करें",
-    loadSample: "नमूना लोड करें", saveBill: "💾 बिल सहेजें",
-    askTitle: "💬 अपने खर्च के बारे में पूछें", askPh: "जैसे: मई में किराने पर कितना खर्च हुआ?", ask: "पूछें",
-    spendTitle: "📊 खर्च", monthlyTrend: "मासिक रुझान", refresh: "रीफ़्रेश",
-    billsTitle: "📂 मेरे बिल", searchPh: "दुकान खोजें…", clearAll: "सारा डेटा हटाएँ",
+    addBill: "बिल जोड़ें",
+    addBillSub: "फ़ोटो लें, फ़ाइल चुनें, या टेक्स्ट पेस्ट करें — यह पढ़ा जाता है, जाँचा जाता है और समझाया जाता है।",
+    takePhoto: "फ़ोटो लें", pickImage: "छवि चुनें", pickPdf: "PDF चुनें", pasteTextBtn: "टेक्स्ट पेस्ट करें",
+    pastePh: "बिल यहाँ पेस्ट करें…", analyze: "बिल विश्लेषण करें",
+    loadSample: "नमूना लोड करें", saveBill: "बिल सहेजें",
+    askTitle: "अपने खर्च के बारे में पूछें", askPh: "जैसे: मई में किराने पर कितना खर्च हुआ?", ask: "पूछें",
+    spendTitle: "खर्च", monthlyTrend: "मासिक रुझान", refresh: "रीफ़्रेश",
+    billsTitle: "मेरे बिल", searchPh: "दुकान खोजें…", clearAll: "सारा डेटा हटाएँ",
     provDefault: "AI: क्लाउड (ऐप की key)", provByok: "AI: क्लाउड (मेरी Groq key)", provOllama: "AI: लोकल (Ollama)",
     byCategory: "श्रेणी अनुसार", topMerchants: "शीर्ष दुकानें", thisMonth: "इस महीने",
     vsLastMonth: "पिछले महीने की तुलना में", topCategory: "शीर्ष श्रेणी",
+    help: "मदद", close: "बंद करें",
+    helpTitle: "Billology कैसे काम करता है",
+    helpIntro: "कागज़ के बिल से खर्च के जवाब तक — चार कदम। आँकड़े हमेशा बिल से ही आते हैं — AI केवल पढ़ता और समझाता है, कभी कोई संख्या नहीं गढ़ता।",
+    h1t: "बिल जोड़ें", h1b: "ऊपर के बटनों से फ़ोटो लें, छवि या PDF चुनें, या बिल का टेक्स्ट पेस्ट करें।",
+    h2t: "निकाले गए आँकड़े जाँचें", h2b: "Billology दुकान, तारीख़, आइटम, टैक्स और कुल पढ़ता है और गणित की जाँच करता है। जो जुड़ता नहीं, वह आँकड़ों समेत फ़्लैग होता है।",
+    h3t: "जाँचें और सहेजें", h3b: "श्रेणी चुनें और सहेजें। तारीख़ न मिले तो आपसे पूछा जाएगा। सहेजे बिल आपके इतिहास में जुड़ते हैं।",
+    h4t: "अपने बिल देखें", h4b: "'मेरे बिल' में सहेजे सारे बिल — दुकान से खोजें, श्रेणी से छाँटें, अनचाहे हटाएँ।",
+    h5t: "खर्च देखें", h5b: "खर्च पैनल इस महीने का कुल, श्रेणीवार बँटवारा, मासिक रुझान और शीर्ष दुकानें दिखाता है — सब आपके सहेजे बिलों से।",
+    h6t: "सवाल पूछें", h6b: "'मई में किराने पर कितना खर्च हुआ?' जैसे सवाल पूछें — जवाब केवल सहेजे रिकॉर्ड से। डेटा न हो तो अनुमान नहीं, साफ़ कह देता है।",
+    helpPrivacyT: "निजता और AI", helpPrivacyB: "बिल की छवियाँ डिफ़ॉल्ट रूप से क्लाउड AI पढ़ता है। प्रोवाइडर मेनू से अपनी key या लोकल मॉडल (Ollama) चुनें। चाँद/सूरज बटन से थीम बदलें।",
+    dateNeededTitle: "यह बिल कब का है?",
+    dateNeededBody: "इस बिल पर तारीख़ नहीं मिली। सेट करें ताकि खर्च सही महीने में गिना जाए।",
+    dateFromBill: "बिल से पढ़कर भरें",
+    dateFromBillHint: "नीचे बिल पर छपी तारीख़ देखें, फिर दर्ज करें।",
+    dateSetManual: "मैं ख़ुद तारीख़ सेट करूँ", dateDone: "यही तारीख़ रखें", dateSkip: "अभी छोड़ें",
   },
   te: {
     tagline: "బిల్లు సమర్పించండి (చిత్రం / PDF / టెక్స్ట్). ఇది డేటాను సంగ్రహించి, లోపాలను తనిఖీ చేసి, వివరిస్తుంది — సంఖ్యలు ఎప్పుడూ బిల్లు నుండే వస్తాయి, AI నుండి కాదు.",
-    pasteLabel: "బిల్లు టెక్స్ట్ పేస్ట్ చేయండి", pastePh: "బిల్లు ఇక్కడ పేస్ట్ చేయండి…", analyze: "బిల్లు విశ్లేషించండి",
-    loadSample: "నమూనా లోడ్ చేయండి", saveBill: "💾 బిల్లు సేవ్ చేయండి",
-    askTitle: "💬 మీ ఖర్చు గురించి అడగండి", askPh: "ఉదా: మేలో కిరాణాపై ఎంత ఖర్చు చేశాను?", ask: "అడగండి",
-    spendTitle: "📊 ఖర్చు", monthlyTrend: "నెలవారీ ధోరణి", refresh: "రిఫ్రెష్",
-    billsTitle: "📂 నా బిల్లులు", searchPh: "దుకాణం వెతకండి…", clearAll: "మొత్తం డేటా తొలగించండి",
+    addBill: "బిల్లు జోడించండి",
+    addBillSub: "ఫోటో తీయండి, ఫైల్ ఎంచుకోండి, లేదా టెక్స్ట్ పేస్ట్ చేయండి — చదివి, తనిఖీ చేసి, వివరించబడుతుంది.",
+    takePhoto: "ఫోటో తీయండి", pickImage: "చిత్రం ఎంచుకోండి", pickPdf: "PDF ఎంచుకోండి", pasteTextBtn: "టెక్స్ట్ పేస్ట్",
+    pastePh: "బిల్లు ఇక్కడ పేస్ట్ చేయండి…", analyze: "బిల్లు విశ్లేషించండి",
+    loadSample: "నమూనా లోడ్ చేయండి", saveBill: "బిల్లు సేవ్ చేయండి",
+    askTitle: "మీ ఖర్చు గురించి అడగండి", askPh: "ఉదా: మేలో కిరాణాపై ఎంత ఖర్చు చేశాను?", ask: "అడగండి",
+    spendTitle: "ఖర్చు", monthlyTrend: "నెలవారీ ధోరణి", refresh: "రిఫ్రెష్",
+    billsTitle: "నా బిల్లులు", searchPh: "దుకాణం వెతకండి…", clearAll: "మొత్తం డేటా తొలగించండి",
     provDefault: "AI: క్లౌడ్ (యాప్ key)", provByok: "AI: క్లౌడ్ (నా Groq key)", provOllama: "AI: లోకల్ (Ollama)",
     byCategory: "వర్గం వారీగా", topMerchants: "టాప్ దుకాణాలు", thisMonth: "ఈ నెల",
     vsLastMonth: "గత నెలతో పోలిస్తే", topCategory: "టాప్ వర్గం",
+    help: "సహాయం", close: "మూసివేయి",
+    helpTitle: "Billology ఎలా పనిచేస్తుంది",
+    helpIntro: "కాగితపు బిల్లు నుండి ఖర్చు సమాధానాల వరకు — నాలుగు అడుగులు. సంఖ్యలు ఎప్పుడూ బిల్లు నుండే — AI చదివి వివరించడమే చేస్తుంది, సంఖ్యలు సృష్టించదు.",
+    h1t: "బిల్లు జోడించండి", h1b: "పై బటన్లతో ఫోటో తీయండి, చిత్రం/PDF ఎంచుకోండి, లేదా బిల్లు టెక్స్ట్ పేస్ట్ చేయండి.",
+    h2t: "సంగ్రహించినది తనిఖీ చేయండి", h2b: "Billology దుకాణం, తేదీ, వస్తువులు, పన్నులు, మొత్తం చదివి లెక్కలు సరిచూస్తుంది. సరిపోనివి ఆధారాలతో ఫ్లాగ్ అవుతాయి.",
+    h3t: "సరిచూసి సేవ్ చేయండి", h3b: "వర్గం ఎంచుకుని సేవ్ చేయండి. తేదీ లేకపోతే మిమ్మల్ని అడుగుతుంది. సేవ్ అయిన బిల్లులు చరిత్రలో చేరతాయి.",
+    h4t: "మీ బిల్లులు చూడండి", h4b: "'నా బిల్లులు'లో సేవ్ చేసినవన్నీ — దుకాణంతో వెతకండి, వర్గంతో వడపోయండి, అనవసరమైనవి తొలగించండి.",
+    h5t: "ఖర్చు చూడండి", h5b: "ఖర్చు ప్యానెల్ ఈ నెల మొత్తం, వర్గాల విభజన, నెలవారీ ధోరణి, టాప్ దుకాణాలు చూపుతుంది — అన్నీ సేవ్ చేసిన బిల్లుల నుండే.",
+    h6t: "ప్రశ్నలు అడగండి", h6b: "'మేలో కిరాణాపై ఎంత ఖర్చు?' వంటివి అడగండి — జవాబు సేవ్ చేసిన రికార్డుల నుండే. డేటా లేకపోతే ఊహించదు.",
+    helpPrivacyT: "గోప్యత & AI", helpPrivacyB: "బిల్లు చిత్రాలను డిఫాల్ట్‌గా క్లౌడ్ AI చదువుతుంది. ప్రొవైడర్ మెనూలో మీ key లేదా లోకల్ మోడల్ (Ollama) ఎంచుకోండి. చంద్రుడు/సూర్యుడు బటన్‌తో థీమ్ మార్చండి.",
+    dateNeededTitle: "ఈ బిల్లు ఎప్పటిది?",
+    dateNeededBody: "ఈ బిల్లుపై తేదీ కనబడలేదు. ఖర్చు సరైన నెలలో లెక్కకు రావాలంటే తేదీ సెట్ చేయండి.",
+    dateFromBill: "బిల్లు చూసి రాయండి",
+    dateFromBillHint: "కింద బిల్లుపై ముద్రించిన తేదీని చూసి నమోదు చేయండి.",
+    dateSetManual: "నేనే తేదీ సెట్ చేస్తాను", dateDone: "ఈ తేదీనే ఉంచండి", dateSkip: "ప్రస్తుతానికి దాటవేయి",
   },
   // The ten languages below are machine-authored translations pending
-  // native-speaker review; corrections only touch this dictionary.
+  // native-speaker review; keys they don't define fall back to English.
   ta: {
     tagline: "பில் சமர்ப்பிக்கவும் (படம் / PDF / உரை). தரவு பிரித்தெடுக்கப்பட்டு, நிரூபிக்கக்கூடிய பிழைகள் சரிபார்க்கப்பட்டு, விளக்கப்படும் — எண்கள் நேரடியாக பில்லிலிருந்தே, AI-யிடமிருந்து அல்ல.",
-    pasteLabel: "பில் உரையை ஒட்டவும்", pastePh: "பில்லை இங்கே ஒட்டவும்…", analyze: "பில்லை ஆராயவும்",
-    loadSample: "மாதிரியை ஏற்றவும்", saveBill: "💾 பில் சேமிக்கவும்",
-    askTitle: "💬 உங்கள் செலவு பற்றி கேளுங்கள்", askPh: "உதா: மே மாதம் மளிகைக்கு எவ்வளவு செலவு?", ask: "கேள்",
-    spendTitle: "📊 செலவு", monthlyTrend: "மாதாந்திர போக்கு", refresh: "புதுப்பி",
-    billsTitle: "📂 என் பில்கள்", searchPh: "கடையைத் தேடவும்…", clearAll: "எல்லா தரவையும் அழிக்கவும்",
+    pastePh: "பில்லை இங்கே ஒட்டவும்…", analyze: "பில்லை ஆராயவும்",
+    loadSample: "மாதிரியை ஏற்றவும்", saveBill: "பில் சேமிக்கவும்",
+    askTitle: "உங்கள் செலவு பற்றி கேளுங்கள்", askPh: "உதா: மே மாதம் மளிகைக்கு எவ்வளவு செலவு?", ask: "கேள்",
+    spendTitle: "செலவு", monthlyTrend: "மாதாந்திர போக்கு", refresh: "புதுப்பி",
+    billsTitle: "என் பில்கள்", searchPh: "கடையைத் தேடவும்…", clearAll: "எல்லா தரவையும் அழிக்கவும்",
     provDefault: "AI: கிளவுட் (ஆப்பின் key)", provByok: "AI: கிளவுட் (என் Groq key)", provOllama: "AI: லோக்கல் (Ollama)",
     byCategory: "பிரிவு வாரியாக", topMerchants: "முதன்மை கடைகள்", thisMonth: "இந்த மாதம்",
     vsLastMonth: "கடந்த மாதத்துடன் ஒப்பிடுகையில்", topCategory: "முதன்மை பிரிவு",
   },
   kn: {
     tagline: "ಬಿಲ್ ಸಲ್ಲಿಸಿ (ಚಿತ್ರ / PDF / ಪಠ್ಯ). ಡೇಟಾ ಹೊರತೆಗೆದು, ಸಾಬೀತುಪಡಿಸಬಹುದಾದ ದೋಷಗಳನ್ನು ಪರಿಶೀಲಿಸಿ, ವಿವರಿಸುತ್ತದೆ — ಸಂಖ್ಯೆಗಳು ನೇರವಾಗಿ ಬಿಲ್‌ನಿಂದ, AI ಯಿಂದ ಅಲ್ಲ.",
-    pasteLabel: "ಬಿಲ್ ಪಠ್ಯ ಅಂಟಿಸಿ", pastePh: "ಬಿಲ್ ಇಲ್ಲಿ ಅಂಟಿಸಿ…", analyze: "ಬಿಲ್ ವಿಶ್ಲೇಷಿಸಿ",
-    loadSample: "ಮಾದರಿ ಲೋಡ್ ಮಾಡಿ", saveBill: "💾 ಬಿಲ್ ಉಳಿಸಿ",
-    askTitle: "💬 ನಿಮ್ಮ ಖರ್ಚಿನ ಬಗ್ಗೆ ಕೇಳಿ", askPh: "ಉದಾ: ಮೇನಲ್ಲಿ ದಿನಸಿಗೆ ಎಷ್ಟು ಖರ್ಚಾಯಿತು?", ask: "ಕೇಳಿ",
-    spendTitle: "📊 ಖರ್ಚು", monthlyTrend: "ಮಾಸಿಕ ಪ್ರವೃತ್ತಿ", refresh: "ರಿಫ್ರೆಶ್",
-    billsTitle: "📂 ನನ್ನ ಬಿಲ್‌ಗಳು", searchPh: "ಅಂಗಡಿ ಹುಡುಕಿ…", clearAll: "ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಿ",
+    pastePh: "ಬಿಲ್ ಇಲ್ಲಿ ಅಂಟಿಸಿ…", analyze: "ಬಿಲ್ ವಿಶ್ಲೇಷಿಸಿ",
+    loadSample: "ಮಾದರಿ ಲೋಡ್ ಮಾಡಿ", saveBill: "ಬಿಲ್ ಉಳಿಸಿ",
+    askTitle: "ನಿಮ್ಮ ಖರ್ಚಿನ ಬಗ್ಗೆ ಕೇಳಿ", askPh: "ಉದಾ: ಮೇನಲ್ಲಿ ದಿನಸಿಗೆ ಎಷ್ಟು ಖರ್ಚಾಯಿತು?", ask: "ಕೇಳಿ",
+    spendTitle: "ಖರ್ಚು", monthlyTrend: "ಮಾಸಿಕ ಪ್ರವೃತ್ತಿ", refresh: "ರಿಫ್ರೆಶ್",
+    billsTitle: "ನನ್ನ ಬಿಲ್‌ಗಳು", searchPh: "ಅಂಗಡಿ ಹುಡುಕಿ…", clearAll: "ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಿ",
     provDefault: "AI: ಕ್ಲೌಡ್ (ಆ್ಯಪ್ key)", provByok: "AI: ಕ್ಲೌಡ್ (ನನ್ನ Groq key)", provOllama: "AI: ಲೋಕಲ್ (Ollama)",
     byCategory: "ವರ್ಗದ ಪ್ರಕಾರ", topMerchants: "ಟಾಪ್ ಅಂಗಡಿಗಳು", thisMonth: "ಈ ತಿಂಗಳು",
     vsLastMonth: "ಕಳೆದ ತಿಂಗಳಿಗೆ ಹೋಲಿಸಿದರೆ", topCategory: "ಟಾಪ್ ವರ್ಗ",
   },
   ml: {
     tagline: "ബിൽ സമർപ്പിക്കുക (ചിത്രം / PDF / ടെക്സ്റ്റ്). ഡാറ്റ വേർതിരിച്ച്, തെളിയിക്കാവുന്ന പിശകുകൾ പരിശോധിച്ച്, വിശദീകരിക്കുന്നു — സംഖ്യകൾ നേരിട്ട് ബില്ലിൽ നിന്ന്, AI-യിൽ നിന്നല്ല.",
-    pasteLabel: "ബിൽ ടെക്സ്റ്റ് പേസ്റ്റ് ചെയ്യുക", pastePh: "ബിൽ ഇവിടെ പേസ്റ്റ് ചെയ്യുക…", analyze: "ബിൽ വിശകലനം ചെയ്യുക",
-    loadSample: "സാമ്പിൾ ലോഡ് ചെയ്യുക", saveBill: "💾 ബിൽ സേവ് ചെയ്യുക",
-    askTitle: "💬 നിങ്ങളുടെ ചെലവിനെക്കുറിച്ച് ചോദിക്കൂ", askPh: "ഉദാ: മേയിൽ പലചരക്കിന് എത്ര ചെലവായി?", ask: "ചോദിക്കൂ",
-    spendTitle: "📊 ചെലവ്", monthlyTrend: "മാസാന്ത പ്രവണത", refresh: "പുതുക്കുക",
-    billsTitle: "📂 എന്റെ ബില്ലുകൾ", searchPh: "കട തിരയുക…", clearAll: "എല്ലാ ഡാറ്റയും മായ്ക്കുക",
+    pastePh: "ബിൽ ഇവിടെ പേസ്റ്റ് ചെയ്യുക…", analyze: "ബിൽ വിശകലനം ചെയ്യുക",
+    loadSample: "സാമ്പിൾ ലോഡ് ചെയ്യുക", saveBill: "ബിൽ സേവ് ചെയ്യുക",
+    askTitle: "നിങ്ങളുടെ ചെലവിനെക്കുറിച്ച് ചോദിക്കൂ", askPh: "ഉദാ: മേയിൽ പലചരക്കിന് എത്ര ചെലവായി?", ask: "ചോദിക്കൂ",
+    spendTitle: "ചെലവ്", monthlyTrend: "മാസാന്ത പ്രവണത", refresh: "പുതുക്കുക",
+    billsTitle: "എന്റെ ബില്ലുകൾ", searchPh: "കട തിരയുക…", clearAll: "എല്ലാ ഡാറ്റയും മായ്ക്കുക",
     provDefault: "AI: ക്ലൗഡ് (ആപ്പ് key)", provByok: "AI: ക്ലൗഡ് (എന്റെ Groq key)", provOllama: "AI: ലോക്കൽ (Ollama)",
     byCategory: "വിഭാഗം അനുസരിച്ച്", topMerchants: "മുൻനിര കടകൾ", thisMonth: "ഈ മാസം",
     vsLastMonth: "കഴിഞ്ഞ മാസവുമായി താരതമ്യം", topCategory: "മുൻനിര വിഭാഗം",
   },
   bn: {
     tagline: "বিল জমা দিন (ছবি / PDF / লেখা)। ডেটা বের করে, প্রমাণযোগ্য ভুল যাচাই করে এবং ব্যাখ্যা করে — সংখ্যা সরাসরি বিল থেকে, AI থেকে নয়।",
-    pasteLabel: "বিলের লেখা পেস্ট করুন", pastePh: "বিল এখানে পেস্ট করুন…", analyze: "বিল বিশ্লেষণ করুন",
-    loadSample: "নমুনা লোড করুন", saveBill: "💾 বিল সংরক্ষণ",
-    askTitle: "💬 আপনার খরচ নিয়ে জিজ্ঞাসা করুন", askPh: "যেমন: মে মাসে মুদিখানায় কত খরচ হয়েছে?", ask: "জিজ্ঞাসা",
-    spendTitle: "📊 খরচ", monthlyTrend: "মাসিক প্রবণতা", refresh: "রিফ্রেশ",
-    billsTitle: "📂 আমার বিল", searchPh: "দোকান খুঁজুন…", clearAll: "সব ডেটা মুছুন",
+    pastePh: "বিল এখানে পেস্ট করুন…", analyze: "বিল বিশ্লেষণ করুন",
+    loadSample: "নমুনা লোড করুন", saveBill: "বিল সংরক্ষণ",
+    askTitle: "আপনার খরচ নিয়ে জিজ্ঞাসা করুন", askPh: "যেমন: মে মাসে মুদিখানায় কত খরচ হয়েছে?", ask: "জিজ্ঞাসা",
+    spendTitle: "খরচ", monthlyTrend: "মাসিক প্রবণতা", refresh: "রিফ্রেশ",
+    billsTitle: "আমার বিল", searchPh: "দোকান খুঁজুন…", clearAll: "সব ডেটা মুছুন",
     provDefault: "AI: ক্লাউড (অ্যাপের key)", provByok: "AI: ক্লাউড (আমার Groq key)", provOllama: "AI: লোকাল (Ollama)",
     byCategory: "বিভাগ অনুযায়ী", topMerchants: "শীর্ষ দোকান", thisMonth: "এই মাসে",
     vsLastMonth: "গত মাসের তুলনায়", topCategory: "শীর্ষ বিভাগ",
   },
   mr: {
     tagline: "बिल सादर करा (प्रतिमा / PDF / मजकूर). डेटा काढते, सिद्ध करता येणाऱ्या चुका तपासते आणि समजावते — आकडे थेट बिलातून, AI कडून नाही.",
-    pasteLabel: "बिलाचा मजकूर पेस्ट करा", pastePh: "बिल येथे पेस्ट करा…", analyze: "बिलाचे विश्लेषण करा",
-    loadSample: "नमुना लोड करा", saveBill: "💾 बिल जतन करा",
-    askTitle: "💬 तुमच्या खर्चाबद्दल विचारा", askPh: "उदा: मे महिन्यात किराण्यावर किती खर्च झाला?", ask: "विचारा",
-    spendTitle: "📊 खर्च", monthlyTrend: "मासिक कल", refresh: "रिफ्रेश",
-    billsTitle: "📂 माझी बिले", searchPh: "दुकान शोधा…", clearAll: "सर्व डेटा हटवा",
+    pastePh: "बिल येथे पेस्ट करा…", analyze: "बिलाचे विश्लेषण करा",
+    loadSample: "नमुना लोड करा", saveBill: "बिल जतन करा",
+    askTitle: "तुमच्या खर्चाबद्दल विचारा", askPh: "उदा: मे महिन्यात किराण्यावर किती खर्च झाला?", ask: "विचारा",
+    spendTitle: "खर्च", monthlyTrend: "मासिक कल", refresh: "रिफ्रेश",
+    billsTitle: "माझी बिले", searchPh: "दुकान शोधा…", clearAll: "सर्व डेटा हटवा",
     provDefault: "AI: क्लाउड (अ‍ॅपची key)", provByok: "AI: क्लाउड (माझी Groq key)", provOllama: "AI: लोकल (Ollama)",
     byCategory: "वर्गानुसार", topMerchants: "टॉप दुकाने", thisMonth: "या महिन्यात",
     vsLastMonth: "मागील महिन्याच्या तुलनेत", topCategory: "टॉप वर्ग",
   },
   gu: {
     tagline: "બિલ સબમિટ કરો (છબી / PDF / લખાણ). ડેટા કાઢે છે, સાબિત કરી શકાય તેવી ભૂલો તપાસે છે અને સમજાવે છે — આંકડા સીધા બિલમાંથી, AI માંથી નહીં.",
-    pasteLabel: "બિલનું લખાણ પેસ્ટ કરો", pastePh: "બિલ અહીં પેસ્ટ કરો…", analyze: "બિલનું વિશ્લેષણ કરો",
-    loadSample: "નમૂનો લોડ કરો", saveBill: "💾 બિલ સાચવો",
-    askTitle: "💬 તમારા ખર્ચ વિશે પૂછો", askPh: "દા.ત.: મે માં કરિયાણા પર કેટલો ખર્ચ થયો?", ask: "પૂછો",
-    spendTitle: "📊 ખર્ચ", monthlyTrend: "માસિક વલણ", refresh: "રિફ્રેશ",
-    billsTitle: "📂 મારાં બિલ", searchPh: "દુકાન શોધો…", clearAll: "બધો ડેટા કાઢો",
+    pastePh: "બિલ અહીં પેસ્ટ કરો…", analyze: "બિલનું વિશ્લેષણ કરો",
+    loadSample: "નમૂનો લોડ કરો", saveBill: "બિલ સાચવો",
+    askTitle: "તમારા ખર્ચ વિશે પૂછો", askPh: "દા.ત.: મે માં કરિયાણા પર કેટલો ખર્ચ થયો?", ask: "પૂછો",
+    spendTitle: "ખર્ચ", monthlyTrend: "માસિક વલણ", refresh: "રિફ્રેશ",
+    billsTitle: "મારાં બિલ", searchPh: "દુકાન શોધો…", clearAll: "બધો ડેટા કાઢો",
     provDefault: "AI: ક્લાઉડ (ઍપની key)", provByok: "AI: ક્લાઉડ (મારી Groq key)", provOllama: "AI: લોકલ (Ollama)",
     byCategory: "શ્રેણી પ્રમાણે", topMerchants: "ટોચની દુકાનો", thisMonth: "આ મહિને",
     vsLastMonth: "ગયા મહિનાની સરખામણીએ", topCategory: "ટોચની શ્રેણી",
   },
   pa: {
     tagline: "ਬਿੱਲ ਜਮ੍ਹਾਂ ਕਰੋ (ਤਸਵੀਰ / PDF / ਟੈਕਸਟ)। ਡਾਟਾ ਕੱਢਦਾ ਹੈ, ਸਾਬਤ ਹੋਣ ਵਾਲੀਆਂ ਗਲਤੀਆਂ ਜਾਂਚਦਾ ਹੈ ਅਤੇ ਸਮਝਾਉਂਦਾ ਹੈ — ਅੰਕੜੇ ਸਿੱਧੇ ਬਿੱਲ ਤੋਂ, AI ਤੋਂ ਨਹੀਂ।",
-    pasteLabel: "ਬਿੱਲ ਦਾ ਟੈਕਸਟ ਪੇਸਟ ਕਰੋ", pastePh: "ਬਿੱਲ ਇੱਥੇ ਪੇਸਟ ਕਰੋ…", analyze: "ਬਿੱਲ ਦਾ ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ",
-    loadSample: "ਨਮੂਨਾ ਲੋਡ ਕਰੋ", saveBill: "💾 ਬਿੱਲ ਸੰਭਾਲੋ",
-    askTitle: "💬 ਆਪਣੇ ਖਰਚ ਬਾਰੇ ਪੁੱਛੋ", askPh: "ਜਿਵੇਂ: ਮਈ ਵਿੱਚ ਰਾਸ਼ਨ 'ਤੇ ਕਿੰਨਾ ਖਰਚ ਹੋਇਆ?", ask: "ਪੁੱਛੋ",
-    spendTitle: "📊 ਖਰਚ", monthlyTrend: "ਮਹੀਨਾਵਾਰ ਰੁਝਾਨ", refresh: "ਰੀਫ੍ਰੈਸ਼",
-    billsTitle: "📂 ਮੇਰੇ ਬਿੱਲ", searchPh: "ਦੁਕਾਨ ਖੋਜੋ…", clearAll: "ਸਾਰਾ ਡਾਟਾ ਮਿਟਾਓ",
+    pastePh: "ਬਿੱਲ ਇੱਥੇ ਪੇਸਟ ਕਰੋ…", analyze: "ਬਿੱਲ ਦਾ ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ",
+    loadSample: "ਨਮੂਨਾ ਲੋਡ ਕਰੋ", saveBill: "ਬਿੱਲ ਸੰਭਾਲੋ",
+    askTitle: "ਆਪਣੇ ਖਰਚ ਬਾਰੇ ਪੁੱਛੋ", askPh: "ਜਿਵੇਂ: ਮਈ ਵਿੱਚ ਰਾਸ਼ਨ 'ਤੇ ਕਿੰਨਾ ਖਰਚ ਹੋਇਆ?", ask: "ਪੁੱਛੋ",
+    spendTitle: "ਖਰਚ", monthlyTrend: "ਮਹੀਨਾਵਾਰ ਰੁਝਾਨ", refresh: "ਰੀਫ੍ਰੈਸ਼",
+    billsTitle: "ਮੇਰੇ ਬਿੱਲ", searchPh: "ਦੁਕਾਨ ਖੋਜੋ…", clearAll: "ਸਾਰਾ ਡਾਟਾ ਮਿਟਾਓ",
     provDefault: "AI: ਕਲਾਉਡ (ਐਪ ਦੀ key)", provByok: "AI: ਕਲਾਉਡ (ਮੇਰੀ Groq key)", provOllama: "AI: ਲੋਕਲ (Ollama)",
     byCategory: "ਸ਼੍ਰੇਣੀ ਅਨੁਸਾਰ", topMerchants: "ਚੋਟੀ ਦੀਆਂ ਦੁਕਾਨਾਂ", thisMonth: "ਇਸ ਮਹੀਨੇ",
     vsLastMonth: "ਪਿਛਲੇ ਮਹੀਨੇ ਨਾਲੋਂ", topCategory: "ਚੋਟੀ ਦੀ ਸ਼੍ਰੇਣੀ",
   },
   or: {
     tagline: "ବିଲ୍ ଦାଖଲ କରନ୍ତୁ (ଛବି / PDF / ଟେକ୍ସଟ୍)। ଡାଟା ବାହାର କରେ, ପ୍ରମାଣଯୋଗ୍ୟ ଭୁଲ୍ ଯାଞ୍ଚ କରେ ଏବଂ ବୁଝାଏ — ସଂଖ୍ୟା ସିଧା ବିଲ୍‌ରୁ, AI ରୁ ନୁହେଁ।",
-    pasteLabel: "ବିଲ୍ ଟେକ୍ସଟ୍ ପେଷ୍ଟ କରନ୍ତୁ", pastePh: "ବିଲ୍ ଏଠାରେ ପେଷ୍ଟ କରନ୍ତୁ…", analyze: "ବିଲ୍ ବିଶ୍ଳେଷଣ କରନ୍ତୁ",
-    loadSample: "ନମୁନା ଲୋଡ୍ କରନ୍ତୁ", saveBill: "💾 ବିଲ୍ ସେଭ୍ କରନ୍ତୁ",
-    askTitle: "💬 ଆପଣଙ୍କ ଖର୍ଚ୍ଚ ବିଷୟରେ ପଚାରନ୍ତୁ", askPh: "ଯଥା: ମେ ମାସରେ ସଉଦାରେ କେତେ ଖର୍ଚ୍ଚ ହେଲା?", ask: "ପଚାରନ୍ତୁ",
-    spendTitle: "📊 ଖର୍ଚ୍ଚ", monthlyTrend: "ମାସିକ ଧାରା", refresh: "ରିଫ୍ରେସ୍",
-    billsTitle: "📂 ମୋର ବିଲ୍", searchPh: "ଦୋକାନ ଖୋଜନ୍ତୁ…", clearAll: "ସମସ୍ତ ଡାଟା ଲିଭାନ୍ତୁ",
+    pastePh: "ବିଲ୍ ଏଠାରେ ପେଷ୍ଟ କରନ୍ତୁ…", analyze: "ବିଲ୍ ବିଶ୍ଳେଷଣ କରନ୍ତୁ",
+    loadSample: "ନମୁନା ଲୋଡ୍ କରନ୍ତୁ", saveBill: "ବିଲ୍ ସେଭ୍ କରନ୍ତୁ",
+    askTitle: "ଆପଣଙ୍କ ଖର୍ଚ୍ଚ ବିଷୟରେ ପଚାରନ୍ତୁ", askPh: "ଯଥା: ମେ ମାସରେ ସଉଦାରେ କେତେ ଖର୍ଚ୍ଚ ହେଲା?", ask: "ପଚାରନ୍ତୁ",
+    spendTitle: "ଖର୍ଚ୍ଚ", monthlyTrend: "ମାସିକ ଧାରା", refresh: "ରିଫ୍ରେସ୍",
+    billsTitle: "ମୋର ବିଲ୍", searchPh: "ଦୋକାନ ଖୋଜନ୍ତୁ…", clearAll: "ସମସ୍ତ ଡାଟା ଲିଭାନ୍ତୁ",
     provDefault: "AI: କ୍ଲାଉଡ୍ (ଆପ୍ key)", provByok: "AI: କ୍ଲାଉଡ୍ (ମୋ Groq key)", provOllama: "AI: ଲୋକାଲ୍ (Ollama)",
     byCategory: "ବର୍ଗ ଅନୁସାରେ", topMerchants: "ଶୀର୍ଷ ଦୋକାନ", thisMonth: "ଏହି ମାସ",
     vsLastMonth: "ଗତ ମାସ ତୁଳନାରେ", topCategory: "ଶୀର୍ଷ ବର୍ଗ",
   },
   as: {
     tagline: "বিল দাখিল কৰক (ছবি / PDF / লিখনি)। ডাটা উলিয়ায়, প্ৰমাণযোগ্য ভুল পৰীক্ষা কৰে আৰু বুজাই দিয়ে — সংখ্যা পোনে বিলৰ পৰা, AI ৰ পৰা নহয়।",
-    pasteLabel: "বিলৰ লিখনি পেষ্ট কৰক", pastePh: "বিল ইয়াত পেষ্ট কৰক…", analyze: "বিল বিশ্লেষণ কৰক",
-    loadSample: "নমুনা ল'ড কৰক", saveBill: "💾 বিল সংৰক্ষণ",
-    askTitle: "💬 আপোনাৰ খৰচৰ বিষয়ে সোধক", askPh: "যেনে: মে' মাহত ৰেচনত কিমান খৰচ হ'ল?", ask: "সোধক",
-    spendTitle: "📊 খৰচ", monthlyTrend: "মাহেকীয়া ধাৰা", refresh: "ৰিফ্ৰেশ্ব",
-    billsTitle: "📂 মোৰ বিল", searchPh: "দোকান বিচাৰক…", clearAll: "সকলো ডাটা মচক",
-    provDefault: "AI: ক্লাউড (এপৰ key)", provByok: "AI: ক্লাউড (মোৰ Groq key)", provOllama: "AI: লোকেল (Ollama)",
+    pastePh: "বিল ইয়াত পেষ্ট কৰক…", analyze: "বিল বিশ্লেষণ কৰক",
+    loadSample: "নমুনা ল'ড কৰক", saveBill: "বিল সংৰক্ষণ",
+    askTitle: "আপোনাৰ খৰচৰ বিষয়ে সোধক", askPh: "যেনে: মে' মাহত ৰেচনত কিমান খৰচ হ'ল?", ask: "সোধক",
+    spendTitle: "খৰচ", monthlyTrend: "মাহেকীয়া ধাৰা", refresh: "ৰিফ্ৰেশ্ব",
+    billsTitle: "মোৰ বিল", searchPh: "দোকান বিচাৰক…", clearAll: "সকলো ডাটা মচক",
+    provDefault: "AI: ক্লাউড (এপৰ key)", provByok: "AI: ক্লাউড (মোৰ key)", provOllama: "AI: লোকেল (Ollama)",
     byCategory: "শ্ৰেণী অনুযায়ী", topMerchants: "শীৰ্ষ দোকান", thisMonth: "এই মাহত",
     vsLastMonth: "যোৱা মাহৰ তুলনাত", topCategory: "শীৰ্ষ শ্ৰেণী",
   },
   ur: {
     tagline: "بل جمع کریں (تصویر / PDF / متن)۔ ڈیٹا نکالتا ہے، قابلِ ثبوت غلطیاں جانچتا ہے اور وضاحت کرتا ہے — اعداد سیدھے بل سے، AI سے نہیں۔",
-    pasteLabel: "بل کا متن پیسٹ کریں", pastePh: "بل یہاں پیسٹ کریں…", analyze: "بل کا تجزیہ کریں",
-    loadSample: "نمونہ لوڈ کریں", saveBill: "💾 بل محفوظ کریں",
-    askTitle: "💬 اپنے خرچ کے بارے میں پوچھیں", askPh: "مثلاً: مئی میں راشن پر کتنا خرچ ہوا؟", ask: "پوچھیں",
-    spendTitle: "📊 خرچ", monthlyTrend: "ماہانہ رجحان", refresh: "ریفریش",
-    billsTitle: "📂 میرے بل", searchPh: "دکان تلاش کریں…", clearAll: "سارا ڈیٹا حذف کریں",
+    pastePh: "بل یہاں پیسٹ کریں…", analyze: "بل کا تجزیہ کریں",
+    loadSample: "نمونہ لوڈ کریں", saveBill: "بل محفوظ کریں",
+    askTitle: "اپنے خرچ کے بارے میں پوچھیں", askPh: "مثلاً: مئی میں راشن پر کتنا خرچ ہوا؟", ask: "پوچھیں",
+    spendTitle: "خرچ", monthlyTrend: "ماہانہ رجحان", refresh: "ریفریش",
+    billsTitle: "میرے بل", searchPh: "دکان تلاش کریں…", clearAll: "سارا ڈیٹا حذف کریں",
     provDefault: "AI: کلاؤڈ (ایپ کی key)", provByok: "AI: کلاؤڈ (میری Groq key)", provOllama: "AI: لوکل (Ollama)",
     byCategory: "زمرے کے لحاظ سے", topMerchants: "نمایاں دکانیں", thisMonth: "اس مہینے",
     vsLastMonth: "گزشتہ ماہ کے مقابلے", topCategory: "نمایاں زمرہ",
   },
 };
 
-function applyLanguage() {
+function tr(key) {
   const dict = I18N[SETTINGS.lang] || I18N.en;
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    const v = dict[el.dataset.i18n]; if (v) el.textContent = v;
-  });
-  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
-    const v = dict[el.dataset.i18nPh]; if (v) el.placeholder = v;
-  });
+  return dict[key] ?? I18N.en[key] ?? key;
+}
+
+function applyLanguage() {
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = tr(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = tr(el.dataset.i18nPh); });
   document.documentElement.lang = SETTINGS.lang;
   document.documentElement.dir = SETTINGS.lang === "ur" ? "rtl" : "ltr";
 }
@@ -442,26 +732,59 @@ $("setOllamaModel").oninput = () => { SETTINGS.ollamaModel = $("setOllamaModel")
 applyLanguage();
 applyProviderUI();
 
-$("go").onclick = async () => {
+// --- Help modal (#9) ---------------------------------------------------------
+$("helpBtn").onclick = () => $("helpModal").classList.remove("hidden");
+$("helpClose").onclick = () => $("helpModal").classList.add("hidden");
+$("helpModal").onclick = (e) => { if (e.target === $("helpModal")) $("helpModal").classList.add("hidden"); };
+
+// --- Capture (#4 + #6): buttons only; pickers hidden behind them -------------
+let pickedFiles = [];
+
+function showChips() {
+  $("fileChips").innerHTML = pickedFiles.map(f =>
+    `<span class="filechip">${esc(f.name)}</span>`).join("");
+}
+
+function wirePicker(btnId, inputId) {
+  $(btnId).onclick = () => $(inputId).click();
+  $(inputId).onchange = () => {
+    const files = [...$(inputId).files];
+    if (!files.length) return;
+    pickedFiles = files.slice(0, 5); // matches the backend's vision page budget
+    $(inputId).value = "";
+    showChips();
+    analyze();
+  };
+}
+wirePicker("btnCamera", "fileCamera");
+wirePicker("btnImage", "fileImage");
+wirePicker("btnPdf", "filePdf");
+
+$("btnPaste").onclick = () => {
+  const open = $("pasteWrap").classList.toggle("hidden");
+  $("btnPaste").classList.toggle("active", !open);
+  if (!open) $("text").focus();
+};
+$("go").onclick = () => { pickedFiles = []; showChips(); analyze(); };
+
+async function analyze() {
   const status = $("status"); const result = $("result");
-  status.textContent = "Analyzing…"; status.className = "muted busy"; $("go").disabled = true; result.classList.add("hidden");
+  status.textContent = "Analyzing…"; status.className = "muted busy"; result.classList.add("hidden");
   try {
     const form = new FormData();
-    const file = $("file").files[0];
-    if (file) form.append("files", file);
-    if ($("text").value.trim()) form.append("text", $("text").value);
-    const dict = I18N[SETTINGS.lang] || I18N.en;
+    for (const f of pickedFiles) form.append("files", f);
+    if (!pickedFiles.length && $("text").value.trim()) form.append("text", $("text").value);
+    if (![...form.keys()].length) { status.textContent = ""; return; }
     const res = await apiFetch(
       "/bills:process",
       { method: "POST", body: form, headers: hdrs() },
-      { onWake: () => { status.textContent = dict.wakingServer || I18N.en.wakingServer; status.className = "muted busy"; } }
+      { onWake: () => { status.textContent = tr("wakingServer"); status.className = "muted busy"; } }
     );
     if (res.status === 422) { const b = await res.json(); status.textContent = "⚠ " + (b.reason || "Couldn't read a bill."); status.className = "err"; return; }
     if (!res.ok) { status.textContent = "Error: " + res.status; status.className = "err"; return; }
     render(await res.json()); status.textContent = ""; status.className = "muted";
   } catch (e) { status.textContent = "Network error: " + e; status.className = "err"; }
-  finally { $("go").disabled = false; }
-};
+}
 
 function money(t) { return t && t.value != null ? "₹" + t.value : "—"; }
 
@@ -478,6 +801,7 @@ function render(bill) {
   $("type").textContent = bill.bill_type || "";
   $("category").textContent = (bill.category && bill.category.name) || "";
   $("summary").textContent = (bill.explanation && bill.explanation.bill_summary) || "";
+  $("billDateShow").textContent = (bill.bill_date && bill.bill_date.value) || "";
 
   const flags = $("flags"); flags.innerHTML = "";
   const totalNum = bill.total_amount && bill.total_amount.value != null ? parseFloat(bill.total_amount.value) : null;
@@ -491,8 +815,6 @@ function render(bill) {
       flags.innerHTML += `<div class="flag${unverified ? " unverified" : ""}"><h4>${head}</h4><div>${f.explanation_text||""}</div><div class="figs">${figs}</div></div>`;
     });
   } else if (!totalNum) {
-    // No usable total ⇒ extraction was unreliable; an empty discrepancy list
-    // proves nothing, so never show it as a pass.
     flags.innerHTML = `<div class="flag"><h4>⚠ Low-confidence scan</h4><div>Couldn't reliably read this bill (no total found). Figures may be incomplete — try a clearer, closer photo, a PDF, or pasted text.</div></div>`;
   } else {
     flags.innerHTML = `<div class="ok" style="margin-top:8px">✓ No discrepancies — the figures are internally consistent.</div>`;
@@ -513,6 +835,55 @@ function render(bill) {
     totals.innerHTML += `<tr><td>Tax${rate}</td><td class="amt">${money(bill.tax_amount)}</td></tr>`;
   }
   totals.innerHTML += `<tr class="grand"><td>Total</td><td class="amt">${money(bill.total_amount)}</td></tr>`;
+
+  // Missing-date prompt (#8): ask before the user reaches Save.
+  if (!(bill.bill_date && bill.bill_date.value)) openDateModal();
+}
+
+// --- Missing-date prompt -----------------------------------------------------
+let dateObjectUrl = null;
+
+function openDateModal() {
+  $("dateChoice").classList.remove("hidden");
+  $("datePick").classList.add("hidden");
+  // Option A only makes sense when an image of the bill is at hand.
+  const img = pickedFiles.find(f => f.type.startsWith("image/"));
+  $("dateOptBill").classList.toggle("hidden", !img);
+  $("dateModal").classList.remove("hidden");
+}
+
+function showDatePick(withImage) {
+  $("dateChoice").classList.add("hidden");
+  $("datePick").classList.remove("hidden");
+  const img = withImage ? pickedFiles.find(f => f.type.startsWith("image/")) : null;
+  if (dateObjectUrl) { URL.revokeObjectURL(dateObjectUrl); dateObjectUrl = null; }
+  if (img) {
+    dateObjectUrl = URL.createObjectURL(img);
+    $("dateBillPreview").src = dateObjectUrl;
+    $("dateBillPreview").classList.remove("hidden");
+    $("dateHint").textContent = tr("dateFromBillHint");
+    $("dateInput").value = "";
+  } else {
+    $("dateBillPreview").classList.add("hidden");
+    $("dateHint").textContent = tr("dateSetManual");
+    $("dateInput").value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+$("dateOptBill").onclick = () => showDatePick(true);
+$("dateOptManual").onclick = () => showDatePick(false);
+$("dateUse").onclick = () => {
+  const v = $("dateInput").value;
+  if (v && lastBill) {
+    lastBill.bill_date = { value: v, provenance: "user_provided", source_ref: null };
+    $("billDateShow").textContent = v;
+  }
+  closeDateModal();
+};
+$("dateSkip").onclick = closeDateModal;
+function closeDateModal() {
+  $("dateModal").classList.add("hidden");
+  if (dateObjectUrl) { URL.revokeObjectURL(dateObjectUrl); dateObjectUrl = null; }
 }
 
 // --- History / search / clear-data ---------------------------------------
@@ -526,7 +897,7 @@ async function loadHistory() {
   const tbl = $("histRows"); tbl.innerHTML = "";
   rows.forEach(r => {
     tbl.innerHTML += `<tr>
-      <td>${r.merchant || "Unknown"}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}</div></td>
+      <td>${esc(r.merchant || "Unknown")}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + esc(r.category) : ""}</div></td>
       <td class="amt">₹${r.total_amount ?? "—"}</td>
       <td class="amt" style="width:30px"><span class="sample" data-del="${r.id}">✕</span></td>
     </tr>`;
@@ -543,6 +914,7 @@ async function loadHistory() {
     };
   });
 }
+
 // --- Save the analyzed candidate ---------------------------------------------
 $("saveBtn").onclick = async () => {
   if (!lastBill) return;
@@ -551,8 +923,7 @@ $("saveBtn").onclick = async () => {
     const payload = { ...lastBill, category: { name: $("saveCat").value } };
     const form = new FormData();
     form.append("candidate", JSON.stringify(payload));
-    const f = $("file").files[0];
-    if (f) form.append("files", f); // archive the original alongside the record
+    for (const f of pickedFiles) form.append("files", f); // archive originals alongside the record
     const res = await fetch("/bills", { method: "POST", body: form, headers: hdrs() });
     const body = await res.json();
     if (res.status === 201) {
@@ -575,11 +946,10 @@ async function ask() {
   $("qaStatus").textContent = "Thinking…"; $("qaStatus").className = "muted busy"; $("qaGo").disabled = true;
   $("qaAnswer").classList.add("hidden"); $("qaRecords").innerHTML = "";
   try {
-    const dict = I18N[SETTINGS.lang] || I18N.en;
     const res = await apiFetch(
       "/qa",
       { method: "POST", headers: hdrs({ "Content-Type": "application/json" }), body: JSON.stringify({ question: q }) },
-      { onWake: () => { $("qaStatus").textContent = dict.wakingServer || I18N.en.wakingServer; $("qaStatus").className = "muted busy"; } }
+      { onWake: () => { $("qaStatus").textContent = tr("wakingServer"); $("qaStatus").className = "muted busy"; } }
     );
     if (!res.ok) { $("qaStatus").textContent = "Error: " + res.status; $("qaStatus").className = "err"; return; }
     const body = await res.json();
@@ -587,14 +957,12 @@ async function ask() {
     $("qaAnswer").textContent = body.answer || "No answer.";
     $("qaAnswer").classList.remove("hidden");
     (body.records || []).forEach(r => {
-      // Item-level answers carry the product name; show it as the row title with
-      // the merchant/date beneath, and the item's own amount on the right.
       const title = r.item || r.merchant || "Unknown";
       const sub = r.item
         ? `${r.merchant || ""}${r.bill_date ? " · " + r.bill_date : ""}`
         : `${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}`;
       $("qaRecords").innerHTML += `<tr>
-        <td>${title}<div class="ex">${sub}</div></td>
+        <td>${esc(title)}<div class="ex">${esc(sub)}</div></td>
         <td class="amt">₹${r.total_amount ?? "—"}</td></tr>`;
     });
   } catch (e) { $("qaStatus").textContent = "Network error: " + e; $("qaStatus").className = "err"; }
@@ -607,6 +975,12 @@ $("qaQ").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const inr = (n) => "₹" + (+n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
+function seriesColors() {
+  return SETTINGS.theme === "dark"
+    ? ["#3BBFAD","#E9A23B","#A78BFA","#F08C5A","#60A5FA","#43C695","#8C8273"]
+    : ["#0F766E","#D97706","#7C5CBF","#C2410C","#2563EB","#047857","#9A8C7A"];
+}
+
 function bar(label, value, max, color) {
   const pct = max > 0 ? Math.max(2, Math.round(value / max * 100)) : 0;
   return `<div style="margin-top:6px">
@@ -614,7 +988,7 @@ function bar(label, value, max, color) {
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(label)}</span>
       <span style="font-variant-numeric:tabular-nums;flex:none">${inr(value)}</span>
     </div>
-    <div style="background:#0b1220;border-radius:4px;height:8px;margin-top:3px">
+    <div style="background:var(--well);border-radius:4px;height:8px;margin-top:3px">
       <div class="bar-fill" style="width:0%;height:8px;border-radius:4px;background:${color}" data-w="${pct}"></div>
     </div></div>`;
 }
@@ -626,14 +1000,50 @@ function monthLabel(ym) {
   } catch { return ym; }
 }
 
+// --- Nice y-axis (#7): standard 1/2/5 × 10^k steps --------------------------
+function niceStep(rough) {
+  const pow = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1))));
+  for (const m of [1, 2, 5, 10]) if (rough <= m * pow) return m * pow;
+  return 10 * pow;
+}
+
+// Monthly trend: a real column chart with gridlines on round steps
+// (100, 200, 500, 1000 … sized to the data), instead of unlabeled bars.
+function columnChart(months) {
+  const rawMax = Math.max(...months.map(m => +m.total), 0);
+  const step = niceStep(rawMax / 4);
+  const sections = Math.max(1, Math.ceil(rawMax / step));
+  const maxV = step * sections;
+  const W = 360, H = 150, padL = 46, padB = 22, padT = 8;
+  const plotW = W - padL - 8, plotH = H - padT - padB;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:430px">`;
+  for (let i = 0; i <= sections; i++) {
+    const y = padT + plotH - (i / sections) * plotH;
+    svg += `<line x1="${padL}" y1="${y}" x2="${W - 8}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    svg += `<text x="${padL - 6}" y="${y + 3.5}" text-anchor="end" font-size="9.5" fill="var(--muted)">${(step * i).toLocaleString("en-IN")}</text>`;
+  }
+  const n = months.length;
+  const slot = plotW / Math.max(n, 1);
+  const bw = Math.min(30, slot * 0.55);
+  months.forEach((m, i) => {
+    const h = maxV > 0 ? (+m.total / maxV) * plotH : 0;
+    const x = padL + slot * i + (slot - bw) / 2;
+    svg += `<rect x="${x}" y="${padT + plotH - h}" width="${bw}" height="${Math.max(h, 1)}" rx="3" fill="var(--accent)">
+      <title>${esc(monthLabel(m.month))}: ${esc(inr(+m.total))}</title></rect>`;
+    svg += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${esc(monthLabel(m.month))}</text>`;
+  });
+  return svg + "</svg>";
+}
+
 // Donut: one SVG stroke segment per category, swept open via CSS transition.
 function renderDonut(cats, total) {
   const R = 52, C = 2 * Math.PI * R;
+  const COLORS = seriesColors();
   let offset = 0, segs = "";
   cats.forEach((c, i) => {
     const frac = total > 0 ? (+c.total) / total : 0;
     const len = Math.max(frac * C - 2, 0); // 2px gap between segments
-    segs += `<circle r="${R}" cx="65" cy="65" fill="none" stroke="${DASH_COLORS[i % DASH_COLORS.length]}"
+    segs += `<circle r="${R}" cx="65" cy="65" fill="none" stroke="${COLORS[i % COLORS.length]}"
       stroke-width="15" stroke-linecap="butt" stroke-dasharray="0 ${C}" data-target="${len} ${C - len}"
       stroke-dashoffset="${-offset}" transform="rotate(-90 65 65)" style="transition:stroke-dasharray .9s ease"></circle>`;
     offset += frac * C;
@@ -649,11 +1059,52 @@ function animateDash() {
   });
 }
 
-const DASH_COLORS = ["#38bdf8","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#94a3b8"];
+let DASH_CACHE = null;
+
+function renderDash({ cats, months, bills }) {
+  const COLORS = seriesColors();
+  const now = new Date();
+  const ym = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const cur = +(months.find(m => m.month === ym(now))?.total ?? 0);
+  const prev = +(months.find(m => m.month === ym(new Date(now.getFullYear(), now.getMonth() - 1, 1)))?.total ?? 0);
+  const deltaPct = prev > 0 ? ((cur - prev) / prev) * 100 : null;
+  const deltaHtml = deltaPct === null ? "" :
+    `<div class="d ${deltaPct >= 0 ? "up" : "down"}">${deltaPct >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct).toFixed(0)}% <span class="muted">${esc(tr("vsLastMonth"))}</span></div>`;
+  const top = cats[0];
+  $("dashStats").innerHTML = cats.length ? [
+    `<div class="stat"><div class="l">${esc(tr("thisMonth"))}</div><div class="v">${esc(inr(cur))}</div>${deltaHtml}</div>`,
+    top ? `<div class="stat"><div class="l">${esc(tr("topCategory"))}</div><div class="v" style="font-size:15px">${esc(top.category)}</div><div class="d muted">${esc(inr(+top.total))}</div></div>` : "",
+    `<div class="stat"><div class="l">${esc(tr("billsTitle"))}</div><div class="v">${bills.length}</div></div>`,
+  ].join("") : "";
+
+  const total = cats.reduce((s, c) => s + (+c.total), 0);
+  renderDonut(cats, total);
+  const cmax = Math.max(...cats.map(c => +c.total), 0);
+  $("dashCats").innerHTML = cats.length
+    ? cats.map((c, i) => bar(c.category, +c.total, cmax, COLORS[i % COLORS.length])).join("")
+    : `<div class="muted">No bills saved yet. Start by uploading a bill.</div>`;
+
+  $("dashMonths").innerHTML = months.length
+    ? columnChart(months)
+    : `<div class="muted">No saved bills yet.</div>`;
+
+  const byMerchant = {};
+  bills.forEach(b => {
+    const m = b.merchant || "—";
+    byMerchant[m] = (byMerchant[m] || 0) + (+b.total_amount || 0);
+  });
+  const tops = Object.entries(byMerchant).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const tmax = tops.length ? tops[0][1] : 0;
+  $("dashMerchants").innerHTML = tops.length
+    ? tops.map(([m, v], i) => bar(m, v, tmax, COLORS[i % COLORS.length])).join("")
+    : `<div class="muted">No saved bills yet.</div>`;
+
+  animateDash();
+}
+
 async function loadDash() {
-  const dict = I18N[SETTINGS.lang] || I18N.en;
   const waking = () => {
-    $("dashCats").innerHTML = `<div class="muted busy">${esc(dict.wakingServer || I18N.en.wakingServer)}</div>`;
+    $("dashCats").innerHTML = `<div class="muted busy">${esc(tr("wakingServer"))}</div>`;
   };
   try {
     const [cats, months, bills] = await Promise.all([
@@ -662,47 +1113,8 @@ async function loadDash() {
       apiJson("/bills", { headers: hdrs() }, { onWake: waking }).catch(() => []),
     ]);
     cats.sort((a, b) => (+b.total) - (+a.total));
-
-    // Stat cards: this month, change vs last month, top category.
-    const now = new Date();
-    const ym = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const cur = +(months.find(m => m.month === ym(now))?.total ?? 0);
-    const prev = +(months.find(m => m.month === ym(new Date(now.getFullYear(), now.getMonth() - 1, 1)))?.total ?? 0);
-    const deltaPct = prev > 0 ? ((cur - prev) / prev) * 100 : null;
-    const deltaHtml = deltaPct === null ? "" :
-      `<div class="d ${deltaPct >= 0 ? "up" : "down"}">${deltaPct >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct).toFixed(0)}% <span class="muted">${esc(dict.vsLastMonth)}</span></div>`;
-    const top = cats[0];
-    $("dashStats").innerHTML = cats.length ? [
-      `<div class="stat"><div class="l">${esc(dict.thisMonth)}</div><div class="v">${esc(inr(cur))}</div>${deltaHtml}</div>`,
-      top ? `<div class="stat"><div class="l">${esc(dict.topCategory)}</div><div class="v" style="font-size:15px">${esc(top.category)}</div><div class="d muted">${esc(inr(+top.total))}</div></div>` : "",
-      `<div class="stat"><div class="l">${esc(dict.billsTitle.replace(/^\S+\s/, ""))}</div><div class="v">${bills.length}</div></div>`,
-    ].join("") : "";
-
-    const total = cats.reduce((s, c) => s + (+c.total), 0);
-    renderDonut(cats, total);
-    const cmax = Math.max(...cats.map(c => +c.total), 0);
-    $("dashCats").innerHTML = cats.length
-      ? cats.map((c, i) => bar(c.category, +c.total, cmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
-      : `<div class="muted">No bills saved yet. Start by uploading a bill.</div>`;
-
-    const mmax = Math.max(...months.map(m => +m.total), 0);
-    $("dashMonths").innerHTML = months.length
-      ? months.map(m => bar(monthLabel(m.month), +m.total, mmax, "#38bdf8")).join("")
-      : `<div class="muted">No saved bills yet.</div>`;
-
-    // Top merchants from saved bills (small dataset; aggregated client-side).
-    const byMerchant = {};
-    bills.forEach(b => {
-      const m = b.merchant || "—";
-      byMerchant[m] = (byMerchant[m] || 0) + (+b.total_amount || 0);
-    });
-    const tops = Object.entries(byMerchant).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const tmax = tops.length ? tops[0][1] : 0;
-    $("dashMerchants").innerHTML = tops.length
-      ? tops.map(([m, v], i) => bar(m, v, tmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
-      : `<div class="muted">No saved bills yet.</div>`;
-
-    animateDash();
+    DASH_CACHE = { cats, months, bills };
+    renderDash(DASH_CACHE);
   } catch (e) {
     $("dashCats").innerHTML = `<div class="err">Couldn't load spending: ${e}</div>`;
   }
@@ -723,6 +1135,11 @@ $("histClear").onclick = async () => {
   loadHistory();
 };
 loadHistory();
+
+// Remove the splash from the tree once its exit animation ends.
+$("splash").addEventListener("animationend", (e) => {
+  if (e.animationName === "splashOut") $("splash").remove();
+});
 </script>
 </body>
 </html>
