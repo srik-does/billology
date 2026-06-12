@@ -1,47 +1,3 @@
-<!--
-SYNC IMPACT REPORT
-==================
-Version change: 1.0.0 → 2.0.0 (MAJOR)
-Rationale: v2 replaces local OCR with vision-LLM extraction as the primary
-reader of bill images. Principle I is REDEFINED (the "never extracted by an
-LLM" rule is removed — a multimodal model may now TRANSCRIBE printed values),
-and Principle IV is REDEFINED (transmitting full bill images to the configured
-LLM provider is now the documented default for image bills; the
-privacy-minimization default is deliberately relaxed for v2). Both changes
-invalidate prior compliance readings → MAJOR bump.
-
-Principles (6 total):
-  ~ I.   Numbers Are Never Invented → Numbers Come From the Bill, Never From
-         the Model's Imagination (REDEFINED: vision-LLM transcription is now a
-         permitted extraction stage; computing/estimating values remains
-         forbidden; code-side validation, arithmetic, and traceability remain
-         mandatory)
-  = II.  Discrepancies Must Be Provable, Not Guessed (unchanged)
-  = III. One Structured Data Model Is the Source of Truth (unchanged)
-  ~ IV.  Privacy by Default → Privacy Is Documented, Not Assumed (REDEFINED:
-         v2 accepts cloud vision extraction of full bill images as a
-         deliberate, recorded product decision; local-only processing remains
-         available via the Ollama provider)
-  = V.   Feature-1 Is the Product (unchanged)
-  = VI.  Q&A Answers Are Grounded (unchanged)
-
-Sections:
-  ~ Technology & Data Constraints — extraction stage rewritten for the
-    vision-LLM primary path with the deterministic OCR/parser pipeline as
-    fallback; stack recorded (was "deferred").
-
-Templates requiring updates:
-  ✅ .specify/templates/plan-template.md  — Constitution Check gate derives from
-     this file dynamically; no hardcoded principle names. No edit required.
-  ✅ .specify/templates/spec-template.md  — Generic; no principle references. No edit required.
-  ✅ .specify/templates/tasks-template.md — Task categories derive from plan/spec; no edit required.
-
-Follow-up TODOs:
-  - Revisit Principle IV before any public/multi-user launch: privacy
-    hardening (redaction, on-device options, retention limits) is deferred,
-    not abandoned.
--->
-
 # Billology Constitution
 
 Billology is a mobile application where users upload images of their bills — grocery,
@@ -63,17 +19,18 @@ is performed in code, not by the model. Any figure displayed MUST remain traceab
 the transcribed source line it came from.
 
 **Rationale**: A bill app that misreports a number is worse than useless — it erodes the
-trust the entire product depends on. v2 trades engine determinism for the far higher
-read accuracy of vision models, but keeps the line that matters: the model may only
-repeat what the bill says, and code remains the sole authority on validation and
-arithmetic.
+trust the entire product depends on. Vision models read real bills far more accurately
+than local OCR, and the line that matters is preserved: the model may only repeat what
+the bill says, and code remains the sole authority on validation and arithmetic.
 
 ### II. Discrepancies Must Be Provable, Not Guessed
 
 A flagged discrepancy MUST rest on verifiable internal consistency (line items don't sum
 to the total, an item charged twice, tax math is wrong) or a concrete comparison against
 the user's own prior bills — never on vague model intuition like "this seems high." If it
-cannot be proven from the data, it is NOT flagged.
+cannot be proven from the data, it is NOT flagged. Extraction that is known to be
+incomplete (e.g. pages dropped to fit a processing cap) cannot prove an arithmetic
+conflict, so arithmetic checks are suppressed for it rather than flagged.
 
 **Rationale**: False alarms train users to ignore real ones. Every flag must carry its
 own evidence so the user can verify the claim against their bill.
@@ -92,16 +49,17 @@ model guarantees every feature sees the same numbers and that fixes propagate ev
 Bills contain sensitive data (account numbers, addresses, consumption patterns). Every
 transmission of bill content to an external service MUST be a deliberate, recorded
 decision — this constitution and the relevant plan MUST state what is sent, to whom,
-and why. **v2 decision on record**: bill images are sent in full to the configured LLM
+and why. **Decision on record**: bill images are sent in full to the configured LLM
 provider (Groq by default) for vision extraction, because extraction accuracy is
 prioritized over data minimization at this stage of the product. Users who require
-local-only processing can select the Ollama provider with a local vision model. Steps
-other than extraction MUST still receive only the portion of bill data they require.
+local-only processing can select the Ollama provider with a local vision model, or set
+`VISION_EXTRACTION=false`. Steps other than extraction MUST still receive only the
+portion of bill data they require.
 
-**Rationale**: v1's minimize-by-default posture is deliberately relaxed for extraction
-quality. What remains non-negotiable is honesty: no bill data leaves the system without
+**Rationale**: What is non-negotiable is honesty: no bill data leaves the system without
 a documented decision, so the privacy trade-off is always visible and reversible —
-privacy hardening is deferred, not abandoned.
+privacy hardening is deferred, not abandoned, and MUST be revisited before any
+public/multi-user launch.
 
 ### V. Feature-1 Is the Product
 
@@ -127,25 +85,28 @@ conversational disguise — a direct violation of Principle I in another channel
   defined under Principle III before any feature consumes the data. Extraction and
   interpretation remain separate stages with a clear boundary: extraction produces values
   (transcribed from the bill), interpretation only explains them.
-- **Extraction stages (v2)**: Image bills (and fully scanned PDFs) are read primarily by a
-  multimodal vision LLM acting as a transcriber under Principle I. The deterministic
-  pipeline (RapidOCR/Tesseract + keyword parsers) MUST be retained as an automatic
-  fallback so a missing key, provider outage, or malformed response degrades accuracy
-  rather than disabling image bills. PDF text layers and pasted text remain purely
-  deterministic — a lossless text layer is never sent for vision re-reading.
+- **Extraction stages**: Image bills and fully scanned PDFs are read primarily by a
+  multimodal vision LLM acting as a transcriber under Principle I
+  (`backend/src/services/extraction/vision.py`). The deterministic pipeline
+  (RapidOCR/Tesseract + keyword parsers) MUST be retained as an automatic fallback so a
+  missing key, provider outage, or malformed response degrades accuracy rather than
+  disabling image bills. PDF text layers and pasted text remain purely deterministic — a
+  lossless text layer is never sent for vision re-reading.
 - **Computation in code**: All arithmetic and consistency checks (sums, tax validation,
   duplicate detection, period-over-period diffs) MUST be implemented in deterministic code
   paths, with unit tests, not delegated to an LLM.
 - **Traceability**: Each extracted field MUST retain a reference to its location/source in
   the original document (for vision extraction: the transcribed raw line) so any displayed
-  figure can be traced back.
-- **Data exposure (amended by Principle IV)**: Extraction may transmit full bill images to
-  the configured LLM provider. Every other processing step MUST still receive only the
+  figure can be traced back. A transcribed figure that traces to no printed line is
+  suspect; when an untraced figure conflicts with a traced printed one, code-side
+  reconciliation decides which is kept.
+- **Data exposure (per Principle IV)**: Extraction may transmit full bill images to the
+  configured LLM provider. Every other processing step MUST still receive only the
   portion of bill data it requires, and any new cloud call that transmits bill content
   MUST be documented in the relevant plan.
-- **Technology stack (recorded)**: FastAPI backend (single trust boundary), React
-  Native/Expo client, Supabase Postgres + pgvector + Storage, provider-swappable LLM
-  (Groq cloud / Ollama local) for both vision extraction and language tasks.
+- **Technology stack**: FastAPI backend (single trust boundary), React Native/Expo
+  client, Supabase Postgres + pgvector + Storage, provider-swappable LLM (Groq cloud /
+  Ollama local) for both vision extraction and language tasks.
 
 ## Development Workflow & Quality Gates
 
@@ -155,7 +116,7 @@ conversational disguise — a direct violation of Principle I in another channel
 - **Constitution Check gate**: Each plan MUST pass the Constitution Check gate. Any
   deviation MUST be recorded in the plan's Complexity Tracking table with a justification
   and the rejected simpler alternative — or the plan is revised to comply.
-- **Test discipline for trust-critical paths**: Deterministic extraction, arithmetic, and
+- **Test discipline for trust-critical paths**: Extraction validation, arithmetic, and
   discrepancy-detection logic MUST have tests asserting correctness and traceability.
   Discrepancy rules MUST have tests covering both true positives (provable issues) and the
   absence of false positives.
