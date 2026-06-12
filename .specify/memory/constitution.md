@@ -1,25 +1,34 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: TEMPLATE (unversioned) → 1.0.0
-Rationale: Initial ratification — template placeholders replaced with concrete,
-project-specific principles and governance. First versioned constitution.
+Version change: 1.0.0 → 2.0.0 (MAJOR)
+Rationale: v2 replaces local OCR with vision-LLM extraction as the primary
+reader of bill images. Principle I is REDEFINED (the "never extracted by an
+LLM" rule is removed — a multimodal model may now TRANSCRIBE printed values),
+and Principle IV is REDEFINED (transmitting full bill images to the configured
+LLM provider is now the documented default for image bills; the
+privacy-minimization default is deliberately relaxed for v2). Both changes
+invalidate prior compliance readings → MAJOR bump.
 
-Principles (initial set, 6 total):
-  + I.   Numbers Are Never Invented
-  + II.  Discrepancies Must Be Provable, Not Guessed
-  + III. One Structured Data Model Is the Source of Truth
-  + IV.  Privacy by Default
-  + V.   Feature-1 Is the Product
-  + VI.  Q&A Answers Are Grounded
+Principles (6 total):
+  ~ I.   Numbers Are Never Invented → Numbers Come From the Bill, Never From
+         the Model's Imagination (REDEFINED: vision-LLM transcription is now a
+         permitted extraction stage; computing/estimating values remains
+         forbidden; code-side validation, arithmetic, and traceability remain
+         mandatory)
+  = II.  Discrepancies Must Be Provable, Not Guessed (unchanged)
+  = III. One Structured Data Model Is the Source of Truth (unchanged)
+  ~ IV.  Privacy by Default → Privacy Is Documented, Not Assumed (REDEFINED:
+         v2 accepts cloud vision extraction of full bill images as a
+         deliberate, recorded product decision; local-only processing remains
+         available via the Ollama provider)
+  = V.   Feature-1 Is the Product (unchanged)
+  = VI.  Q&A Answers Are Grounded (unchanged)
 
-Added sections:
-  + Core Principles (6 principles)
-  + Technology & Data Constraints (Section 2)
-  + Development Workflow & Quality Gates (Section 3)
-  + Governance
-
-Removed sections: none (template placeholders fully replaced)
+Sections:
+  ~ Technology & Data Constraints — extraction stage rewritten for the
+    vision-LLM primary path with the deterministic OCR/parser pipeline as
+    fallback; stack recorded (was "deferred").
 
 Templates requiring updates:
   ✅ .specify/templates/plan-template.md  — Constitution Check gate derives from
@@ -28,9 +37,9 @@ Templates requiring updates:
   ✅ .specify/templates/tasks-template.md — Task categories derive from plan/spec; no edit required.
 
 Follow-up TODOs:
-  - Technology stack (mobile framework, OCR/text-layer engine, storage, cloud vs.
-    on-device split) is intentionally deferred to the planning phase per the
-    user's "Not decided yet" choice. See Technology & Data Constraints.
+  - Revisit Principle IV before any public/multi-user launch: privacy
+    hardening (redaction, on-device options, retention limits) is deferred,
+    not abandoned.
 -->
 
 # Billology Constitution
@@ -41,18 +50,23 @@ image, checks it for discrepancies, and explains the bill's terms in plain langu
 
 ## Core Principles
 
-### I. Numbers Are Never Invented
+### I. Numbers Come From the Bill, Never From the Model's Imagination
 
-Every monetary value, date, and quantity shown to the user MUST be extracted
-deterministically from the source bill (via OCR or text-layer parsing), not generated,
-computed, or restated by an LLM. The LLM's role is to explain and reason about values,
-never to produce them. Any figure displayed MUST be traceable to a specific location in
-the source document. Arithmetic (sums, tax checks, diffs) is performed in code, not by
-the model.
+Every monetary value, date, and quantity shown to the user MUST be read from the source
+bill itself — by deterministic parsing (text layer, pasted text, OCR) or by a vision
+model TRANSCRIBING what is printed on the image. A model used for extraction is a
+transcriber: it MUST NOT compute, estimate, round, or fill in any value that is not
+printed on the bill, and prompts MUST instruct it accordingly. Every model-transcribed
+figure MUST be validated in code (strict currency/number parsing to `Decimal`; values
+that fail validation are dropped, never repaired). Arithmetic (sums, tax checks, diffs)
+is performed in code, not by the model. Any figure displayed MUST remain traceable to
+the transcribed source line it came from.
 
 **Rationale**: A bill app that misreports a number is worse than useless — it erodes the
-trust the entire product depends on. Determinism and traceability make every displayed
-figure auditable.
+trust the entire product depends on. v2 trades engine determinism for the far higher
+read accuracy of vision models, but keeps the line that matters: the model may only
+repeat what the bill says, and code remains the sole authority on validation and
+arithmetic.
 
 ### II. Discrepancies Must Be Provable, Not Guessed
 
@@ -73,15 +87,21 @@ independent pipelines. No feature re-parses the raw bill on its own.
 **Rationale**: Multiple parsers produce multiple, divergent truths. A single canonical
 model guarantees every feature sees the same numbers and that fixes propagate everywhere.
 
-### IV. Privacy by Default
+### IV. Privacy Is Documented, Not Assumed
 
-Bills contain sensitive data (account numbers, addresses, consumption patterns). The
-system MUST default to processing that minimizes exposure and MUST never transmit more of
-a bill than a step requires. Any cloud processing MUST be a deliberate, documented choice,
-not a default.
+Bills contain sensitive data (account numbers, addresses, consumption patterns). Every
+transmission of bill content to an external service MUST be a deliberate, recorded
+decision — this constitution and the relevant plan MUST state what is sent, to whom,
+and why. **v2 decision on record**: bill images are sent in full to the configured LLM
+provider (Groq by default) for vision extraction, because extraction accuracy is
+prioritized over data minimization at this stage of the product. Users who require
+local-only processing can select the Ollama provider with a local vision model. Steps
+other than extraction MUST still receive only the portion of bill data they require.
 
-**Rationale**: Users hand over financially and personally sensitive documents. Minimizing
-exposure by default is the only posture that earns that trust.
+**Rationale**: v1's minimize-by-default posture is deliberately relaxed for extraction
+quality. What remains non-negotiable is honesty: no bill data leaves the system without
+a documented decision, so the privacy trade-off is always visible and reversible —
+privacy hardening is deferred, not abandoned.
 
 ### V. Feature-1 Is the Product
 
@@ -104,21 +124,28 @@ conversational disguise — a direct violation of Principle I in another channel
 ## Technology & Data Constraints
 
 - **Structured model first**: Bill ingestion MUST produce the canonical structured model
-  defined under Principle III before any feature consumes the data. Extraction
-  (OCR/text-layer parsing) and interpretation (LLM) are separate stages with a clear
-  boundary: extraction produces values, interpretation only explains them.
+  defined under Principle III before any feature consumes the data. Extraction and
+  interpretation remain separate stages with a clear boundary: extraction produces values
+  (transcribed from the bill), interpretation only explains them.
+- **Extraction stages (v2)**: Image bills (and fully scanned PDFs) are read primarily by a
+  multimodal vision LLM acting as a transcriber under Principle I. The deterministic
+  pipeline (RapidOCR/Tesseract + keyword parsers) MUST be retained as an automatic
+  fallback so a missing key, provider outage, or malformed response degrades accuracy
+  rather than disabling image bills. PDF text layers and pasted text remain purely
+  deterministic — a lossless text layer is never sent for vision re-reading.
 - **Computation in code**: All arithmetic and consistency checks (sums, tax validation,
   duplicate detection, period-over-period diffs) MUST be implemented in deterministic code
   paths, with unit tests, not delegated to an LLM.
 - **Traceability**: Each extracted field MUST retain a reference to its location/source in
-  the original document so any displayed figure can be traced back.
-- **Data minimization**: Each processing step MUST receive only the portion of bill data it
-  requires. Cloud calls that transmit bill content MUST be explicitly documented in the
-  relevant plan, including what is sent and why.
-- **Technology stack — DEFERRED**: The mobile framework, OCR/text-layer engine, storage
-  layer, and the cloud-vs-on-device processing split are not yet decided and will be fixed
-  during the planning phase (`/speckit-plan`). Plans MUST record these decisions; specs
-  MUST remain technology-agnostic.
+  the original document (for vision extraction: the transcribed raw line) so any displayed
+  figure can be traced back.
+- **Data exposure (amended by Principle IV)**: Extraction may transmit full bill images to
+  the configured LLM provider. Every other processing step MUST still receive only the
+  portion of bill data it requires, and any new cloud call that transmits bill content
+  MUST be documented in the relevant plan.
+- **Technology stack (recorded)**: FastAPI backend (single trust boundary), React
+  Native/Expo client, Supabase Postgres + pgvector + Storage, provider-swappable LLM
+  (Groq cloud / Ollama local) for both vision extraction and language tasks.
 
 ## Development Workflow & Quality Gates
 
@@ -152,4 +179,4 @@ and a convenience conflict, the principle wins.
   Justified, documented exceptions live in the plan's Complexity Tracking table; undocumented
   violations block progress.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-09 | **Last Amended**: 2026-06-09
+**Version**: 2.0.0 | **Ratified**: 2026-06-09 | **Last Amended**: 2026-06-12
