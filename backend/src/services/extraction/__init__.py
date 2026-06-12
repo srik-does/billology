@@ -1,51 +1,63 @@
 """Extraction orchestrator: raw input(s) → one structured Bill candidate.
 
-Routes by input kind, runs the deterministic extractor, picks a per-type parser,
-and applies the minimal non-bill guard (T021): if nothing bill-like can be
-located (no total and no line items) or overall confidence is below the floor,
-raise ``NotABillError`` so the API declines gracefully (cheap FR-021) instead of
-emitting fabricated fields.
+v2 routing (Constitution v2.0.0): image uploads and fully scanned PDFs go to
+the vision-LLM transcriber first (extraction/vision.py) — markedly more
+accurate than local OCR on phone photos. Any vision failure falls back to the
+v1 deterministic pipeline (OCR → keyword parser → LLM structure labels), so a
+missing key or provider outage degrades accuracy rather than disabling image
+bills. PDF text layers and pasted text stay purely deterministic — a lossless
+text layer is never sent for vision re-reading.
+
+Both paths end behind the same guard: if nothing bill-like can be located, the
+API declines with ``NotABillError`` (FR-021) instead of emitting fabricated
+fields.
 """
 
 from __future__ import annotations
 
+import io
+import logging
 from typing import Optional
 
+from src.config import get_settings
 from src.models import Bill, BillType
 from src.services.extraction.ocr import extract_image
-from src.services.extraction.pdf import PdfTooLargeError, extract_pdf
+from src.services.extraction.pdf import PdfTooLargeError, extract_pdf, rasterize_scanned
 from src.services.extraction.text import extract_text
-from src.services.extraction.types import ExtractionResult
-from src.services.parsers import grocery, telecom
+from src.services.extraction.types import ExtractionResult, NotABillError
+from src.services.parsers import detect_bill_type, grocery, telecom
+
+logger = logging.getLogger("billology.extraction")
 
 # Below this overall confidence we treat the input as unreadable for the demo.
 CONFIDENCE_FLOOR = 0.35
 
-
-class NotABillError(Exception):
-    """Raised when input cannot be read as a bill (declined, not fabricated)."""
-
-    def __init__(self, reason: str = "Input is not a recognizable bill.") -> None:
-        super().__init__(reason)
-        self.reason = reason
+__all__ = ["NotABillError", "process_inputs"]
 
 
-def _detect_bill_type(result: ExtractionResult) -> BillType:
-    low = result.raw_text.lower()
+def _is_pdf(filename: str, content_type: str) -> bool:
+    return content_type == "application/pdf" or filename.lower().endswith(".pdf")
 
-    # Strong signals are decisive (telecom checked first: a recharge bill is
-    # unambiguously telecom even if it carries generic invoice vocabulary).
-    if any(kw in low for kw in telecom.STRONG):
-        return BillType.telecom_recharge
-    if any(kw in low for kw in grocery.STRONG):
-        return BillType.grocery
 
-    # Otherwise fall back to weighted keyword counts.
-    telecom_hits = sum(1 for kw in telecom.KEYWORDS if kw in low)
-    grocery_hits = sum(1 for kw in grocery.KEYWORDS if kw in low)
-    if telecom_hits == 0 and grocery_hits == 0:
-        return BillType.unsupported
-    return BillType.telecom_recharge if telecom_hits >= grocery_hits else BillType.grocery
+def _vision_images(files: list[tuple[bytes, str, str]]) -> Optional[list]:
+    """PIL images for the vision path, or None when deterministic parsing wins.
+
+    Any PDF with a native text layer routes the whole submission to the
+    deterministic path (the text layer is lossless). May raise
+    ``PdfTooLargeError`` — an oversized PDF is declined, not processed.
+    """
+    from PIL import Image  # lazy
+
+    images: list = []
+    for file_bytes, filename, content_type in files:
+        if _is_pdf(filename, content_type):
+            pages = rasterize_scanned(file_bytes)
+            if pages is None:
+                return None
+            images.extend(pages)
+        else:
+            images.append(Image.open(io.BytesIO(file_bytes)))
+    return images or None
 
 
 def _extract(
@@ -59,9 +71,12 @@ def _extract(
 
     combined: Optional[ExtractionResult] = None
     for file_bytes, filename, content_type in files:
-        is_pdf = content_type == "application/pdf" or filename.lower().endswith(".pdf")
         try:
-            part = extract_pdf(file_bytes) if is_pdf else extract_image(file_bytes)
+            part = (
+                extract_pdf(file_bytes)
+                if _is_pdf(filename, content_type)
+                else extract_image(file_bytes)
+            )
         except PdfTooLargeError as exc:
             raise NotABillError(str(exc)) from exc
         combined = part if combined is None else combined.merge(part)
@@ -69,11 +84,12 @@ def _extract(
     return combined
 
 
-def process_inputs(
-    files: Optional[list[tuple[bytes, str, str]]] = None,
-    text: Optional[str] = None,
-    bill_type_hint: Optional[str] = None,
+def _process_classic(
+    files: Optional[list[tuple[bytes, str, str]]],
+    text: Optional[str],
+    bill_type_hint: Optional[str],
 ) -> Bill:
+    """v1 deterministic pipeline: extract → keyword parser → structure labels."""
     result = _extract(files, text)
 
     # Non-bill guard (T021).
@@ -83,7 +99,7 @@ def process_inputs(
     if bill_type_hint in (BillType.telecom_recharge.value, BillType.grocery.value):
         bill_type = BillType(bill_type_hint)
     else:
-        bill_type = _detect_bill_type(result)
+        bill_type = detect_bill_type(result.raw_text)
 
     parser = telecom if bill_type == BillType.telecom_recharge else grocery
     candidate = parser.parse(result)
@@ -97,3 +113,28 @@ def process_inputs(
     from src.services.structure_service import refine
 
     return refine(result, candidate)
+
+
+def process_inputs(
+    files: Optional[list[tuple[bytes, str, str]]] = None,
+    text: Optional[str] = None,
+    bill_type_hint: Optional[str] = None,
+) -> Bill:
+    if (not text or not text.strip()) and files and get_settings().vision_extraction:
+        try:
+            images = _vision_images(files)
+        except PdfTooLargeError as exc:
+            raise NotABillError(str(exc)) from exc
+        except Exception:  # noqa: BLE001 - unreadable file: let v1 raise its usual error
+            images = None
+        if images:
+            from src.services.extraction import vision
+
+            try:
+                return vision.extract_bill(images, bill_type_hint)
+            except vision.VisionExtractionError as exc:
+                logger.warning(
+                    "vision extraction unavailable, falling back to local OCR: %s", exc
+                )
+
+    return _process_classic(files, text, bill_type_hint)

@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
+    # Vision extraction (v2): bill images are transcribed by a multimodal LLM
+    # instead of local OCR (Constitution v2.0.0, Principles I & IV). Set
+    # VISION_EXTRACTION=false to force the deterministic OCR pipeline, which
+    # also remains the automatic fallback when the vision call fails.
+    vision_extraction: bool = True
+    groq_vision_model: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
+    ollama_vision_model: str = "llama3.2-vision"
+
     # Embeddings (fastembed, local). Dimension MUST match the pgvector column.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384

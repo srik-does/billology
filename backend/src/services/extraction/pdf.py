@@ -81,6 +81,35 @@ def extract_pdf(file_bytes: bytes) -> ExtractionResult:
     return result
 
 
+def rasterize_scanned(file_bytes: bytes) -> "list | None":
+    """Page images for the vision path when the PDF is fully scanned, else None.
+
+    A PDF with any native text layer stays on the deterministic path — the text
+    layer is lossless, so vision re-reading it could only add transcription
+    risk. Page selection reuses the OCR cap rationale: first pages plus the
+    last, where merchant and grand total live.
+    """
+    import pdfplumber  # lazy
+
+    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        if len(pdf.pages) > MAX_PAGES:
+            raise PdfTooLargeError(len(pdf.pages))
+        if any((page.extract_text() or "").strip() for page in pdf.pages):
+            return None
+        page_nos = _select_ocr_pages(list(range(len(pdf.pages))), MAX_OCR_PAGES)
+
+    from pdf2image import convert_from_bytes  # lazy
+
+    images = []
+    for page_no in page_nos:  # one page at a time — same OOM guard as OCR below
+        page_images = convert_from_bytes(
+            file_bytes, dpi=_RASTER_DPI, first_page=page_no + 1, last_page=page_no + 1
+        )
+        if page_images:
+            images.append(page_images[0])
+    return images
+
+
 def _select_ocr_pages(image_pages: list[int], cap: int) -> list[int]:
     """Choose which scanned pages to OCR when there are more than the cap.
 

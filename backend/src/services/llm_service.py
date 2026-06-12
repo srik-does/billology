@@ -1,15 +1,19 @@
 """Provider-swappable LLM access: Groq (cloud) or Ollama (local inference).
 
-The LLM is a *language tool only* (Principles I & VI): it explains already-extracted
-values, suggests a category from a controlled list, labels line ROLES, and translates
-questions into constrained query intents. It never produces or computes a persisted
-numeric value. Callers must treat every method's output as text/structure to
-validate — never as a source of figures.
+Two distinct roles, with different rules (Constitution v2.0.0):
+
+* **Transcriber** (``extract_bill_image``): a vision model reads a bill photo and
+  transcribes what is printed — Principle I permits transcription but forbids the
+  model computing, estimating, or filling in any value. Callers validate every
+  transcribed figure in code before it exists anywhere (see extraction/vision.py).
+* **Language tool** (everything else, Principles I & VI): explains already-extracted
+  values, suggests a category from a controlled list, labels line ROLES, and
+  translates questions into constrained query intents — never a source of figures.
 
 Provider selection is per-request (see ``request_context``): users may run fully
 local via Ollama or bring their own Groq key; the server's configured key is the
 default. All prompt logic lives in ``ChatLLMService`` so providers only implement
-``_chat``.
+``_chat`` and ``_chat_vision``.
 """
 
 from __future__ import annotations
@@ -97,6 +101,16 @@ class LLMService(ABC):
         amount-free and the output is sanitized by the caller (Principle I).
         """
 
+    @abstractmethod
+    def extract_bill_image(self, images_b64: list[str]) -> dict[str, Any]:
+        """Transcribe a photographed bill into raw lines + printed field values.
+
+        The model acts as a transcriber under Principle I (v2): it copies what
+        is printed and must never compute or invent a value. The caller
+        (extraction/vision.py) treats the result as untrusted text — every
+        figure is re-validated in code before entering the canonical model.
+        """
+
 
 class ChatLLMService(LLMService):
     """All prompt logic, provider-agnostic. Subclasses implement ``_chat``."""
@@ -104,6 +118,52 @@ class ChatLLMService(LLMService):
     @abstractmethod
     def _chat(self, system: str, user: str, json_mode: bool = False) -> str:
         """Send one system+user exchange; return the assistant text."""
+
+    @abstractmethod
+    def _chat_vision(
+        self, system: str, user: str, images_b64: list[str], json_mode: bool = False
+    ) -> str:
+        """Send one system+user exchange with attached JPEG images (base64)."""
+
+    def extract_bill_image(self, images_b64: list[str]) -> dict[str, Any]:
+        system = (
+            "You are a high-accuracy transcriber for photos of bills, receipts, and "
+            "invoices (grocery, telecom recharge, electricity, or any other; often "
+            "Indian, often INR). Multiple images are pages/parts of the SAME bill. "
+            "Return JSON exactly of the form "
+            '{"is_bill": bool, '
+            '"raw_lines": [string], '
+            '"merchant": string | null, '
+            '"bill_date": "YYYY-MM-DD" | null, '
+            '"bill_type": "grocery" | "telecom_recharge" | "other", '
+            '"currency": string | null, '
+            '"subtotal": string | null, '
+            '"tax_rate": string | null, '
+            '"tax_amount": string | null, '
+            '"tax_components": [{"name": string, "rate": string | null, "amount": string}], '
+            '"total_amount": string | null, '
+            '"line_items": [{"description": string, "quantity": string | null, '
+            '"unit_amount": string | null, "line_total": string | null}]}. '
+            "TRANSCRIPTION RULES (absolute): copy every value digit-for-digit exactly "
+            "as printed. NEVER compute, sum, estimate, round, or fill in a value that "
+            "is not printed — if a field is not printed or is unreadable, use null. "
+            "raw_lines: every visible printed line of text, top to bottom, transcribed "
+            "verbatim. Amounts as plain digit strings without currency symbols or "
+            "thousands separators (e.g. '1234.56'). "
+            "total_amount: the grand total / net amount payable as printed. "
+            "tax_amount: only a single printed total-tax figure; when tax is printed "
+            "split into components (CGST/SGST/IGST), put each printed component row in "
+            "tax_components instead and leave tax_amount null. tax_rate: printed "
+            "percentage digits only (e.g. '18'). "
+            "line_items: purchased products / service charges only — exclude totals, "
+            "subtotals, tax rows, discounts, and payment/tender/change rows. "
+            "is_bill: false when the image is not a bill, receipt, or invoice."
+        )
+        raw = self._chat_vision(
+            system, "Transcribe this bill.", images_b64, json_mode=True
+        )
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
 
     def explain(self, structured_bill: dict[str, Any]) -> dict[str, Any]:
         system = (
@@ -249,8 +309,9 @@ class ChatLLMService(LLMService):
 
 
 class GroqLLMService(ChatLLMService):
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, vision_model: str = "") -> None:
         self._model = model
+        self._vision_model = vision_model
         self._api_key = api_key
         self._client_instance = None
 
@@ -277,13 +338,37 @@ class GroqLLMService(ChatLLMService):
         resp = self._client().chat.completions.create(**kwargs)
         return resp.choices[0].message.content or ""
 
+    def _chat_vision(
+        self, system: str, user: str, images_b64: list[str], json_mode: bool = False
+    ) -> str:
+        if not self._vision_model:
+            raise RuntimeError("No Groq vision model configured (GROQ_VISION_MODEL).")
+        content: list[dict[str, Any]] = [{"type": "text", "text": user}]
+        content += [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+            for b64 in images_b64
+        ]
+        kwargs: dict[str, Any] = {
+            "model": self._vision_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": content},
+            ],
+            "temperature": 0,
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = self._client().chat.completions.create(**kwargs)
+        return resp.choices[0].message.content or ""
+
 
 class OllamaLLMService(ChatLLMService):
     """Local inference via an Ollama server — no data leaves the machine."""
 
-    def __init__(self, base_url: str, model: str) -> None:
+    def __init__(self, base_url: str, model: str, vision_model: str = "") -> None:
         self._url = base_url.rstrip("/")
         self._model = model
+        self._vision_model = vision_model
 
     def _chat(self, system: str, user: str, json_mode: bool = False) -> str:
         import httpx  # bundled transitively (supabase/fastapi stack)
@@ -300,6 +385,29 @@ class OllamaLLMService(ChatLLMService):
         if json_mode:
             payload["format"] = "json"
         resp = httpx.post(f"{self._url}/api/chat", json=payload, timeout=120.0)
+        resp.raise_for_status()
+        return resp.json().get("message", {}).get("content", "")
+
+    def _chat_vision(
+        self, system: str, user: str, images_b64: list[str], json_mode: bool = False
+    ) -> str:
+        import httpx
+
+        if not self._vision_model:
+            raise RuntimeError("No Ollama vision model configured (OLLAMA_VISION_MODEL).")
+        payload: dict[str, Any] = {
+            "model": self._vision_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user, "images": images_b64},
+            ],
+            "stream": False,
+            "options": {"temperature": 0},
+        }
+        if json_mode:
+            payload["format"] = "json"
+        # Vision inference on local hardware is slow — allow a longer budget.
+        resp = httpx.post(f"{self._url}/api/chat", json=payload, timeout=300.0)
         resp.raise_for_status()
         return resp.json().get("message", {}).get("content", "")
 
@@ -321,19 +429,21 @@ def get_llm_service() -> LLMService:
     if provider == "ollama":
         url = over.get("ollama_url") or settings.ollama_url
         model = over.get("ollama_model") or settings.ollama_model
-        key = ("ollama", url, model)
+        vision = settings.ollama_vision_model
+        key = ("ollama", url, model, vision)
         if key not in _INSTANCES:
-            _INSTANCES[key] = OllamaLLMService(url, model)
+            _INSTANCES[key] = OllamaLLMService(url, model, vision)
     else:
         api_key = over.get("groq_key") or settings.groq_api_key
         model = settings.groq_model
-        key = ("groq", api_key, model)
+        vision = settings.groq_vision_model
+        key = ("groq", api_key, model, vision)
         if key not in _INSTANCES:
-            _INSTANCES[key] = GroqLLMService(api_key, model)
+            _INSTANCES[key] = GroqLLMService(api_key, model, vision)
 
     if len(_INSTANCES) > 32:  # bound the cache (many BYO keys)
         _INSTANCES.clear()
         _INSTANCES[key] = (
-            OllamaLLMService(key[1], key[2]) if key[0] == "ollama" else GroqLLMService(key[1], key[2])
+            OllamaLLMService(*key[1:]) if key[0] == "ollama" else GroqLLMService(*key[1:])
         )
     return _INSTANCES[key]

@@ -14,6 +14,14 @@ from typing import Optional
 from src.models import ArtifactKind
 
 
+class NotABillError(Exception):
+    """Raised when input cannot be read as a bill (declined, not fabricated)."""
+
+    def __init__(self, reason: str = "Input is not a recognizable bill.") -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
 @dataclass
 class ExtractionLine:
     """One line of recognized text with its trace and confidence."""
