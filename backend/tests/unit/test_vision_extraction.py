@@ -150,6 +150,35 @@ def test_off_list_bill_type_falls_back_to_keyword_detection(monkeypatch):
     assert bill.bill_type == BillType.telecom_recharge
 
 
+def test_model_computed_line_total_loses_to_printed_amount(monkeypatch):
+    # Seen live with llama-4-scout: row "Toor Dal 1kg 2 180.00" (printed row
+    # total 180.00) came back as unit_amount=180.00 with a COMPUTED
+    # line_total=360.00 that is printed nowhere. The traced printed amount must
+    # win because only it reconciles with the stated subtotal.
+    payload = _payload()
+    payload["raw_lines"] = [
+        "SRI BALAJI SUPERMARKET",
+        "Rice 5kg 1 425.00",
+        "Toor Dal 1kg 2 180.00",
+        "Sub Total 605.00",
+        "Total Rs 605.00",
+    ]
+    payload["subtotal"] = "605.00"
+    payload["total_amount"] = "605.00"
+    payload["tax_components"] = []
+    payload["line_items"] = [
+        {"description": "Rice 5kg", "quantity": "1", "unit_amount": "425.00", "line_total": "425.00"},
+        {"description": "Toor Dal 1kg", "quantity": "2", "unit_amount": "180.00", "line_total": "360.00"},
+    ]
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+
+    bill = vision.extract_bill([_img()])
+
+    assert bill.line_items[1].line_total.value == "180.00"
+    assert bill.line_items[1].line_total.source_ref.raw_text == "Toor Dal 1kg 2 180.00"
+    assert detect_discrepancies(bill) == []
+
+
 def _classic_result() -> ExtractionResult:
     lines = ["QuickMart", "Apples 50.00", "Bananas 50.00", "Total 100.00"]
     return ExtractionResult(

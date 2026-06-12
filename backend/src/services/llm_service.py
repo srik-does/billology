@@ -157,6 +157,10 @@ class ChatLLMService(LLMService):
             "percentage digits only (e.g. '18'). "
             "line_items: purchased products / service charges only — exclude totals, "
             "subtotals, tax rows, discounts, and payment/tender/change rows. "
+            "line_total is the amount PRINTED on that row; when a row shows a quantity "
+            "but only ONE amount, that printed amount is the line_total — NEVER multiply "
+            "quantity by a price to produce it. Fill unit_amount only when the row "
+            "prints both a per-unit price and a row total. "
             "is_bill: false when the image is not a bill, receipt, or invoice."
         )
         raw = self._chat_vision(

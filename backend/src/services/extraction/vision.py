@@ -103,12 +103,18 @@ def _trace(raw_lines: list[str], needle: Optional[str]) -> Optional[SourceRef]:
     if not needle:
         return None
     low = needle.lower()
-    # Amounts re-gain their printed thousands separators in raw_lines, so also
-    # try the bare digit run (commas stripped) when the exact token misses.
     digits = low.replace(",", "")
+    # Short all-digit tokens (quantities like "2") match as standalone tokens
+    # only, so they don't trace to the first line containing that digit.
+    token = re.compile(rf"\b{re.escape(digits)}\b") if digits.isdigit() and len(digits) <= 2 else None
     for idx, line in enumerate(raw_lines):
         line_low = line.lower()
-        if low in line_low or digits in line_low.replace(",", ""):
+        if token is not None:
+            if token.search(line_low):
+                return SourceRef(page=0, line=idx, raw_text=line)
+        # Amounts re-gain their printed thousands separators in raw_lines, so
+        # also try the bare digit run (commas stripped) when the token misses.
+        elif low in line_low or digits in line_low.replace(",", ""):
             return SourceRef(page=0, line=idx, raw_text=line)
     return None
 
@@ -217,6 +223,32 @@ def _line_items(data: dict[str, Any], raw_lines: list[str]) -> list[LineItem]:
     return items
 
 
+def _swap_computed_totals(items: list[LineItem]) -> Optional[list[LineItem]]:
+    """Variant replacing untraced line totals with the traced printed amount.
+
+    Despite the transcribe-only prompt, the model sometimes multiplies
+    quantity × price into a line_total that is printed nowhere (its trace
+    fails) while the amount actually printed on the row sits in unit_amount
+    (traced). Returns the swapped variant, or None when no item qualifies —
+    the caller keeps whichever variant the code-side reconciliation score
+    proves more consistent (Principle I: figures must come from the bill).
+    """
+    swapped = False
+    out: list[LineItem] = []
+    for item in items:
+        unit = item.unit_amount
+        if (
+            item.line_total.source_ref is None
+            and unit is not None
+            and unit.source_ref is not None
+        ):
+            out.append(item.model_copy(update={"line_total": unit}))
+            swapped = True
+        else:
+            out.append(item)
+    return out if swapped else None
+
+
 def _bill_type(data: dict[str, Any], raw_text: str, hint: Optional[str]) -> BillType:
     if hint in (BillType.telecom_recharge.value, BillType.grocery.value):
         return BillType(hint)
@@ -268,7 +300,7 @@ def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bil
     currency = _str(data.get("currency")) or ""
     currency = currency.upper() if _CURRENCY.match(currency.upper()) else "INR"
 
-    return Bill(
+    bill = Bill(
         merchant=merchant,
         bill_type=_bill_type(data, raw_text, bill_type_hint),
         bill_date=_bill_date(data.get("bill_date"), raw_lines),
@@ -285,3 +317,17 @@ def extract_bill(images: list[Any], bill_type_hint: Optional[str] = None) -> Bil
         layout_supported=True,
         status="candidate",
     )
+
+    # Guard against model-computed line totals: when an untraced total exists
+    # alongside a traced printed amount, keep whichever variant the
+    # reconciliation score proves more internally consistent.
+    alt_items = _swap_computed_totals(line_items)
+    if alt_items is not None:
+        from src.services.structure_service import _score as _consistency_score
+
+        alt_bill = bill.model_copy(update={"line_items": alt_items})
+        if _consistency_score(alt_bill) > _consistency_score(bill):
+            logger.info("vision: replaced computed line totals with printed amounts")
+            bill = alt_bill
+
+    return bill

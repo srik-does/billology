@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # VISION_EXTRACTION=false to force the deterministic OCR pipeline, which
     # also remains the automatic fallback when the vision call fails.
     vision_extraction: bool = True
-    groq_vision_model: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
+    groq_vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     ollama_vision_model: str = "llama3.2-vision"
 
     # Embeddings (fastembed, local). Dimension MUST match the pgvector column.

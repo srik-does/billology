@@ -89,7 +89,7 @@ the Supabase SQL editor (in order) before first use.
 
 Environment variables (see `backend/.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
 `SUPABASE_BUCKET`, `GROQ_API_KEY`, `GROQ_MODEL`, and optionally `GROQ_VISION_MODEL` (default
-`meta-llama/llama-4-maverick-17b-128e-instruct`) and `VISION_EXTRACTION` (default `true`). The
+`meta-llama/llama-4-scout-17b-16e-instruct`) and `VISION_EXTRACTION` (default `true`). The
 core extract→verify→explain flow degrades gracefully without keys (deterministic fallbacks).
 
 ### Mobile

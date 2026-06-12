@@ -14,7 +14,7 @@ running app to the deterministic pipeline without a rollback.
 
 | Commit | What |
 |---|---|
-| v2 | **Vision extraction**: image bills + fully scanned PDFs read by Groq `llama-4-maverick` (Ollama vision model when provider=ollama), transcribe-only prompt, code-side Decimal validation + raw-line traces, automatic fallback to the v1 OCR pipeline. Constitution 2.0.0 (Principle I redefined, Principle IV privacy trade-off documented). |
+| v2 | **Vision extraction**: image bills + fully scanned PDFs read by Groq `llama-4-scout` (the only vision model the current Groq key can access — verified via the models API; Ollama vision model when provider=ollama), transcribe-only prompt, code-side Decimal validation + raw-line traces, automatic fallback to the v1 OCR pipeline. Constitution 2.0.0 (Principle I redefined, Principle IV privacy trade-off documented). |
 | `71c3eed` | OCR engine swapped Tesseract → **RapidOCR** (PP-OCRv4, local ONNX; Tesseract kept as fallback). Benchmark: `backend/scripts/compare_ocr.py` (pass a real image path to compare engines). Now the fallback engine behind vision. |
 | `c3ba824` | **Ask reliability**: save-time LLM tags/aliases (migration 004 — applied; backfill ran), fuzzy merchant match, hybrid keyword+vector retrieval, no more hard "No bills found" for merchant misses. |
 | `1f28495` | Large scanned PDFs: page-at-a-time rasterization (flat memory), 12-page cap with friendly 422, endpoints moved off the event loop (threadpool). |
