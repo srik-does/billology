@@ -584,8 +584,14 @@ async function ask() {
     $("qaAnswer").textContent = body.answer || "No answer.";
     $("qaAnswer").classList.remove("hidden");
     (body.records || []).forEach(r => {
+      // Item-level answers carry the product name; show it as the row title with
+      // the merchant/date beneath, and the item's own amount on the right.
+      const title = r.item || r.merchant || "Unknown";
+      const sub = r.item
+        ? `${r.merchant || ""}${r.bill_date ? " · " + r.bill_date : ""}`
+        : `${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}`;
       $("qaRecords").innerHTML += `<tr>
-        <td>${r.merchant || "Unknown"}<div class="ex">${r.bill_date || "no date"}${r.category ? " · " + r.category : ""}</div></td>
+        <td>${title}<div class="ex">${sub}</div></td>
         <td class="amt">₹${r.total_amount ?? "—"}</td></tr>`;
     });
   } catch (e) { $("qaStatus").textContent = "Network error: " + e; $("qaStatus").className = "err"; }

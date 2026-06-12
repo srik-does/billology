@@ -22,11 +22,20 @@ class _FakeDB:
             {"id": "b4", "merchant": "DMart", "bill_date": "2026-02-05", "total_amount": "770.00", "category_id": "c-gro", "status": "saved"},
         ]
 
+        # Line items for item-level questions: paneer bought twice at one resto.
+        self.line_items = [
+            {"bill_id": "b3", "description": "Tomatoes 1kg", "line_total": "40.00"},
+            {"bill_id": "b3", "description": "Paneer Butter Masala", "line_total": "220.00"},
+            {"bill_id": "b4", "description": "Paneer 200g", "line_total": "90.00"},
+        ]
+
     def select(self, table, filters=None):
         if table == "categories":
             return self.categories
         if table == "bills":
             return self.bills
+        if table == "line_items":
+            return self.line_items
         return []
 
     def match_bills(self, embedding_literal, match_count=5):
@@ -149,3 +158,39 @@ def test_tags_make_bills_findable_by_colloquial_words():
     res = answer_question("kirana purchases", db=db, embed_fn=None)
     assert res["path"] == "semantic"
     assert any(r["merchant"] == "DMart" for r in res["records"])
+
+
+# --- Item-level spending (aggregate over line items, not whole bills) ---------
+
+def test_item_sum_aggregates_line_totals_not_bill_totals():
+    # Paneer was bought twice: 220 (BigBasket) + 90 (DMart) = 310 — NOT the
+    # 750 + 770 bill totals (the bug the user reported).
+    res = answer_question("how much did I spend on paneer?", db=_FakeDB())
+    assert res["path"] == "numeric"
+    assert "310.00" in res["answer"]
+    assert "750" not in res["answer"] and "770" not in res["answer"]
+    # Records carry the item's own amount and name.
+    assert {r["item"] for r in res["records"]} == {"Paneer Butter Masala", "Paneer 200g"}
+
+
+def test_item_sum_respects_merchant_filter():
+    res = answer_question(
+        "how much did I spend on paneer at bigbasket?",
+        db=_FakeDB(),
+        llm=_FakeLLM(_numeric_intent(merchant="bigbasket")),
+    )
+    assert res["path"] == "numeric"
+    assert "220.00" in res["answer"]  # only the BigBasket paneer line
+
+
+def test_item_count_counts_purchases():
+    res = answer_question("how many times did I buy paneer?", db=_FakeDB())
+    assert res["path"] == "numeric"
+    assert "2 time" in res["answer"]
+
+
+def test_non_item_question_still_bill_level():
+    # "groceries" names a category, not a line item, so this stays whole-bill.
+    res = answer_question("groceries spend in March", db=_FakeDB())
+    assert res["path"] == "numeric"
+    assert "750.00" in res["answer"]

@@ -19,7 +19,7 @@ import { apiPostJson } from "../api/client";
 import { useT } from "../i18n";
 import { colors, radius, shadow } from "../theme";
 
-type Record = { merchant?: string; bill_date?: string | null; total_amount?: string | null; category?: string };
+type Record = { merchant?: string; bill_date?: string | null; total_amount?: string | null; category?: string; item?: string };
 type QAResponse = { path: "numeric" | "semantic" | "unanswerable"; answer?: string | null; records?: Record[]; executed_query?: string | null };
 type Turn = { question: string; res?: QAResponse; error?: string };
 
@@ -92,7 +92,9 @@ export function QAChatScreen() {
                   <View key={i} style={styles.recordRow}>
                     <View style={styles.recordDot} />
                     <Text style={styles.record} numberOfLines={1}>
-                      {r.merchant} — ₹{r.total_amount ?? "—"} {r.bill_date ? `(${r.bill_date})` : ""}
+                      {r.item ? `${r.item} — ₹${r.total_amount ?? "—"}${r.merchant ? ` · ${r.merchant}` : ""}`
+                              : `${r.merchant} — ₹${r.total_amount ?? "—"}`}
+                      {r.bill_date ? ` (${r.bill_date})` : ""}
                     </Text>
                   </View>
                 ))}

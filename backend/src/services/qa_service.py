@@ -65,6 +65,11 @@ _TEMPLATES = {
         "latest": "Your most recent {cat} bill was ₹{amount} on {date} ({merchant}).",
         "unanswerable": "I don't have that information in your saved bills.",
         "ask": "Please ask a question about your spending.",
+        # Item-level answers (aggregate over individual line items, not whole bills).
+        "item_sum": "You spent ₹{total} on {item}{who}{when} across {n} purchase(s).",
+        "item_count": "You bought {item}{who}{when} {n} time(s).",
+        "item_average": "On average you spent ₹{avg} on {item} per purchase{who}{when} ({n} purchase(s)).",
+        "item_latest": "You last bought {item} for ₹{amount} on {date} ({merchant}).",
     },
     "hi": {
         "sum": "आपने {cat}{who}{when} पर {n} बिल में कुल ₹{total} खर्च किए।",
@@ -73,6 +78,10 @@ _TEMPLATES = {
         "latest": "आपका सबसे हालिया {cat} बिल ₹{amount} था, {date} को ({merchant})।",
         "unanswerable": "आपके सहेजे गए बिलों में यह जानकारी उपलब्ध नहीं है।",
         "ask": "कृपया अपने खर्च के बारे में कोई प्रश्न पूछें।",
+        "item_sum": "आपने {item}{who}{when} पर {n} बार में कुल ₹{total} खर्च किए।",
+        "item_count": "आपने {item}{who}{when} {n} बार खरीदा।",
+        "item_average": "आप {item} पर प्रति खरीद औसतन ₹{avg} खर्च करते हैं{who}{when} ({n} खरीद)।",
+        "item_latest": "आपने आख़िरी बार {item} ₹{amount} में {date} को खरीदा ({merchant})।",
     },
     "te": {
         "sum": "మీరు {cat}{who}{when} పై {n} బిల్లులలో మొత్తం ₹{total} ఖర్చు చేశారు.",
@@ -81,6 +90,10 @@ _TEMPLATES = {
         "latest": "మీ ఇటీవలి {cat} బిల్లు ₹{amount}, {date} న ({merchant}).",
         "unanswerable": "మీ సేవ్ చేసిన బిల్లులలో ఆ సమాచారం లేదు.",
         "ask": "దయచేసి మీ ఖర్చు గురించి ప్రశ్న అడగండి.",
+        "item_sum": "మీరు {item}{who}{when} పై {n} సార్లు మొత్తం ₹{total} ఖర్చు చేశారు.",
+        "item_count": "మీరు {item}{who}{when} {n} సార్లు కొన్నారు.",
+        "item_average": "మీరు {item} పై ఒక్కో కొనుగోలుకు సగటున ₹{avg} ఖర్చు చేస్తారు{who}{when} ({n} కొనుగోళ్లు).",
+        "item_latest": "మీరు చివరిసారి {item} ను ₹{amount} కు {date} న కొన్నారు ({merchant}).",
     },
     # The languages below are machine-authored translations pending
     # native-speaker review (same status as the client string tables).
@@ -91,6 +104,10 @@ _TEMPLATES = {
         "latest": "உங்கள் சமீபத்திய {cat} பில் ₹{amount}, {date} அன்று ({merchant}).",
         "unanswerable": "உங்கள் சேமித்த பில்களில் அந்தத் தகவல் இல்லை.",
         "ask": "உங்கள் செலவு பற்றி ஒரு கேள்வி கேளுங்கள்.",
+        "item_sum": "நீங்கள் {item}{who}{when} மீது {n} முறை மொத்தம் ₹{total} செலவழித்தீர்கள்.",
+        "item_count": "நீங்கள் {item}{who}{when} {n} முறை வாங்கினீர்கள்.",
+        "item_average": "நீங்கள் {item} மீது ஒரு வாங்கலுக்கு சராசரியாக ₹{avg} செலவழிக்கிறீர்கள்{who}{when} ({n} வாங்கல்கள்).",
+        "item_latest": "நீங்கள் கடைசியாக {item} ஐ ₹{amount} க்கு {date} அன்று வாங்கினீர்கள் ({merchant}).",
     },
     "kn": {
         "sum": "ನೀವು {cat}{who}{when} ಮೇಲೆ {n} ಬಿಲ್‌ಗಳಲ್ಲಿ ಒಟ್ಟು ₹{total} ಖರ್ಚು ಮಾಡಿದ್ದೀರಿ.",
@@ -99,6 +116,10 @@ _TEMPLATES = {
         "latest": "ನಿಮ್ಮ ಇತ್ತೀಚಿನ {cat} ಬಿಲ್ ₹{amount}, {date} ರಂದು ({merchant}).",
         "unanswerable": "ನಿಮ್ಮ ಉಳಿಸಿದ ಬಿಲ್‌ಗಳಲ್ಲಿ ಆ ಮಾಹಿತಿ ಇಲ್ಲ.",
         "ask": "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಖರ್ಚಿನ ಬಗ್ಗೆ ಪ್ರಶ್ನೆ ಕೇಳಿ.",
+        "item_sum": "ನೀವು {item}{who}{when} ಮೇಲೆ {n} ಬಾರಿ ಒಟ್ಟು ₹{total} ಖರ್ಚು ಮಾಡಿದ್ದೀರಿ.",
+        "item_count": "ನೀವು {item}{who}{when} {n} ಬಾರಿ ಖರೀದಿಸಿದ್ದೀರಿ.",
+        "item_average": "ನೀವು {item} ಮೇಲೆ ಪ್ರತಿ ಖರೀದಿಗೆ ಸರಾಸರಿ ₹{avg} ಖರ್ಚು ಮಾಡುತ್ತೀರಿ{who}{when} ({n} ಖರೀದಿಗಳು).",
+        "item_latest": "ನೀವು ಕೊನೆಯ ಬಾರಿ {item} ಅನ್ನು ₹{amount} ಕ್ಕೆ {date} ರಂದು ಖರೀದಿಸಿದ್ದೀರಿ ({merchant}).",
     },
     "ml": {
         "sum": "നിങ്ങൾ {cat}{who}{when} ൽ {n} ബില്ലുകളിലായി ആകെ ₹{total} ചെലവഴിച്ചു.",
@@ -107,6 +128,10 @@ _TEMPLATES = {
         "latest": "നിങ്ങളുടെ ഏറ്റവും പുതിയ {cat} ബിൽ ₹{amount}, {date} ന് ({merchant}).",
         "unanswerable": "നിങ്ങളുടെ സേവ് ചെയ്ത ബില്ലുകളിൽ ആ വിവരം ഇല്ല.",
         "ask": "ദയവായി നിങ്ങളുടെ ചെലവിനെക്കുറിച്ച് ഒരു ചോദ്യം ചോദിക്കൂ.",
+        "item_sum": "നിങ്ങൾ {item}{who}{when} ന് {n} തവണയായി ആകെ ₹{total} ചെലവഴിച്ചു.",
+        "item_count": "നിങ്ങൾ {item}{who}{when} {n} തവണ വാങ്ങി.",
+        "item_average": "നിങ്ങൾ {item} ന് ഓരോ വാങ്ങലിനും ശരാശരി ₹{avg} ചെലവഴിക്കുന്നു{who}{when} ({n} വാങ്ങലുകൾ).",
+        "item_latest": "നിങ്ങൾ അവസാനമായി {item} ₹{amount} ന് {date} ന് വാങ്ങി ({merchant}).",
     },
     "bn": {
         "sum": "আপনি {cat}{who}{when} এ {n} বিলে মোট ₹{total} খরচ করেছেন।",
@@ -115,6 +140,10 @@ _TEMPLATES = {
         "latest": "আপনার সাম্প্রতিকতম {cat} বিল ছিল ₹{amount}, {date} তারিখে ({merchant})।",
         "unanswerable": "আপনার সংরক্ষিত বিলে সেই তথ্য নেই।",
         "ask": "অনুগ্রহ করে আপনার খরচ নিয়ে একটি প্রশ্ন করুন।",
+        "item_sum": "আপনি {item}{who}{when} এ {n} বার মোট ₹{total} খরচ করেছেন।",
+        "item_count": "আপনি {item}{who}{when} {n} বার কিনেছেন।",
+        "item_average": "আপনি {item} এ প্রতি কেনায় গড়ে ₹{avg} খরচ করেন{who}{when} ({n} বার কেনা)।",
+        "item_latest": "আপনি শেষবার {item} ₹{amount} এ {date} তারিখে কিনেছেন ({merchant})।",
     },
     "mr": {
         "sum": "तुम्ही {cat}{who}{when} वर {n} बिलांमध्ये एकूण ₹{total} खर्च केले.",
@@ -123,6 +152,10 @@ _TEMPLATES = {
         "latest": "तुमचे अलीकडील {cat} बिल ₹{amount} होते, {date} रोजी ({merchant}).",
         "unanswerable": "तुमच्या जतन केलेल्या बिलांमध्ये ती माहिती नाही.",
         "ask": "कृपया तुमच्या खर्चाबद्दल प्रश्न विचारा.",
+        "item_sum": "तुम्ही {item}{who}{when} वर {n} वेळा एकूण ₹{total} खर्च केले.",
+        "item_count": "तुम्ही {item}{who}{when} {n} वेळा खरेदी केले.",
+        "item_average": "तुम्ही {item} वर प्रत्येक खरेदीला सरासरी ₹{avg} खर्च करता{who}{when} ({n} खरेदी).",
+        "item_latest": "तुम्ही शेवटची {item} ₹{amount} ला {date} रोजी खरेदी केली ({merchant}).",
     },
     "gu": {
         "sum": "તમે {cat}{who}{when} પર {n} બિલમાં કુલ ₹{total} ખર્ચ કર્યો.",
@@ -131,6 +164,10 @@ _TEMPLATES = {
         "latest": "તમારું તાજેતરનું {cat} બિલ ₹{amount} હતું, {date} ના રોજ ({merchant}).",
         "unanswerable": "તમારાં સાચવેલાં બિલમાં તે માહિતી નથી.",
         "ask": "કૃપા કરી તમારા ખર્ચ વિશે પ્રશ્ન પૂછો.",
+        "item_sum": "તમે {item}{who}{when} પર {n} વાર કુલ ₹{total} ખર્ચ કર્યો.",
+        "item_count": "તમે {item}{who}{when} {n} વાર ખરીદ્યું.",
+        "item_average": "તમે {item} પર દરેક ખરીદી માટે સરેરાશ ₹{avg} ખર્ચ કરો છો{who}{when} ({n} ખરીદી).",
+        "item_latest": "તમે છેલ્લે {item} ₹{amount} માં {date} ના રોજ ખરીદ્યું ({merchant}).",
     },
     "pa": {
         "sum": "ਤੁਸੀਂ {cat}{who}{when} 'ਤੇ {n} ਬਿੱਲਾਂ ਵਿੱਚ ਕੁੱਲ ₹{total} ਖਰਚ ਕੀਤੇ।",
@@ -139,6 +176,10 @@ _TEMPLATES = {
         "latest": "ਤੁਹਾਡਾ ਸਭ ਤੋਂ ਤਾਜ਼ਾ {cat} ਬਿੱਲ ₹{amount} ਸੀ, {date} ਨੂੰ ({merchant})।",
         "unanswerable": "ਤੁਹਾਡੇ ਸੰਭਾਲੇ ਬਿੱਲਾਂ ਵਿੱਚ ਉਹ ਜਾਣਕਾਰੀ ਨਹੀਂ।",
         "ask": "ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਖਰਚ ਬਾਰੇ ਸਵਾਲ ਪੁੱਛੋ।",
+        "item_sum": "ਤੁਸੀਂ {item}{who}{when} 'ਤੇ {n} ਵਾਰ ਕੁੱਲ ₹{total} ਖਰਚ ਕੀਤੇ।",
+        "item_count": "ਤੁਸੀਂ {item}{who}{when} {n} ਵਾਰ ਖਰੀਦਿਆ।",
+        "item_average": "ਤੁਸੀਂ {item} 'ਤੇ ਹਰ ਖਰੀਦ ਲਈ ਔਸਤਨ ₹{avg} ਖਰਚ ਕਰਦੇ ਹੋ{who}{when} ({n} ਖਰੀਦਾਂ)।",
+        "item_latest": "ਤੁਸੀਂ ਆਖਰੀ ਵਾਰ {item} ₹{amount} ਵਿੱਚ {date} ਨੂੰ ਖਰੀਦਿਆ ({merchant})।",
     },
     "or": {
         "sum": "ଆପଣ {cat}{who}{when} ରେ {n} ବିଲ୍‌ରେ ମୋଟ ₹{total} ଖର୍ଚ୍ଚ କରିଛନ୍ତି।",
@@ -147,6 +188,10 @@ _TEMPLATES = {
         "latest": "ଆପଣଙ୍କ ସଦ୍ୟତମ {cat} ବିଲ୍ ₹{amount} ଥିଲା, {date} ରେ ({merchant})।",
         "unanswerable": "ଆପଣଙ୍କ ସେଭ୍ ହୋଇଥିବା ବିଲ୍‌ରେ ସେହି ସୂଚନା ନାହିଁ।",
         "ask": "ଦୟାକରି ଆପଣଙ୍କ ଖର୍ଚ୍ଚ ବିଷୟରେ ପ୍ରଶ୍ନ ପଚାରନ୍ତୁ।",
+        "item_sum": "ଆପଣ {item}{who}{when} ରେ {n} ଥର ମୋଟ ₹{total} ଖର୍ଚ୍ଚ କରିଛନ୍ତି।",
+        "item_count": "ଆପଣ {item}{who}{when} {n} ଥର କିଣିଛନ୍ତି।",
+        "item_average": "ଆପଣ {item} ରେ ପ୍ରତି କିଣାରେ ହାରାହାରି ₹{avg} ଖର୍ଚ୍ଚ କରନ୍ତି{who}{when} ({n} କିଣା)।",
+        "item_latest": "ଆପଣ ଶେଷ ଥର {item} କୁ ₹{amount} ରେ {date} ରେ କିଣିଥିଲେ ({merchant})।",
     },
     "as": {
         "sum": "আপুনি {cat}{who}{when} ত {n} বিলত মুঠ ₹{total} খৰচ কৰিছে।",
@@ -155,6 +200,10 @@ _TEMPLATES = {
         "latest": "আপোনাৰ শেহতীয়া {cat} বিল আছিল ₹{amount}, {date} ত ({merchant})।",
         "unanswerable": "আপোনাৰ সংৰক্ষিত বিলত সেই তথ্য নাই।",
         "ask": "অনুগ্ৰহ কৰি আপোনাৰ খৰচৰ বিষয়ে প্ৰশ্ন সোধক।",
+        "item_sum": "আপুনি {item}{who}{when} ত {n} বাৰ মুঠ ₹{total} খৰচ কৰিছে।",
+        "item_count": "আপুনি {item}{who}{when} {n} বাৰ কিনিছে।",
+        "item_average": "আপুনি {item} ত প্ৰতি কিনাত গড়ে ₹{avg} খৰচ কৰে{who}{when} ({n} বাৰ কিনা)।",
+        "item_latest": "আপুনি শেষবাৰ {item} ₹{amount} ত {date} ত কিনিছিল ({merchant})।",
     },
     "ur": {
         "sum": "آپ نے {cat}{who}{when} پر {n} بلوں میں کل ₹{total} خرچ کیے۔",
@@ -163,6 +212,10 @@ _TEMPLATES = {
         "latest": "آپ کا حالیہ ترین {cat} بل ₹{amount} تھا، {date} کو ({merchant})۔",
         "unanswerable": "آپ کے محفوظ بلوں میں وہ معلومات نہیں۔",
         "ask": "براہ کرم اپنے خرچ کے بارے میں سوال پوچھیں۔",
+        "item_sum": "آپ نے {item}{who}{when} پر {n} بار کل ₹{total} خرچ کیے۔",
+        "item_count": "آپ نے {item}{who}{when} {n} بار خریدا۔",
+        "item_average": "آپ {item} پر ہر خرید پر اوسطاً ₹{avg} خرچ کرتے ہیں{who}{when} ({n} خریداری)۔",
+        "item_latest": "آپ نے آخری بار {item} ₹{amount} میں {date} کو خریدا ({merchant})۔",
     },
 }
 
@@ -346,8 +399,126 @@ def _apply_filters(intent: dict[str, Any], rows: list[dict[str, Any]]) -> list[d
     return rows
 
 
+def _item_tokens(question: str, intent: dict[str, Any]) -> set[str]:
+    """Question words that could name a specific product, with the matched
+    merchant and category-hint words removed (those are not item names)."""
+    toks = _tokens(question)
+    if intent.get("merchant"):
+        toks -= _tokens(intent["merchant"])
+    toks -= {t for hint, _ in _CATEGORY_HINTS for t in _tokens(hint)}
+    return toks
+
+
+def _load_line_items(db) -> list[dict[str, Any]]:
+    """Saved line items joined with their parent bill's merchant/date/category."""
+    cats = {c["id"]: c.get("name") for c in db.select("categories")}
+    bills = {
+        b["id"]: b
+        for b in db.select("bills")
+        if not (b.get("status") and b["status"] != "saved")
+    }
+    rows: list[dict[str, Any]] = []
+    for item in db.select("line_items"):
+        bill = bills.get(item.get("bill_id"))
+        if bill is None:
+            continue
+        rows.append(
+            {
+                "description": item.get("description") or "",
+                "line_total": item.get("line_total"),
+                "merchant": bill.get("merchant"),
+                "bill_date": bill.get("bill_date"),
+                "category": cats.get(bill.get("category_id")),
+            }
+        )
+    return rows
+
+
+def _item_record(row: dict) -> dict:
+    """A purchase record: the item's own amount (line_total), not the bill total."""
+    return {
+        "merchant": row.get("merchant"),
+        "bill_date": row.get("bill_date"),
+        "total_amount": str(row["line_total"]) if row.get("line_total") is not None else None,
+        "category": row.get("category"),
+        "item": row.get("description"),
+    }
+
+
+def _item_numeric(question: str, db, intent: dict[str, Any]) -> Optional[dict]:
+    """Aggregate over individual LINE ITEMS when the question names a specific
+    product (e.g. "how much did I spend on paneer at this restaurant?").
+
+    Returns None when the question's item words match no saved line-item
+    description, so the caller falls back to whole-bill aggregation. The figure
+    is summed in Decimal code from real ``line_total`` values (Principle I).
+    """
+    item_tokens = _item_tokens(question, intent)
+    if not item_tokens:
+        return None
+
+    rows = _load_line_items(db)
+    # The same bill-level filters (merchant / month) narrow the purchases.
+    if intent.get("merchant"):
+        rows = [r for r in rows if _fuzzy_merchant(intent["merchant"], r["merchant"] or "")]
+    if intent["month"] is not None:
+        if isinstance(intent["month"], int):
+            rows = [r for r in rows if _month_of(r["bill_date"]) == intent["month"]]
+        else:
+            rows = [r for r in rows if str(r["bill_date"] or "").startswith(intent["month"])]
+
+    matched = [r for r in rows if _keyword_score(item_tokens, r["description"]) > 0]
+    if not matched:
+        return None
+
+    words = re.findall(r"[a-z0-9]+", question.lower())
+    item = " ".join(w for w in words if w in item_tokens) or "that item"
+    who = f" at {intent['merchant']}" if intent.get("merchant") else ""
+    when = f" in {intent['month']}" if intent["month"] is not None else ""
+    desc = f"{intent['aggregate']}(line_total) WHERE item~'{item}'{who}{when}"
+
+    if intent["aggregate"] == "latest":
+        latest = max(matched, key=lambda r: (r["bill_date"] or ""))
+        return {
+            "path": "numeric",
+            "answer": _t("item_latest").format(
+                item=item, amount=latest["line_total"], date=latest["bill_date"],
+                merchant=latest["merchant"],
+            ),
+            "records": [_item_record(latest)],
+            "executed_query": desc,
+        }
+    if intent["aggregate"] == "count":
+        return {
+            "path": "numeric",
+            "answer": _t("item_count").format(item=item, who=who, when=when, n=len(matched)),
+            "records": [_item_record(r) for r in matched],
+            "executed_query": desc,
+        }
+    total = sum((_to_decimal(r["line_total"]) for r in matched), Decimal("0"))
+    if intent["aggregate"] == "average":
+        avg = (total / len(matched)).quantize(Decimal("0.01"))
+        return {
+            "path": "numeric",
+            "answer": _t("item_average").format(item=item, who=who, when=when, avg=avg, n=len(matched)),
+            "records": [_item_record(r) for r in matched],
+            "executed_query": desc,
+        }
+    return {
+        "path": "numeric",
+        "answer": _t("item_sum").format(total=total, item=item, who=who, when=when, n=len(matched)),
+        "records": [_item_record(r) for r in matched],
+        "executed_query": desc,
+    }
+
+
 def _numeric(question: str, db, intent: Optional[dict[str, Any]] = None) -> dict:
     intent = intent or _intent(question)
+    # A question that names a specific product is answered from line items, not
+    # whole-bill totals (returns None → fall through to bill-level aggregation).
+    item_answer = _item_numeric(question, db, intent)
+    if item_answer is not None:
+        return item_answer
     all_rows = _load_bills(db)
     rows = _apply_filters(intent, all_rows)
 
