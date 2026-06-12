@@ -531,6 +531,9 @@ async function loadHistory() {
       <td class="amt" style="width:30px"><span class="sample" data-del="${r.id}">✕</span></td>
     </tr>`;
   });
+  if (!rows.length) {
+    tbl.innerHTML = `<tr><td colspan="3" class="muted">No bills saved yet. Start by uploading a bill above.</td></tr>`;
+  }
   $("histCount").textContent = `${rows.length} bill(s)`;
   tbl.querySelectorAll("[data-del]").forEach(el => {
     el.onclick = async () => {
@@ -680,7 +683,7 @@ async function loadDash() {
     const cmax = Math.max(...cats.map(c => +c.total), 0);
     $("dashCats").innerHTML = cats.length
       ? cats.map((c, i) => bar(c.category, +c.total, cmax, DASH_COLORS[i % DASH_COLORS.length])).join("")
-      : `<div class="muted">No saved bills yet.</div>`;
+      : `<div class="muted">No bills saved yet. Start by uploading a bill.</div>`;
 
     const mmax = Math.max(...months.map(m => +m.total), 0);
     $("dashMonths").innerHTML = months.length
