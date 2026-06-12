@@ -9,14 +9,25 @@ bill (FR-002).
 from __future__ import annotations
 
 import io
+import logging
 
 from src.models import ArtifactKind
 
 from .types import ExtractionLine, ExtractionResult
 
+logger = logging.getLogger(__name__)
+
 # Bills longer than this are declined with a friendly message instead of
 # tying up the instance for minutes (each scanned page costs an OCR pass).
 MAX_PAGES = 12
+
+# Cap how many *scanned* (no-text-layer) pages get an OCR pass. Per-page OCR is
+# slow on a small shared CPU (free-tier hosting), and the request sits behind a
+# ~100 s edge/gateway timeout — past which a long scanned PDF returns NOTHING.
+# Bills carry their merchant and grand total on the first or last page, so when
+# a scanned PDF exceeds the cap we OCR the first pages plus the last one rather
+# than time out. Text-layer pages are cheap (pdfplumber) and are never capped.
+MAX_OCR_PAGES = 4
 
 # OCR doesn't benefit from more: the detector downscales internally, and
 # 200 DPI (the pdf2image default) doubles the per-page bitmap for nothing.
@@ -56,11 +67,33 @@ def extract_pdf(file_bytes: bytes) -> ExtractionResult:
                 image_pages.append(page_no)
 
     if image_pages:
-        # No text layer on these pages → rasterize + OCR.
-        _ocr_image_pages(file_bytes, image_pages, result)
+        # No text layer on these pages → rasterize + OCR (bounded — see below).
+        pages_to_ocr = _select_ocr_pages(image_pages, MAX_OCR_PAGES)
+        if len(pages_to_ocr) < len(image_pages):
+            logger.warning(
+                "Scanned PDF has %d image pages; OCR limited to %d (pages %s) to "
+                "stay within the request timeout — result may be partial.",
+                len(image_pages), len(pages_to_ocr), [p + 1 for p in pages_to_ocr],
+            )
+        _ocr_image_pages(file_bytes, pages_to_ocr, result)
 
     result.raw_text = "\n".join(raw_chunks).strip()
     return result
+
+
+def _select_ocr_pages(image_pages: list[int], cap: int) -> list[int]:
+    """Choose which scanned pages to OCR when there are more than the cap.
+
+    Keeps the first ``cap - 1`` pages plus the last page (a grand total often
+    sits on the final page), preserving page order and de-duplicating when the
+    last page is already among the first ones.
+    """
+    if len(image_pages) <= cap:
+        return image_pages
+    chosen = image_pages[: cap - 1] + image_pages[-1:]
+    # De-dupe while preserving order (last page could coincide with the head).
+    seen: set[int] = set()
+    return [p for p in chosen if not (p in seen or seen.add(p))]
 
 
 def _ocr_image_pages(file_bytes: bytes, pages: list[int], result: ExtractionResult) -> None:
