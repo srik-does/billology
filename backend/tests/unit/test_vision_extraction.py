@@ -110,6 +110,17 @@ def test_transcription_is_validated_summed_in_code_and_traced(monkeypatch):
     assert detect_discrepancies(bill) == []
 
 
+def test_component_rate_sum_outranks_echoed_single_rate(monkeypatch):
+    # Seen live (restaurant bill): the model echoed one component's rate (2.5)
+    # into the top-level tax_rate while CGST+SGST rows carry 2.5% each — the
+    # bill's effective rate is the printed components' sum, 5%.
+    payload = _payload()
+    payload["tax_rate"] = "2.5"
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+    bill = vision.extract_bill([_img()])
+    assert Decimal(bill.tax_rate.value) == Decimal("5.0")
+
+
 def test_unparseable_figures_are_dropped_never_repaired(monkeypatch):
     payload = _payload()
     payload["total_amount"] = "unknown"

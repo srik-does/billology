@@ -187,7 +187,10 @@ def _tax(data: dict[str, Any], raw_lines: list[str]) -> tuple[
         confidence=VISION_CONFIDENCE,
         source_ref=first_ref,
     )
-    if tax_rate is None and comp_rate > 0:
+    # When the printed component rows supply the amount, their summed rate is
+    # the bill's effective rate (CGST 2.5% + SGST 2.5% = 5%) — it outranks any
+    # single-component rate the model echoed into the top-level field.
+    if comp_rate > 0:
         tax_rate = TracedValue(
             value=_decimal_str(comp_rate),
             provenance=Provenance.extracted,
