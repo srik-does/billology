@@ -213,6 +213,53 @@ function hdrs(extra) {
   return h;
 }
 
+// --- Resilient fetch (Render free-tier cold starts) -------------------------
+// The backend sleeps after ~15 min idle; the first hits during wake-up come
+// back as a 502/503/504 from the edge proxy with an EMPTY body (so r.json()
+// throws "Unexpected end of JSON input") or as an outright network error.
+// apiFetch retries those transparently with backoff while signalling onWake.
+// An app-level 502 (e.g. a save/persist failure) carries a JSON body and is
+// NOT a cold start — we return it to the caller untouched.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const GATEWAY_STATUS = new Set([502, 503, 504]);
+
+async function apiFetch(path, opts = {}, { retries = 9, onWake } = {}) {
+  let delay = 1500;
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(path, opts);
+    } catch (netErr) {
+      // Connection refused/reset — typical of the very first hit on a cold service.
+      if (attempt >= retries) throw netErr;
+      if (onWake) onWake(attempt);
+      await sleep(delay); delay = Math.min(delay * 1.6, 8000); continue;
+    }
+    if (GATEWAY_STATUS.has(res.status) && attempt < retries) {
+      // Only retry a true edge wake-up: empty or non-JSON body. An app 502
+      // (JSON {error, detail}) is a real failure and must reach the caller.
+      const text = await res.clone().text();
+      if (!text.trim() || !text.trim().startsWith("{")) {
+        if (onWake) onWake(attempt);
+        await sleep(delay); delay = Math.min(delay * 1.6, 8000); continue;
+      }
+    }
+    return res;
+  }
+}
+
+// Resilient fetch + JSON parse. Throws an Error (with .status) on a non-ok
+// response, reading the friendly reason/detail/error field when present.
+async function apiJson(path, opts = {}, cfg = {}) {
+  const res = await apiFetch(path, opts, cfg);
+  if (!res.ok) {
+    let detail = res.statusText || ("HTTP " + res.status);
+    try { const b = await res.json(); detail = b.reason || b.detail || b.error || detail; } catch {}
+    const err = new Error(detail); err.status = res.status; throw err;
+  }
+  return res.json();
+}
+
 const I18N = {
   en: {
     tagline: "Submit a bill (image / PDF / pasted text). It extracts the data, checks it for provable errors, and explains it — numbers come straight from the bill, never the AI.",
@@ -224,6 +271,7 @@ const I18N = {
     provDefault: "AI: Cloud (app's key)", provByok: "AI: Cloud (my Groq key)", provOllama: "AI: Local (Ollama)",
     byCategory: "By category", topMerchants: "Top merchants", thisMonth: "This month",
     vsLastMonth: "vs last month", topCategory: "Top category",
+    wakingServer: "Waking the server… (free hosting sleeps when idle; this can take ~30–60s on first use)",
   },
   hi: {
     tagline: "बिल जमा करें (छवि / PDF / टेक्स्ट)। यह डेटा निकालता है, त्रुटियाँ जाँचता है और समझाता है — आँकड़े हमेशा बिल से आते हैं, AI से कभी नहीं।",
@@ -399,7 +447,12 @@ $("go").onclick = async () => {
     const file = $("file").files[0];
     if (file) form.append("files", file);
     if ($("text").value.trim()) form.append("text", $("text").value);
-    const res = await fetch("/bills:process", { method: "POST", body: form, headers: hdrs() });
+    const dict = I18N[SETTINGS.lang] || I18N.en;
+    const res = await apiFetch(
+      "/bills:process",
+      { method: "POST", body: form, headers: hdrs() },
+      { onWake: () => { status.textContent = dict.wakingServer || I18N.en.wakingServer; status.className = "muted busy"; } }
+    );
     if (res.status === 422) { const b = await res.json(); status.textContent = "⚠ " + (b.reason || "Couldn't read a bill."); status.className = "err"; return; }
     if (!res.ok) { status.textContent = "Error: " + res.status; status.className = "err"; return; }
     render(await res.json()); status.textContent = ""; status.className = "muted";
@@ -460,7 +513,7 @@ async function loadHistory() {
   const params = new URLSearchParams();
   if ($("histQ").value.trim()) params.set("q", $("histQ").value.trim());
   if ($("histCat").value) params.set("category", $("histCat").value);
-  const res = await fetch("/bills?" + params.toString(), { headers: hdrs() });
+  const res = await apiFetch("/bills?" + params.toString(), { headers: hdrs() });
   if (!res.ok) { $("histCount").textContent = "Couldn't load history."; return; }
   const rows = await res.json();
   const tbl = $("histRows"); tbl.innerHTML = "";
@@ -475,7 +528,7 @@ async function loadHistory() {
   tbl.querySelectorAll("[data-del]").forEach(el => {
     el.onclick = async () => {
       if (!confirm("Delete this bill?")) return;
-      await fetch("/bills/" + el.dataset.del, { method: "DELETE", headers: hdrs() });
+      try { await apiFetch("/bills/" + el.dataset.del, { method: "DELETE", headers: hdrs() }); } catch {}
       loadHistory();
     };
   });
@@ -512,13 +565,14 @@ async function ask() {
   $("qaStatus").textContent = "Thinking…"; $("qaStatus").className = "muted busy"; $("qaGo").disabled = true;
   $("qaAnswer").classList.add("hidden"); $("qaRecords").innerHTML = "";
   try {
-    const res = await fetch("/qa", {
-      method: "POST",
-      headers: hdrs({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ question: q }),
-    });
-    const body = await res.json();
+    const dict = I18N[SETTINGS.lang] || I18N.en;
+    const res = await apiFetch(
+      "/qa",
+      { method: "POST", headers: hdrs({ "Content-Type": "application/json" }), body: JSON.stringify({ question: q }) },
+      { onWake: () => { $("qaStatus").textContent = dict.wakingServer || I18N.en.wakingServer; $("qaStatus").className = "muted busy"; } }
+    );
     if (!res.ok) { $("qaStatus").textContent = "Error: " + res.status; $("qaStatus").className = "err"; return; }
+    const body = await res.json();
     $("qaStatus").textContent = body.path ? `(${body.path} path)` : ""; $("qaStatus").className = "muted";
     $("qaAnswer").textContent = body.answer || "No answer.";
     $("qaAnswer").classList.remove("hidden");
@@ -582,11 +636,14 @@ function animateDash() {
 const DASH_COLORS = ["#38bdf8","#34d399","#f59e0b","#f472b6","#a78bfa","#22d3ee","#94a3b8"];
 async function loadDash() {
   const dict = I18N[SETTINGS.lang] || I18N.en;
+  const waking = () => {
+    $("dashCats").innerHTML = `<div class="muted busy">${esc(dict.wakingServer || I18N.en.wakingServer)}</div>`;
+  };
   try {
     const [cats, months, bills] = await Promise.all([
-      fetch("/dashboard/by-category", { headers: hdrs() }).then(r => r.json()),
-      fetch("/dashboard/monthly", { headers: hdrs() }).then(r => r.json()),
-      fetch("/bills", { headers: hdrs() }).then(r => r.ok ? r.json() : []),
+      apiJson("/dashboard/by-category", { headers: hdrs() }, { onWake: waking }),
+      apiJson("/dashboard/monthly", { headers: hdrs() }, { onWake: waking }),
+      apiJson("/bills", { headers: hdrs() }, { onWake: waking }).catch(() => []),
     ]);
     cats.sort((a, b) => (+b.total) - (+a.total));
 
@@ -642,9 +699,11 @@ $("histQ").oninput = () => { clearTimeout(window.__hq); window.__hq = setTimeout
 $("histCat").onchange = loadHistory;
 $("histClear").onclick = async () => {
   if (!confirm("Delete ALL saved bills (including seeded demo data)? This cannot be undone.")) return;
-  const res = await fetch("/bills", { method: "DELETE", headers: hdrs() });
-  const body = await res.json();
-  alert(res.ok ? `${body.deleted} bill(s) deleted.` : "Clear failed.");
+  try {
+    const res = await apiFetch("/bills", { method: "DELETE", headers: hdrs() });
+    const body = await res.json().catch(() => ({}));
+    alert(res.ok ? `${body.deleted ?? 0} bill(s) deleted.` : "Clear failed.");
+  } catch (e) { alert("Clear failed: " + e); }
   loadHistory();
 };
 loadHistory();

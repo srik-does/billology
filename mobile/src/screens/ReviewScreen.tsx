@@ -84,7 +84,9 @@ export function ReviewScreen({
       if (originalFile) {
         form.append("files", originalFile as unknown as Blob);
       }
-      const saved = await apiPostForm<{ id?: string }>("/bills", form);
+      // retries=0: saving is not idempotent — a retry after a dropped
+      // connection could persist the bill twice.
+      const saved = await apiPostForm<{ id?: string }>("/bills", form, 0);
       Alert.alert("Saved", "Your bill has been saved.");
       onSaved?.(saved.id);
     } catch (err) {
