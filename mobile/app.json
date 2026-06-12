@@ -6,14 +6,29 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.srikeerthan.billology"
+    },
     "android": {
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+      "package": "com.srikeerthan.billology",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-camera",
       "expo-image-picker",
-      "expo-document-picker"
-    ]
+      "expo-document-picker",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f7fb71e8-7838-409c-b3a9-87aab700723e"
+      }
+    }
   }
 }
