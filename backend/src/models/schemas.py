@@ -75,6 +75,13 @@ class DiscrepancyFlag(BaseModel):
     kind: DiscrepancyKind
     conflicting_figures: dict[str, Any]
     explanation_text: str = ""
+    # True  → every figure feeding this check was read reliably, so the
+    #         arithmetic conflict is *proven* (Principle II).
+    # False → at least one contributing figure was a low-confidence OCR read,
+    #         so this is surfaced as "couldn't confirm — please check", not
+    #         asserted as a confirmed discrepancy. Defaults True so user-
+    #         provided / pasted-text figures (no confidence) stay proven.
+    verified: bool = True
 
 
 class Explanation(BaseModel):

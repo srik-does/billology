@@ -115,6 +115,12 @@ async def save_reviewed_bill(request: Request):
     except Exception as exc:  # noqa: BLE001 - surface a clean 422
         raise HTTPException(status_code=422, detail=f"Invalid candidate: {exc}") from exc
 
+    # Re-verify against the figures actually being saved. Fields the user
+    # corrected during review are now user_provided (no confidence) and trusted,
+    # so a discrepancy they fixed no longer persists — and any flag that remains
+    # is recomputed from the reviewed values, not the raw OCR pass.
+    bill.discrepancies = detect_discrepancies(bill)
+
     originals: list[tuple[bytes, str, str]] = []
     for value in form.getlist("files"):
         if isinstance(value, StarletteUploadFile):

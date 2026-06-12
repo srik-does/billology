@@ -19,19 +19,20 @@ from src.models import (
 from src.services.discrepancy_service import detect
 
 
-def _tv(value, line=0):
+def _tv(value, line=0, confidence=None):
     return TracedValue(
         value=str(value),
         provenance=Provenance.extracted,
+        confidence=confidence,
         source_ref=SourceRef(line=line),
     )
 
 
-def _li(desc, total, position=0):
+def _li(desc, total, position=0, confidence=None):
     return LineItem(
         position=position,
         description=TracedValue(value=desc, provenance=Provenance.extracted),
-        line_total=_tv(total),
+        line_total=_tv(total, confidence=confidence),
     )
 
 
@@ -169,6 +170,71 @@ def test_tax_not_verifiable_without_rate_or_base_not_flagged():
 def test_total_only_bill_nothing_to_verify():
     bill = _bill(total_amount=_tv("299.00"), nothing_to_verify=True)
     assert detect(bill) == []
+
+
+# --- Confidence gating: provable vs. "couldn't confirm" ----------------------
+
+def _flags_by_kind(bill) -> dict:
+    return {f.kind: f for f in detect(bill)}
+
+
+def test_high_confidence_mismatch_is_proven_verified_true():
+    # Same data as the subtotal mismatch above, but with explicit high
+    # confidence on the figures → asserted as a proven discrepancy.
+    bill = _bill(
+        line_items=[
+            _li("A", "40.00", 0, confidence=0.97),
+            _li("B", "120.00", 1, confidence=0.97),
+            _li("C", "50.00", 2, confidence=0.97),
+        ],
+        subtotal=_tv("205.00", confidence=0.97),
+        total_amount=_tv("215.26", confidence=0.97),
+    )
+    flag = _flags_by_kind(bill)[DiscrepancyKind.sum_mismatch]
+    assert flag.verified is True
+
+
+def test_low_confidence_mismatch_is_surfaced_but_not_verified():
+    # A low-confidence line read shouldn't be asserted as a confirmed error —
+    # the flag is still surfaced (no false green "all clear") but verified=False.
+    bill = _bill(
+        line_items=[
+            _li("A", "40.00", 0, confidence=0.30),  # shaky OCR read
+            _li("B", "120.00", 1, confidence=0.95),
+            _li("C", "50.00", 2, confidence=0.95),
+        ],
+        subtotal=_tv("205.00", confidence=0.95),
+        total_amount=_tv("215.26", confidence=0.95),
+    )
+    flags = detect(bill)
+    flag = _flags_by_kind(bill)[DiscrepancyKind.sum_mismatch]
+    assert DiscrepancyKind.sum_mismatch in {f.kind for f in flags}  # still surfaced
+    assert flag.verified is False
+    assert "low confidence" in flag.explanation_text.lower()
+
+
+def test_none_confidence_is_trusted_verified_true():
+    # User-provided / pasted-text figures carry no confidence → trusted as proven.
+    bill = _bill(
+        line_items=[_li("A", "40.00", 0), _li("B", "120.00", 1), _li("C", "50.00", 2)],
+        subtotal=_tv("205.00"),
+        total_amount=_tv("215.26"),
+    )
+    flag = _flags_by_kind(bill)[DiscrepancyKind.sum_mismatch]
+    assert flag.verified is True
+
+
+def test_low_confidence_tax_mismatch_not_verified():
+    bill = _bill(
+        line_items=[_li("A", "700.00", 0)],
+        subtotal=_tv("700.00"),
+        tax_rate=_tv("18"),
+        tax_base=_tv("700.00"),
+        tax_amount=_tv("200.00", confidence=0.25),  # 18% of 700 = 126, not 200
+        total_amount=_tv("900.00"),
+    )
+    flag = _flags_by_kind(bill)[DiscrepancyKind.tax_mismatch]
+    assert flag.verified is False
 
 
 def test_legit_two_units_same_price_with_quantity_not_duplicate():
