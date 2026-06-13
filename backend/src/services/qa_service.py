@@ -356,12 +356,23 @@ def _searchable_text(row: dict[str, Any], items_by_bill: dict[Any, list[str]]) -
     return " ".join(parts)
 
 
-def _load_item_descriptions(db) -> dict[Any, list[str]]:
-    by_bill: dict[Any, list[str]] = {}
+def _load_items_full(db) -> dict[Any, list[dict[str, Any]]]:
+    """Per-bill line items (description + amount) for itemized semantic answers.
+
+    Lets the summarizer break a bill down item-by-item instead of seeing only
+    the total. Amounts are the real stored ``line_total`` values (Principle VI:
+    the answer is grounded in saved records, never invented)."""
+    by_bill: dict[Any, list[dict[str, Any]]] = {}
     for item in db.select("line_items"):
         desc = item.get("description")
-        if desc:
-            by_bill.setdefault(item.get("bill_id"), []).append(desc)
+        if not desc:
+            continue
+        by_bill.setdefault(item.get("bill_id"), []).append(
+            {
+                "item": desc,
+                "amount": str(item["line_total"]) if item.get("line_total") is not None else None,
+            }
+        )
     return by_bill
 
 
@@ -373,6 +384,16 @@ def _summary(row: dict) -> dict:
         "total_amount": str(row.get("total_amount")) if row.get("total_amount") is not None else None,
         "category": row.get("category"),
     }
+
+
+def _summary_with_items(row: dict, items_full: dict[Any, list[dict[str, Any]]]) -> dict:
+    """A semantic record carrying its bill's line-item breakdown when available,
+    so questions like 'break down this bill' can be answered from the items."""
+    summary = _summary(row)
+    items = items_full.get(row.get("id"))
+    if items:
+        summary["line_items"] = items
+    return summary
 
 
 def _unanswerable(reason: Optional[str] = None) -> dict:
@@ -581,6 +602,11 @@ def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
     Either signal alone can surface a bill, so a wording change that misses one
     path is caught by the other; works keyword-only when no embedder is set.
     """
+    # Full line items per bill, used both for keyword matching and to give the
+    # summarizer an itemized breakdown (not just the total).
+    items_full = _load_items_full(db)
+    descriptions = {bid: [it["item"] for it in items] for bid, items in items_full.items()}
+
     matches: list[dict[str, Any]] = []
     if embed_fn is not None:
         from src.services.bill_writer import vector_literal
@@ -597,10 +623,9 @@ def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
     question_tokens = _tokens(question)
     if question_tokens:
         all_rows = _load_bills(db)
-        items_by_bill = _load_item_descriptions(db)
         seen_ids = {m.get("id") for m in matches}
         scored = sorted(
-            ((row, _keyword_score(question_tokens, _searchable_text(row, items_by_bill)))
+            ((row, _keyword_score(question_tokens, _searchable_text(row, descriptions)))
              for row in all_rows if row["id"] not in seen_ids),
             key=lambda pair: -pair[1],
         )
@@ -609,7 +634,7 @@ def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
     if not matches:
         return _unanswerable()
 
-    records = [_summary(m) for m in matches[: k + 1]]
+    records = [_summary_with_items(m, items_full) for m in matches[: k + 1]]
     answer = None
     if llm is not None:
         try:

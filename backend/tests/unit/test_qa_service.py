@@ -70,6 +70,19 @@ def test_unanswerable_when_no_matching_rows():
     assert res["records"] == []
 
 
+def test_semantic_records_carry_line_item_breakdown():
+    # "break down this bill" is a semantic question; the retrieved record must
+    # carry its line items (with amounts) so the answer can itemize, not just
+    # report the total.
+    res = answer_question("what's in my BigBasket bill?", db=_FakeDB())
+    assert res["path"] == "semantic"
+    rec = next(r for r in res["records"] if r["merchant"] == "BigBasket")
+    items = rec.get("line_items")
+    assert items is not None
+    assert {i["item"] for i in items} == {"Tomatoes 1kg", "Paneer Butter Masala"}
+    assert any(i["amount"] == "220.00" for i in items)
+
+
 def test_semantic_returns_real_retrieved_records():
     res = answer_question(
         "find the bill with vegetables", db=_FakeDB(), embed_fn=lambda q: [0.1] * 384

@@ -240,13 +240,16 @@ class ChatLLMService(LLMService):
         system = (
             "You answer a spending question using ONLY the provided records — real "
             "bills the system already retrieved as the closest matches, so assume "
-            "they are relevant. Each record has merchant, amount, date, and category. "
-            "Reason from ALL available fields, especially merchant, amount, and date. "
-            "A missing/null field (e.g. category) means 'unknown' — it is NOT evidence "
-            "that a record is irrelevant, so never dismiss a clearly relevant bill "
-            "because its category is null. Do not invent any figure not present in the "
-            "records. Only say the information is unavailable if the records are truly "
-            "unrelated to the question."
+            "they are relevant. Each record has merchant, total amount, date, "
+            "category, and MAY include line_items (each an item with its amount). "
+            "Reason from ALL available fields. When the user asks what is in a bill "
+            "or to break it down, list that bill's line_items with their amounts; if "
+            "a record has no line_items, say only the total is available for that "
+            "bill. A missing/null field (e.g. category) means 'unknown' — it is NOT "
+            "evidence that a record is irrelevant, so never dismiss a clearly "
+            "relevant bill because its category is null. Do not invent any figure "
+            "not present in the records. Only say the information is unavailable if "
+            "the records are truly unrelated to the question."
             + _lang_clause()
         )
         user = json.dumps({"question": question, "records": retrieved_records})
