@@ -40,7 +40,16 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
 
-from src.models import ArtifactKind, Bill, BillType, LineItem, Provenance, SourceRef, TracedValue
+from src.models import (
+    ArtifactKind,
+    Bill,
+    BillType,
+    LineItem,
+    Provenance,
+    SourceRef,
+    TaxLine,
+    TracedValue,
+)
 from src.services.parsers import detect_bill_type
 from src.services.parsers.inr import INRParseError, parse_inr
 
@@ -178,22 +187,29 @@ def _bill_date(value: Any, raw_lines: list[str], conf: float) -> Optional[Traced
 
 
 def _tax(data: dict[str, Any], raw_lines: list[str], conf: float) -> tuple[
-    Optional[TracedValue], Optional[TracedValue]
+    Optional[TracedValue], Optional[TracedValue], list[TaxLine]
 ]:
-    """(tax_amount, tax_rate): single printed figure, else components summed in code."""
+    """(tax_amount, tax_rate, tax_lines).
+
+    A single printed total-tax figure yields one named line ("Tax"); a printed
+    component split (CGST/SGST/IGST/Cess/… — whatever the bill labels them)
+    yields one line per component, preserving each printed name, summed in code
+    for the canonical ``tax_amount``.
+    """
     tax_amount = _traced_amount(data.get("tax_amount"), raw_lines, conf)
     rate = _amount(data.get("tax_rate"))
     tax_rate = _traced(_decimal_str(rate), raw_lines, conf) if rate is not None else None
     if tax_amount is not None:
-        return tax_amount, tax_rate
+        return tax_amount, tax_rate, [TaxLine(name="Tax", rate=tax_rate, amount=tax_amount)]
 
     components = data.get("tax_components")
     if not isinstance(components, list):
-        return None, tax_rate
+        return None, tax_rate, []
     comp_total = Decimal(0)
     comp_rates: list[Decimal] = []
     count = 0
     first_ref: Optional[SourceRef] = None
+    tax_lines: list[TaxLine] = []
     for comp in components:
         if not isinstance(comp, dict):
             continue
@@ -202,12 +218,28 @@ def _tax(data: dict[str, Any], raw_lines: list[str], conf: float) -> tuple[
             continue
         comp_total += amount
         count += 1
-        first_ref = first_ref or _trace(raw_lines, _str(comp.get("amount")))
+        ref = _trace(raw_lines, _str(comp.get("amount")))
+        first_ref = first_ref or ref
         comp_rate = _amount(comp.get("rate"))
+        comp_rate_tv = (
+            _traced(_decimal_str(comp_rate), raw_lines, conf) if comp_rate is not None else None
+        )
         if comp_rate is not None:
             comp_rates.append(comp_rate)
+        tax_lines.append(
+            TaxLine(
+                name=_str(comp.get("name")) or "Tax",
+                rate=comp_rate_tv,
+                amount=TracedValue(
+                    value=_decimal_str(amount),
+                    provenance=Provenance.extracted,
+                    confidence=conf,
+                    source_ref=ref,
+                ),
+            )
+        )
     if count == 0:
-        return None, tax_rate
+        return None, tax_rate, []
     tax_amount = TracedValue(
         value=_decimal_str(comp_total),
         provenance=Provenance.extracted,
@@ -231,7 +263,7 @@ def _tax(data: dict[str, Any], raw_lines: list[str], conf: float) -> tuple[
             )
     elif comp_rates:
         tax_rate = None
-    return tax_amount, tax_rate
+    return tax_amount, tax_rate, tax_lines
 
 
 def _line_items(data: dict[str, Any], raw_lines: list[str], conf: float) -> list[LineItem]:
@@ -311,6 +343,15 @@ def _reconf(tv: TracedValue, conf: float) -> TracedValue:
     return tv.model_copy(update={"confidence": conf})
 
 
+def _reconf_taxline(tl: TaxLine, conf: float) -> TaxLine:
+    return tl.model_copy(
+        update={
+            "amount": _reconf(tl.amount, conf),
+            "rate": _reconf(tl.rate, conf) if tl.rate is not None else None,
+        }
+    )
+
+
 def _bill_type(data: dict[str, Any], raw_text: str, hint: Optional[str]) -> BillType:
     if hint in (BillType.telecom_recharge.value, BillType.grocery.value):
         return BillType(hint)
@@ -371,7 +412,7 @@ def extract_bill(
     bill_type = _bill_type(data, raw_text, bill_type_hint)
     total = _traced_amount(data.get("total_amount"), raw_lines, conf("total_amount"))
     subtotal = _traced_amount(data.get("subtotal"), raw_lines, conf("subtotal"))
-    tax_amount, tax_rate = _tax(data, raw_lines, conf("tax"))
+    tax_amount, tax_rate, tax_lines = _tax(data, raw_lines, conf("tax"))
     line_items = _line_items(data, raw_lines, conf("line_items"))
 
     # Backfill scalars the model transcribed but failed to structure: parse
@@ -388,6 +429,8 @@ def extract_bill(
             tax_amount = _reconf(salvaged.tax_amount, conf("tax"))
             if tax_rate is None and salvaged.tax_rate is not None:
                 tax_rate = _reconf(salvaged.tax_rate, conf("tax"))
+            if not tax_lines and salvaged.tax_lines:
+                tax_lines = [_reconf_taxline(tl, conf("tax")) for tl in salvaged.tax_lines]
             logger.info("vision: tax backfilled from transcript")
 
     if total is None and not line_items:
@@ -414,6 +457,7 @@ def extract_bill(
         tax_rate=tax_rate,
         tax_base=tax_base,
         tax_amount=tax_amount,
+        tax_lines=tax_lines,
         total_amount=total or TracedValue(value=None, provenance=Provenance.extracted),
         line_items=line_items,
         # A known-partial extraction can't itemize the whole bill, so its sums

@@ -120,6 +120,19 @@ def _process_classic(
     return refine(result, candidate)
 
 
+def _finalize(bill: Bill) -> Bill:
+    """Code-side post-processing shared by every extraction path.
+
+    Recovers a tax the recognizer missed from the printed subtotal/total so it
+    is shown for review and a reconciling bill isn't falsely flagged. Pure
+    arithmetic over already-extracted figures (Principle I).
+    """
+    from src.services.arithmetic_service import derive_tax_if_missing
+
+    derive_tax_if_missing(bill)
+    return bill
+
+
 def process_inputs(
     files: Optional[list[tuple[bytes, str, str]]] = None,
     text: Optional[str] = None,
@@ -136,10 +149,10 @@ def process_inputs(
             from src.services.extraction import vision
 
             try:
-                return vision.extract_bill(images, bill_type_hint, partial=partial)
+                return _finalize(vision.extract_bill(images, bill_type_hint, partial=partial))
             except vision.VisionExtractionError as exc:
                 logger.warning(
                     "vision extraction unavailable, falling back to local OCR: %s", exc
                 )
 
-    return _process_classic(files, text, bill_type_hint)
+    return _finalize(_process_classic(files, text, bill_type_hint))

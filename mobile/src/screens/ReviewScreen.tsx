@@ -29,9 +29,14 @@ const LOW_CONFIDENCE = 0.6;
 
 type Traced = { value?: string | null; provenance?: string; confidence?: number | null; source_ref?: unknown };
 type LineItem = { position: number; description?: Traced; line_total?: Traced };
+type TaxLine = { name: string; rate?: Traced | null; amount?: Traced };
 type Candidate = {
   merchant?: Traced;
   bill_date?: Traced | null;
+  subtotal?: Traced | null;
+  tax_rate?: Traced | null;
+  tax_amount?: Traced | null;
+  tax_lines?: TaxLine[];
   total_amount?: Traced;
   line_items?: LineItem[];
   discrepancies?: DiscrepancyFlag[];
@@ -65,7 +70,21 @@ export function ReviewScreen({
   const [merchant, setMerchant] = useState(candidate.merchant?.value ?? "");
   const [date, setDate] = useState(candidate.bill_date?.value ?? "");
   const [category, setCategory] = useState(candidate.category?.name ?? "Other");
+  // Amounts are editable so a misread or missing tax/subtotal can be corrected.
+  // On save the backend re-runs discrepancy detection over these values, and a
+  // corrected (user_provided) figure is trusted — so adding a tax the scan
+  // missed clears the false "doesn't add up" flag instead of persisting it.
+  const [subtotal, setSubtotal] = useState(candidate.subtotal?.value ?? "");
+  const [taxAmount, setTaxAmount] = useState(candidate.tax_amount?.value ?? "");
+  const [total, setTotal] = useState(candidate.total_amount?.value ?? "");
   const [busy, setBusy] = useState(false);
+
+  // Named tax breakdown (CGST/SGST/Cess/VAT/…) — read-only; the editable Tax
+  // field below is the total the discrepancy check reads. Only show the
+  // breakdown when there are 2+ lines (a single tax needs no breakdown).
+  const taxBreakdown = candidate.tax_lines ?? [];
+  const showBreakdown = taxBreakdown.length >= 2;
+  const taxLabel = t("tax") + (candidate.tax_rate?.value ? ` (${candidate.tax_rate.value}%)` : "");
 
   // Missing-date prompt (#8): choose to read the date off the bill (photo
   // shown) or set one manually; either way the value is user_provided.
@@ -85,6 +104,15 @@ export function ReviewScreen({
       }
       if (date !== (candidate.bill_date?.value ?? "")) {
         payload.bill_date = date ? userProvided(date) : null;
+      }
+      if (subtotal !== (candidate.subtotal?.value ?? "")) {
+        payload.subtotal = subtotal ? userProvided(subtotal) : null;
+      }
+      if (taxAmount !== (candidate.tax_amount?.value ?? "")) {
+        payload.tax_amount = taxAmount ? userProvided(taxAmount) : null;
+      }
+      if (total !== (candidate.total_amount?.value ?? "")) {
+        payload.total_amount = userProvided(total);
       }
       payload.category = { name: category };
 
@@ -164,11 +192,38 @@ export function ReviewScreen({
         </View>
       ))}
 
-      <View style={styles.totalRow}>
-        <Text style={[styles.totalLabel, { color: c.text }]}>{t("total")}</Text>
-        <Text style={[styles.totalValue, { color: c.text }]}>
-          ₹{candidate.total_amount?.value ?? "—"}
-        </Text>
+      <View style={styles.amounts}>
+        <MoneyField
+          label={t("subtotal")}
+          value={subtotal}
+          onChangeText={setSubtotal}
+          low={isLow(candidate.subtotal)}
+        />
+        {showBreakdown &&
+          taxBreakdown.map((tl, i) => (
+            <View key={i} style={styles.taxLineRow}>
+              <Text style={[styles.taxLineLabel, { color: c.muted }]}>
+                {tl.name}
+                {tl.rate?.value ? ` (${tl.rate.value}%)` : ""}
+              </Text>
+              <Text style={[styles.taxLineAmount, { color: c.muted }]}>
+                ₹{tl.amount?.value ?? "—"}
+              </Text>
+            </View>
+          ))}
+        <MoneyField
+          label={taxLabel}
+          value={taxAmount}
+          onChangeText={setTaxAmount}
+          low={isLow(candidate.tax_amount)}
+        />
+        <MoneyField
+          label={t("total")}
+          value={total}
+          onChangeText={setTotal}
+          low={isLow(candidate.total_amount)}
+          bold
+        />
       </View>
 
       <View style={styles.saveBtn}>
@@ -271,6 +326,41 @@ export function ReviewScreen({
   );
 }
 
+function MoneyField({
+  label,
+  value,
+  onChangeText,
+  low,
+  bold,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (s: string) => void;
+  low?: boolean;
+  bold?: boolean;
+}) {
+  const { c } = useTheme();
+  return (
+    <View style={styles.moneyRow}>
+      <Text style={[bold ? styles.totalLabel : styles.moneyLabel, { color: c.text }]}>
+        {label}
+        {low ? <Text style={[styles.flag, { color: c.warn }]}> ⚠ check</Text> : null}
+      </Text>
+      <View style={[styles.moneyInputWrap, { backgroundColor: c.card, borderColor: c.line }]}>
+        <Text style={[styles.rupee, { color: c.muted }]}>₹</Text>
+        <TextInput
+          style={[styles.moneyInput, bold && styles.moneyInputBold, { color: c.text }]}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          placeholder="0.00"
+          placeholderTextColor={c.muted}
+        />
+      </View>
+    </View>
+  );
+}
+
 function Field({ label, low, children }: { label: string; low?: boolean; children: React.ReactNode }) {
   const { c } = useTheme();
   return (
@@ -300,9 +390,37 @@ const styles = StyleSheet.create({
   },
   itemDesc: { flex: 1, paddingRight: 12, fontFamily: fonts.body, fontSize: 14.5 },
   itemAmount: { fontVariant: ["tabular-nums"], fontFamily: fonts.bodySemi, fontSize: 14.5 },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
-  totalLabel: { fontFamily: fonts.bodyHeavy, fontSize: 16 },
-  totalValue: { fontFamily: fonts.display, fontSize: 18, fontVariant: ["tabular-nums"] },
+  amounts: { marginTop: 14, gap: 8 },
+  taxLineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: 10,
+  },
+  taxLineLabel: { fontFamily: fonts.body, fontSize: 13.5 },
+  taxLineAmount: { fontFamily: fonts.body, fontSize: 13.5, fontVariant: ["tabular-nums"] },
+  moneyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  moneyLabel: { fontFamily: fonts.bodyBold, fontSize: 15, flexShrink: 1 },
+  totalLabel: { fontFamily: fonts.bodyHeavy, fontSize: 16, flexShrink: 1 },
+  moneyInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    minWidth: 130,
+  },
+  rupee: { fontFamily: fonts.bodySemi, fontSize: 14.5 },
+  moneyInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingLeft: 4,
+    textAlign: "right",
+    fontFamily: fonts.bodySemi,
+    fontSize: 14.5,
+    fontVariant: ["tabular-nums"],
+  },
+  moneyInputBold: { fontFamily: fonts.display, fontSize: 17 },
   saveBtn: { marginTop: 20 },
 
   backdrop: {

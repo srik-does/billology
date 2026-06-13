@@ -71,6 +71,22 @@ class LineItem(BaseModel):
     line_total: TracedValue
 
 
+class TaxLine(BaseModel):
+    """One named tax component exactly as printed (CGST, SGST, IGST, Cess, VAT…).
+
+    Display/breakdown detail beside the canonical, code-summed ``Bill.tax_amount``
+    (which stays the single figure arithmetic and discrepancy checks read).
+    ``name`` is the label printed on the bill — not a fixed enum — so any tax
+    type is carried, not just the GST split. ``rate`` is the component's printed
+    percentage when present; ``amount`` is the code-validated figure.
+    """
+
+    id: Optional[UUID] = None
+    name: str
+    rate: Optional[TracedValue] = None
+    amount: TracedValue
+
+
 class DiscrepancyFlag(BaseModel):
     kind: DiscrepancyKind
     conflicting_figures: dict[str, Any]
@@ -114,6 +130,7 @@ class Bill(BaseModel):
     tax_rate: Optional[TracedValue] = None
     tax_base: Optional[TracedValue] = None
     tax_amount: Optional[TracedValue] = None
+    tax_lines: list[TaxLine] = Field(default_factory=list)
     total_amount: TracedValue
     category: Optional[Category] = None
     line_items: list[LineItem] = Field(default_factory=list)

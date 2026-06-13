@@ -95,6 +95,14 @@ def test_transcription_is_validated_summed_in_code_and_traced(monkeypatch):
     assert Decimal(bill.tax_amount.value) == Decimal("15.00")
     assert Decimal(bill.tax_rate.value) == Decimal("5.0")
 
+    # Each printed component is preserved by name in the breakdown, while the
+    # summed figure above stays the single tax the arithmetic checks read.
+    assert [(tl.name, tl.amount.value) for tl in bill.tax_lines] == [
+        ("CGST", "7.50"),
+        ("SGST", "7.50"),
+    ]
+    assert [tl.rate.value for tl in bill.tax_lines] == ["2.5", "2.5"]
+
     assert [li.line_total.value for li in bill.line_items] == ["425.00", "180.00"]
     assert bill.line_items[0].description.source_ref.raw_text == "Rice 5kg 1 425.00 425.00"
 
@@ -178,7 +186,21 @@ def test_transcribed_but_unstructured_tax_is_backfilled(monkeypatch):
     assert Decimal(bill.tax_amount.value) == Decimal("15.00")  # CGST+SGST from raw_lines
     assert Decimal(bill.tax_rate.value) == Decimal("5.0")
     assert bill.tax_amount.source_ref.raw_text == "CGST 2.5% 7.50"
+    # The named breakdown is recovered from the transcript too (deterministic).
+    assert [tl.name for tl in bill.tax_lines] == ["CGST", "SGST"]
     assert detect_discrepancies(bill) == []
+
+
+def test_single_tax_amount_yields_one_named_line(monkeypatch):
+    # A bill stating one combined tax figure produces a single "Tax" line; the
+    # breakdown is suppressed in the UI for the single-line case.
+    payload = _payload()
+    payload["tax_components"] = []
+    payload["tax_amount"] = "15.00"
+    payload["tax_rate"] = "5"
+    _patch_llm(monkeypatch, FakeLLM(payload=payload))
+    bill = vision.extract_bill([_img()])
+    assert [(tl.name, tl.amount.value) for tl in bill.tax_lines] == [("Tax", "15.00")]
 
 
 def test_transcribed_but_unstructured_total_is_backfilled(monkeypatch):

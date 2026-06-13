@@ -10,6 +10,7 @@ from .schemas import (
     Provenance,
     SourceArtifact,
     SourceRef,
+    TaxLine,
     TracedValue,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "Provenance",
     "SourceArtifact",
     "SourceRef",
+    "TaxLine",
     "TracedValue",
 ]

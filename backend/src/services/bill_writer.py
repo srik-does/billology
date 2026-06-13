@@ -192,6 +192,25 @@ def line_item_rows(bill_id: str, bill: Bill) -> list[dict[str, Any]]:
     return rows
 
 
+def tax_line_rows(bill_id: str, bill: Bill) -> list[dict[str, Any]]:
+    """Map the named tax breakdown to ``tax_lines`` rows (migration 005)."""
+    rows = []
+    for pos, tl in enumerate(bill.tax_lines):
+        rows.append(
+            {
+                "bill_id": bill_id,
+                "position": pos,
+                "name": tl.name,
+                "rate": _num(tl.rate),
+                "amount": _num(tl.amount),
+                "amount_provenance": _prov(tl.amount),
+                "amount_source_ref": _ref(tl.amount),
+                "amount_confidence": tl.amount.confidence if tl.amount else None,
+            }
+        )
+    return rows
+
+
 def flag_rows(bill_id: str, bill: Bill) -> list[dict[str, Any]]:
     return [
         {
@@ -274,6 +293,8 @@ def save_bill(
 
     for row in line_item_rows(bill_id, bill):
         db.insert_row("line_items", row)
+    for row in tax_line_rows(bill_id, bill):
+        db.insert_row("tax_lines", row)
     for row in flag_rows(bill_id, bill):
         db.insert_row("discrepancy_flags", row)
     expl = explanation_row(bill_id, bill)

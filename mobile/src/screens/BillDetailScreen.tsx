@@ -13,6 +13,7 @@ type LineItem = {
   description?: Traced;
   line_total?: Traced;
 };
+type TaxLine = { name: string; rate?: Traced | null; amount?: Traced };
 export type BillCandidate = {
   merchant?: Traced;
   bill_type?: string;
@@ -20,6 +21,7 @@ export type BillCandidate = {
   subtotal?: Traced | null;
   tax_rate?: Traced | null;
   tax_amount?: Traced | null;
+  tax_lines?: TaxLine[];
   total_amount?: Traced;
   line_items?: LineItem[];
   discrepancies?: DiscrepancyFlag[];
@@ -69,12 +71,22 @@ export function BillDetailScreen({ bill }: { bill: BillCandidate }) {
 
       <View style={styles.totals}>
         {bill.subtotal?.value && <Row label="Subtotal" value={money(bill.subtotal)} />}
-        {bill.tax_amount?.value && (
-          <Row
-            label={`Tax${bill.tax_rate?.value ? ` (${bill.tax_rate.value}%)` : ""}`}
-            value={money(bill.tax_amount)}
-          />
-        )}
+        {/* Named breakdown when present (CGST/SGST/Cess/VAT/…); otherwise the
+            single summed tax figure. */}
+        {bill.tax_lines && bill.tax_lines.length > 0
+          ? bill.tax_lines.map((tl, i) => (
+              <Row
+                key={i}
+                label={`${tl.name}${tl.rate?.value ? ` (${tl.rate.value}%)` : ""}`}
+                value={money(tl.amount)}
+              />
+            ))
+          : bill.tax_amount?.value && (
+              <Row
+                label={`Tax${bill.tax_rate?.value ? ` (${bill.tax_rate.value}%)` : ""}`}
+                value={money(bill.tax_amount)}
+              />
+            )}
         <Row label="Total" value={money(bill.total_amount)} bold />
       </View>
     </ScrollView>
