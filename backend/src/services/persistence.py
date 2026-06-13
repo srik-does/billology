@@ -42,19 +42,16 @@ def _service() -> Any:
 def _user_client(token: str) -> Any:
     """A client that talks to the DB AS the caller, so RLS isolates their data.
 
-    Built with the anon key + the user's access token as the Authorization
-    bearer; PostgREST then resolves ``auth.uid()`` from the token and RLS
-    policies scope every row to that user.
+    Built with the anon key, then PostgREST is authed with the user's access
+    token (``postgrest.auth``) so the database resolves ``auth.uid()`` from it
+    and RLS policies scope every row to that user. We set the token on the
+    sub-client rather than via ClientOptions headers, which differ across
+    supabase-py versions. Storage is handled separately by the service client.
     """
     client = _user_clients.get(token)
     if client is not None:
         return client
     from supabase import create_client
-
-    try:
-        from supabase.lib.client_options import ClientOptions
-    except Exception:  # pragma: no cover - import path varies by version
-        from supabase import ClientOptions  # type: ignore
 
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_anon_key:
@@ -62,8 +59,9 @@ def _user_client(token: str) -> Any:
             "SUPABASE_URL and SUPABASE_ANON_KEY are required for user-scoped "
             "(RLS) database access. Set them in backend/.env."
         )
-    options = ClientOptions(headers={"Authorization": f"Bearer {token}"})
-    client = create_client(settings.supabase_url, settings.supabase_anon_key, options)
+    client = create_client(settings.supabase_url, settings.supabase_anon_key)
+    # Run all PostgREST (table + rpc) calls as this user → RLS enforces isolation.
+    client.postgrest.auth(token)
     if len(_user_clients) > 64:  # bound the cache (many concurrent users)
         _user_clients.clear()
     _user_clients[token] = client
