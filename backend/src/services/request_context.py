@@ -16,6 +16,15 @@ llm_overrides: ContextVar[dict] = ContextVar("llm_overrides", default={})
 # One of SUPPORTED_LANGUAGES below (ISO 639-1).
 language: ContextVar[str] = ContextVar("language", default="en")
 
+# The caller's raw Supabase access token (JWT), set by middleware from the
+# Authorization header. persistence reads it to talk to the database AS the
+# user, so Postgres RLS enforces per-user data isolation. Empty = no
+# authenticated user (admin/service path or an unauthenticated request).
+auth_token: ContextVar[str] = ContextVar("auth_token", default="")
+
+# The authenticated user's id (JWT `sub`), set once the token is verified.
+user_id: ContextVar[str] = ContextVar("user_id", default="")
+
 # English + 12 Indian languages. Keep in sync with the mobile Language type,
 # the web language <select>, qa_service._TEMPLATES, and llm_service._LANG_NAMES
 # (test_i18n.py enforces the backend side).

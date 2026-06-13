@@ -7,28 +7,79 @@ client never reaches Supabase directly (Principle IV — single trust boundary).
 from __future__ import annotations
 
 import uuid
-from functools import lru_cache
 from typing import Any, Optional
 
 from src.config import get_settings
+from src.services.request_context import auth_token
 
 
 class PersistenceError(RuntimeError):
     """Raised when a database write fails or returns no row (never swallowed)."""
 
 
-@lru_cache
-def get_client():
-    """Return a cached Supabase client built from service credentials."""
+_service_client = None
+# Bounded cache of per-user clients, keyed by access token. Tokens rotate on
+# refresh, so stale entries are simply superseded and eventually evicted.
+_user_clients: dict[str, Any] = {}
+
+
+def _service() -> Any:
+    """The service-role client — bypasses RLS. For admin/seed/no-auth paths."""
+    global _service_client
+    if _service_client is None:
+        from supabase import create_client
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_key:
+            raise RuntimeError(
+                "Supabase credentials missing. Set SUPABASE_URL and SUPABASE_KEY "
+                "(or SUPABASE_SERVICE_KEY) in backend/.env."
+            )
+        _service_client = create_client(settings.supabase_url, settings.supabase_key)
+    return _service_client
+
+
+def _user_client(token: str) -> Any:
+    """A client that talks to the DB AS the caller, so RLS isolates their data.
+
+    Built with the anon key + the user's access token as the Authorization
+    bearer; PostgREST then resolves ``auth.uid()`` from the token and RLS
+    policies scope every row to that user.
+    """
+    client = _user_clients.get(token)
+    if client is not None:
+        return client
     from supabase import create_client
 
+    try:
+        from supabase.lib.client_options import ClientOptions
+    except Exception:  # pragma: no cover - import path varies by version
+        from supabase import ClientOptions  # type: ignore
+
     settings = get_settings()
-    if not settings.supabase_url or not settings.supabase_key:
+    if not settings.supabase_url or not settings.supabase_anon_key:
         raise RuntimeError(
-            "Supabase credentials missing. Set SUPABASE_URL and SUPABASE_KEY "
-            "(or SUPABASE_SERVICE_KEY) in backend/.env."
+            "SUPABASE_URL and SUPABASE_ANON_KEY are required for user-scoped "
+            "(RLS) database access. Set them in backend/.env."
         )
-    return create_client(settings.supabase_url, settings.supabase_key)
+    options = ClientOptions(headers={"Authorization": f"Bearer {token}"})
+    client = create_client(settings.supabase_url, settings.supabase_anon_key, options)
+    if len(_user_clients) > 64:  # bound the cache (many concurrent users)
+        _user_clients.clear()
+    _user_clients[token] = client
+    return client
+
+
+def get_client():
+    """Return the Supabase client for the current request.
+
+    When the caller is authenticated (a token is on the request context), the
+    client runs under their identity so Postgres RLS enforces per-user data
+    isolation. With no token it falls back to the service-role client, used by
+    admin scripts, seeding, and any unauthenticated internal path.
+    """
+    token = auth_token.get()
+    return _user_client(token) if token else _service()
 
 
 # --- Storage --------------------------------------------------------------
@@ -36,11 +87,14 @@ def get_client():
 def upload_artifact(file_bytes: bytes, filename: str, content_type: str) -> str:
     """Upload an original bill artifact to the private bucket; return its path.
 
-    The bucket is private; readers must mint a signed URL (see ``signed_url``).
+    Storage uses the service client (bypasses storage RLS). Per-user isolation
+    still holds: a file's path is only reachable through its bill row, which is
+    RLS-scoped to the owner, and signed URLs are minted server-side only for
+    bills the caller can read.
     """
     settings = get_settings()
     path = f"{uuid.uuid4()}/{filename}"
-    get_client().storage.from_(settings.supabase_bucket).upload(
+    _service().storage.from_(settings.supabase_bucket).upload(
         path, file_bytes, {"content-type": content_type, "upsert": "false"}
     )
     return path
@@ -48,7 +102,7 @@ def upload_artifact(file_bytes: bytes, filename: str, content_type: str) -> str:
 
 def signed_url(path: str, expires_in: int = 3600) -> str:
     settings = get_settings()
-    resp = get_client().storage.from_(settings.supabase_bucket).create_signed_url(
+    resp = _service().storage.from_(settings.supabase_bucket).create_signed_url(
         path, expires_in
     )
     return resp.get("signedURL") or resp.get("signed_url", "")

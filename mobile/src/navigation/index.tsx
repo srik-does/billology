@@ -20,6 +20,8 @@ import { QAChatScreen } from "../screens/QAChatScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { HelpScreen } from "../screens/HelpScreen";
+import { SignInScreen } from "../screens/SignInScreen";
+import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { fonts, useTheme } from "../theme";
 
@@ -147,6 +149,7 @@ function BillDetailRoute({ route }: NativeStackScreenProps<RootStackParamList, "
 export function RootNavigator() {
   const t = useT();
   const { c, mode } = useTheme();
+  const { session, loading } = useAuth();
 
   const navTheme = {
     ...DefaultTheme,
@@ -160,6 +163,12 @@ export function RootNavigator() {
       border: c.line,
     },
   };
+
+  // Mandatory sign-in: until a session exists, the only screen is the gate.
+  // (While the persisted session is being restored, render nothing — the
+  // splash overlay in App.tsx is still covering the screen.)
+  if (loading) return null;
+  if (!session) return <SignInScreen />;
 
   return (
     <NavigationContainer theme={navTheme}>

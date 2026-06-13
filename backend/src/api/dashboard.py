@@ -5,14 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from src.services import dashboard_service
+from src.services.auth import require_user
 from src.services.persistence import PersistenceError
 
 logger = logging.getLogger("billology.dashboard")
-router = APIRouter(tags=["dashboard"])
+router = APIRouter(tags=["dashboard"], dependencies=[Depends(require_user)])
 
 
 @router.get("/dashboard/by-category")

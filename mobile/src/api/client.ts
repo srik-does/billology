@@ -3,11 +3,22 @@
 // Provider/language preferences travel as headers (see store.ts); the backend
 // holds all credentials except a user's own optional Groq key.
 
+import { getAccessToken } from "../auth";
 import { settingsHeaders } from "../store";
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ?? "http://localhost:8000";
 console.log("[API_BASE]", API_BASE);
+
+// Settings/language headers plus the signed-in user's bearer token. The backend
+// requires the token on every bill/dashboard/Q&A route and scopes data to the
+// user via it (RLS), so this rides on every request.
+function authedHeaders(): Record<string, string> {
+  const headers = settingsHeaders();
+  const token = getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -77,14 +88,14 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return handle<T>(await fetchResilient(path, { headers: settingsHeaders() }));
+  return handle<T>(await fetchResilient(path, { headers: authedHeaders() }));
 }
 
 export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
   return handle<T>(
     await fetchResilient(path, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...settingsHeaders() },
+      headers: { "Content-Type": "application/json", ...authedHeaders() },
       body: JSON.stringify(body),
     })
   );
@@ -94,7 +105,7 @@ export async function apiPostForm<T>(path: string, form: FormData, retries = 9):
   return handle<T>(
     await fetchResilient(
       path,
-      { method: "POST", headers: settingsHeaders(), body: form },
+      { method: "POST", headers: authedHeaders(), body: form },
       retries
     )
   );
@@ -102,7 +113,7 @@ export async function apiPostForm<T>(path: string, form: FormData, retries = 9):
 
 export async function apiDelete<T>(path: string): Promise<T> {
   return handle<T>(
-    await fetchResilient(path, { method: "DELETE", headers: settingsHeaders() })
+    await fetchResilient(path, { method: "DELETE", headers: authedHeaders() })
   );
 }
 

@@ -7,15 +7,30 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://billology.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://japlbiusddvbuongubmo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_aEprpZVINHCgDho9UMtCBg_1-IHDjmV"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://billology.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://japlbiusddvbuongubmo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_aEprpZVINHCgDho9UMtCBg_1-IHDjmV"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" }
+      "android": { "buildType": "app-bundle" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://billology.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://japlbiusddvbuongubmo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_aEprpZVINHCgDho9UMtCBg_1-IHDjmV"
+      }
     }
   },
   "submit": {

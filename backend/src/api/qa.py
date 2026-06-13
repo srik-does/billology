@@ -9,16 +9,17 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.services import persistence
+from src.services.auth import require_user
 from src.services.persistence import PersistenceError
 from src.services.qa_service import answer_question
 
 logger = logging.getLogger("billology.qa")
-router = APIRouter(tags=["qa"])
+router = APIRouter(tags=["qa"], dependencies=[Depends(require_user)])
 
 
 class QARequest(BaseModel):

@@ -3,11 +3,12 @@
 // plus the help & guide entry. Choices apply immediately; client.ts attaches
 // provider/language as headers on every call.
 
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
+import { getUserEmail, signOut } from "../auth";
 import { Card, Chip } from "../components/UI";
 import { LANGUAGE_OPTIONS, useT } from "../i18n";
 import type { RootStackParamList } from "../navigation";
@@ -28,8 +29,43 @@ export function SettingsScreen() {
     { id: "ollama", label: t("providerOllama") },
   ];
 
+  const email = getUserEmail();
+
+  function onSignOut() {
+    Alert.alert(t("signOut"), t("signOutConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("signOut"), style: "destructive", onPress: () => void signOut() },
+    ]);
+  }
+
   return (
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={styles.container}>
+      <Card style={styles.card}>
+        <Text style={[styles.section, { color: c.text }]}>{t("account")}</Text>
+        <View style={styles.accountRow}>
+          <View style={[styles.avatar, { backgroundColor: c.accentSoft }]}>
+            <Ionicons name="person-outline" size={20} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.signedInAs, { color: c.muted }]}>{t("signedInAs")}</Text>
+            <Text style={[styles.email, { color: c.text }]} numberOfLines={1}>
+              {email ?? "—"}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onSignOut}
+            style={({ pressed }) => [
+              styles.signOutBtn,
+              { borderColor: c.line },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Ionicons name="log-out-outline" size={16} color={c.warn} />
+            <Text style={[styles.signOutText, { color: c.warn }]}>{t("signOut")}</Text>
+          </Pressable>
+        </View>
+      </Card>
+
       <Card style={styles.card}>
         <Text style={[styles.section, { color: c.text }]}>{t("appearance")}</Text>
         <View style={styles.rowWrap}>
@@ -169,6 +205,20 @@ const styles = StyleSheet.create({
   container: { padding: 14, gap: 12, paddingBottom: 28 },
   card: { gap: 10 },
   section: { fontSize: 15, fontFamily: fonts.bodyHeavy },
+  accountRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  signedInAs: { fontFamily: fonts.body, fontSize: 11.5 },
+  email: { fontFamily: fonts.bodyBold, fontSize: 14.5 },
+  signOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  signOutText: { fontFamily: fonts.bodyBold, fontSize: 13 },
   rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   colGap: { gap: 8, alignItems: "flex-start" },
   field: { gap: 4, marginTop: 6 },

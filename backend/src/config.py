@@ -29,6 +29,13 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_SERVICE_KEY"),
     )
+    # Anon (publishable) key — used together with the caller's JWT so all
+    # user-facing DB access runs under Postgres RLS as that user (per-user data
+    # isolation). The service key is reserved for admin/no-auth fallbacks.
+    supabase_anon_key: str = ""
+    # HS256 secret that signs Supabase Auth JWTs — used to verify the access
+    # token the mobile client sends, authenticating the user at the boundary.
+    supabase_jwt_secret: str = ""
     supabase_bucket: str = "bills"
 
     # LLM provider: "groq" (cloud) or "ollama" (local inference). Per-request

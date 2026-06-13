@@ -35,7 +35,20 @@ async def request_context_middleware(request: Request, call_next):
     request_context.SUPPORTED_LANGUAGES). The clients still only ever talk to
     this backend — never to a provider directly.
     """
-    from src.services.request_context import SUPPORTED_LANGUAGES, language, llm_overrides
+    from src.services.request_context import (
+        SUPPORTED_LANGUAGES,
+        auth_token,
+        language,
+        llm_overrides,
+    )
+
+    # Forward the caller's Supabase access token to the DB layer so every query
+    # runs under Postgres RLS as that user (per-user isolation). We only carry
+    # the raw token here; signature verification + 401s happen in the
+    # require_user route dependency (services/auth.py).
+    bearer = (request.headers.get("authorization") or "").strip()
+    token_value = bearer[7:].strip() if bearer[:7].lower() == "bearer " else ""
+    token_auth = auth_token.set(token_value)
 
     overrides: dict = {}
     provider = (request.headers.get("x-llm-provider") or "").strip().lower()
@@ -62,6 +75,7 @@ async def request_context_middleware(request: Request, call_next):
     finally:
         llm_overrides.reset(token_overrides)
         language.reset(token_language)
+        auth_token.reset(token_auth)
 
 
 _WEB_INDEX = Path(__file__).parent / "web" / "index.html"

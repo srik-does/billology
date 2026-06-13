@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
@@ -27,9 +27,11 @@ from src.models import (
     LineItem,
     Provenance,
     SourceRef,
+    TaxLine,
     TracedValue,
 )
 from src.services import persistence
+from src.services.auth import require_user
 from src.services.bill_writer import save_bill
 from src.services.category_service import suggest_category
 from src.services.discrepancy_service import detect as detect_discrepancies
@@ -38,7 +40,9 @@ from src.services.extraction import NotABillError, process_inputs
 from src.services.persistence import PersistenceError
 
 logger = logging.getLogger("billology.bills")
-router = APIRouter(tags=["bills"])
+# Every bill route requires an authenticated user; the DB then scopes all rows
+# to that user via RLS (migration 006).
+router = APIRouter(tags=["bills"], dependencies=[Depends(require_user)])
 
 
 def _clean_str(value: object) -> Optional[str]:
@@ -237,7 +241,8 @@ def _traced(value, provenance=None, source_ref=None, confidence=None) -> Optiona
 
 
 def _bill_from_rows(row: dict, items: list[dict], flags: list[dict],
-                    explanation: Optional[dict], category: Optional[dict]) -> Bill:
+                    explanation: Optional[dict], category: Optional[dict],
+                    taxes: Optional[list[dict]] = None) -> Bill:
     """Reconstruct a canonical Bill from persisted rows (columns per migration)."""
     line_items = [
         LineItem(
@@ -273,6 +278,18 @@ def _bill_from_rows(row: dict, items: list[dict], flags: list[dict],
         tax_rate=_traced(row.get("tax_rate")),
         tax_base=_traced(row.get("tax_base")),
         tax_amount=_traced(row.get("tax_amount")),
+        tax_lines=[
+            TaxLine(
+                id=tl.get("id"),
+                name=tl.get("name") or "Tax",
+                rate=_traced(tl.get("rate")),
+                amount=_traced(
+                    tl.get("amount"), tl.get("amount_provenance"),
+                    tl.get("amount_source_ref"), tl.get("amount_confidence"),
+                ) or TracedValue(value="0"),
+            )
+            for tl in sorted(taxes or [], key=lambda r: r.get("position", 0))
+        ],
         total_amount=_traced(
             row.get("total_amount"), row.get("total_provenance"),
             row.get("total_source_ref"), row.get("total_confidence"),
@@ -313,10 +330,11 @@ def get_bill(bill_id: str):
     row = rows[0]
     items = persistence.select("line_items", {"bill_id": bill_id})
     flags = persistence.select("discrepancy_flags", {"bill_id": bill_id})
+    taxes = persistence.select("tax_lines", {"bill_id": bill_id})
     expl_rows = persistence.select("explanations", {"bill_id": bill_id})
     explanation = expl_rows[0] if expl_rows else None
     category = None
     if row.get("category_id"):
         cat_rows = persistence.select("categories", {"id": row["category_id"]})
         category = cat_rows[0] if cat_rows else None
-    return _bill_from_rows(row, items, flags, explanation, category)
+    return _bill_from_rows(row, items, flags, explanation, category, taxes)
