@@ -3,7 +3,7 @@
 // Provider/language preferences travel as headers (see store.ts); the backend
 // holds all credentials except a user's own optional Groq key.
 
-import { getAccessToken } from "../auth";
+import { getValidAccessToken } from "../auth";
 import { settingsHeaders } from "../store";
 
 const API_BASE =
@@ -12,10 +12,11 @@ console.log("[API_BASE]", API_BASE);
 
 // Settings/language headers plus the signed-in user's bearer token. The backend
 // requires the token on every bill/dashboard/Q&A route and scopes data to the
-// user via it (RLS), so this rides on every request.
-function authedHeaders(): Record<string, string> {
+// user via it (RLS), so this rides on every request. Awaited so the token is
+// refreshed first if it has expired — otherwise the backend 401s a stale JWT.
+async function authedHeaders(): Promise<Record<string, string>> {
   const headers = settingsHeaders();
-  const token = getAccessToken();
+  const token = await getValidAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
@@ -88,14 +89,14 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return handle<T>(await fetchResilient(path, { headers: authedHeaders() }));
+  return handle<T>(await fetchResilient(path, { headers: await authedHeaders() }));
 }
 
 export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
   return handle<T>(
     await fetchResilient(path, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authedHeaders() },
+      headers: { "Content-Type": "application/json", ...(await authedHeaders()) },
       body: JSON.stringify(body),
     })
   );
@@ -105,7 +106,7 @@ export async function apiPostForm<T>(path: string, form: FormData, retries = 9):
   return handle<T>(
     await fetchResilient(
       path,
-      { method: "POST", headers: authedHeaders(), body: form },
+      { method: "POST", headers: await authedHeaders(), body: form },
       retries
     )
   );
@@ -113,7 +114,7 @@ export async function apiPostForm<T>(path: string, form: FormData, retries = 9):
 
 export async function apiDelete<T>(path: string): Promise<T> {
   return handle<T>(
-    await fetchResilient(path, { method: "DELETE", headers: authedHeaders() })
+    await fetchResilient(path, { method: "DELETE", headers: await authedHeaders() })
   );
 }
 

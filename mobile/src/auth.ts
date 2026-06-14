@@ -16,6 +16,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useSyncExternalStore } from "react";
+import { AppState } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -58,6 +59,15 @@ supabase.auth.onAuthStateChange((_event, session) => {
   setState({ session, loading: false });
 });
 
+// Access tokens expire (~1h). supabase-js only runs its refresh timer while we
+// tell it the app is foregrounded — without this the app keeps sending an
+// expired token and every backend call 401s. Drive it off AppState.
+AppState.addEventListener("change", (s) => {
+  if (s === "active") supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
+});
+if (AppState.currentState === "active") supabase.auth.startAutoRefresh();
+
 export function useAuth(): AuthState {
   return useSyncExternalStore(
     (cb) => {
@@ -68,9 +78,19 @@ export function useAuth(): AuthState {
   );
 }
 
-/** Current access token (JWT) for the Authorization header, or null. */
-export function getAccessToken(): string | null {
-  return state.session?.access_token ?? null;
+/**
+ * A *valid* access token for the next request: `getSession()` transparently
+ * refreshes an expired token (using the stored refresh token) before returning,
+ * so we never send a stale JWT that the backend would reject. Falls back to the
+ * cached token if the refresh call itself fails.
+ */
+export async function getValidAccessToken(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return state.session?.access_token ?? null;
+  }
 }
 
 /** The signed-in user's email, for display. */
