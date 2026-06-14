@@ -87,6 +87,24 @@ def home():
     return FileResponse(_WEB_INDEX)
 
 
+@app.get("/config", include_in_schema=False)
+def web_config() -> dict[str, str]:
+    """Public bootstrap config for the browser client.
+
+    The web app is a static file, so it can't read env directly; it fetches the
+    Supabase project URL + anon key here to start the Google sign-in handshake.
+    Both values are publishable (the anon key is designed to ship to browsers);
+    no secret (service key / JWT secret) is ever exposed.
+    """
+    from src.config import get_settings
+
+    settings = get_settings()
+    return {
+        "supabaseUrl": settings.supabase_url,
+        "supabaseAnonKey": settings.supabase_anon_key,
+    }
+
+
 @app.get("/health", tags=["meta"])
 def health() -> dict[str, str]:
     return {"status": "ok"}

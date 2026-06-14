@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Supabase JS (browser UMD build) — identity handshake only; bill data still
+     goes solely to our backend. Loaded in <head> so window.supabase is ready
+     before the inline app script runs at body end. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   /* ------ Paper & ink identity: warm neutrals, emerald-teal, saffron-gold ------ */
   :root {
@@ -186,6 +190,32 @@
   .helpstep b { display:block; margin-bottom:2px; }
   .helpstep .t { font-size:13.5px; color:var(--muted); line-height:1.5; }
   .helpstep.gold .n { background:var(--gold); }
+
+  /* ------ Auth gate: full-screen sign-in shown until a session exists ------ */
+  #authGate {
+    position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; padding:24px;
+    background:linear-gradient(160deg, var(--hero1), var(--hero2) 55%, var(--hero3));
+    color:#F1ECE2; text-align:center;
+  }
+  #authGate.hidden { display:none; }
+  #authGate .word { font-family:"Fraunces", Georgia, serif; font-style:italic; font-weight:700;
+    font-size:clamp(34px,8vw,52px); letter-spacing:.5px; }
+  #authGate .word .b { color:#F1ECE2; } #authGate .word .o { color:#5CD6C3; }
+  #authGate .sub { color:rgba(241,236,226,.78); font-size:14px; max-width:340px; line-height:1.55; }
+  #googleBtn {
+    display:inline-flex; align-items:center; gap:10px; font-family:inherit; font-weight:700;
+    font-size:15px; cursor:pointer; border:0; border-radius:12px; padding:12px 22px;
+    background:#FFFFFF; color:#1F1B16; box-shadow:0 8px 22px rgba(0,0,0,.25);
+  }
+  #googleBtn:disabled { opacity:.6; cursor:default; }
+  #googleBtn svg { width:18px; height:18px; }
+  #authErr { color:#FBE3D4; font-size:13px; max-width:340px; min-height:16px; }
+  /* Header account chip (signed-in email + sign out) */
+  #acctBox { display:inline-flex; align-items:center; gap:8px; }
+  #acctBox.hidden { display:none; }
+  #acctEmail { font-size:12px; color:var(--muted); font-weight:600; max-width:160px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -194,6 +224,18 @@
   <div class="word"><span class="b">Bill</span><span class="o">ology</span></div>
   <div class="rule"></div>
   <div class="tg">every number, straight from the bill</div>
+</div>
+
+<!-- Sign-in gate: covers the app until a Supabase session exists. Bill data is
+     scoped per user via the backend (RLS), so a token is required first. -->
+<div id="authGate" class="hidden" role="dialog" aria-modal="true" aria-label="Sign in">
+  <div class="word"><span class="b">Bill</span><span class="o">ology</span></div>
+  <div class="sub" data-i18n="signInSub">Sign in to read, check and save your bills. Your bills are private to you.</div>
+  <button id="googleBtn">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    <span data-i18n="signInGoogle">Continue with Google</span>
+  </button>
+  <div id="authErr" role="alert"></div>
 </div>
 
 <header>
@@ -215,6 +257,10 @@
         <option value="groq-byok" data-i18n="provByok">AI: Cloud (my Groq key)</option>
         <option value="ollama" data-i18n="provOllama">AI: Local (Ollama)</option>
       </select>
+      <span id="acctBox" class="hidden">
+        <span id="acctEmail"></span>
+        <button id="signOutBtn" class="hbtn" aria-label="Sign out"><span data-i18n="signOut">Sign out</span></button>
+      </span>
       <button id="helpBtn" class="hbtn" aria-label="Help">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.36-1.2.9-1.2 1.8"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg>
         <span data-i18n="help">Help</span>
@@ -423,6 +469,66 @@ Grand Total         826.00`;
 const $ = (id) => document.getElementById(id);
 $("sample").onclick = () => { $("text").value = SAMPLE; };
 
+// --- Auth: Google sign-in via Supabase (identity handshake only) -------------
+// The browser signs in with Google through Supabase, gets a session JWT, and
+// sends it as `Authorization: Bearer` on every backend call (see hdrs()). The
+// backend verifies it and scopes all data to this user via Postgres RLS. Bill
+// data itself still goes only to our backend. supabase-js auto-refreshes the
+// token in the background and fires onAuthStateChange, so the cached token below
+// stays fresh without any manual timer (unlike the mobile app).
+let _sb = null;        // supabase client (created once /config arrives)
+let _token = null;     // current access token for hdrs(); null when signed out
+let _booted = false;   // guard so the app's data only loads once per sign-in
+
+function showAuthGate(err) {
+  $("authGate").classList.remove("hidden");
+  $("authErr").textContent = err || "";
+}
+function hideAuthGate() { $("authGate").classList.add("hidden"); }
+
+function applySession(session) {
+  _token = session?.access_token ?? null;
+  if (session) {
+    hideAuthGate();
+    $("acctEmail").textContent = session.user?.email ?? "";
+    $("acctBox").classList.remove("hidden");
+    if (!_booted) { _booted = true; loadDash(); loadHistory(); }
+  } else {
+    _booted = false;
+    $("acctBox").classList.add("hidden");
+    showAuthGate();
+  }
+}
+
+async function initAuth() {
+  let cfg = {};
+  try { cfg = await fetch("/config").then(r => r.json()); } catch {}
+  if (!window.supabase || !cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+    showAuthGate("Sign-in isn't configured on the server yet.");
+    $("googleBtn").disabled = true;
+    return;
+  }
+  _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+    auth: { detectSessionInUrl: true, flowType: "implicit",
+            persistSession: true, autoRefreshToken: true },
+  });
+  _sb.auth.onAuthStateChange((_e, session) => applySession(session));
+  const { data } = await _sb.auth.getSession();
+  applySession(data.session);
+}
+
+$("googleBtn").onclick = async () => {
+  if (!_sb) return;
+  $("authErr").textContent = "";
+  try {
+    await _sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+  } catch (e) { $("authErr").textContent = "Sign-in failed: " + e; }
+};
+$("signOutBtn").onclick = async () => { if (_sb) await _sb.auth.signOut(); };
+
 // --- Settings: language + AI provider + theme (persisted in localStorage) ---
 const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 const SETTINGS = Object.assign(
@@ -449,6 +555,9 @@ applyTheme();
 // still only ever talks to this backend — never to a provider directly.
 function hdrs(extra) {
   const h = Object.assign({}, extra || {}, { "X-Language": SETTINGS.lang });
+  // Signed-in user's bearer token — required by the backend on every
+  // bill/dashboard/qa route, which scopes data to this user via RLS.
+  if (_token) h["Authorization"] = "Bearer " + _token;
   if (SETTINGS.provider === "ollama") {
     h["X-LLM-Provider"] = "ollama";
     if (SETTINGS.ollamaUrl) h["X-Ollama-Url"] = SETTINGS.ollamaUrl;
@@ -529,6 +638,8 @@ const I18N = {
     dateFromBill: "Read it off the bill",
     dateFromBillHint: "Find the printed date on the bill below, then enter it.",
     dateSetManual: "Set the date myself", dateDone: "Use this date", dateSkip: "Skip for now",
+    signInSub: "Sign in to read, check and save your bills. Your bills are private to you.",
+    signInGoogle: "Continue with Google", signOut: "Sign out",
   },
   hi: {
     tagline: "बिल जमा करें (छवि / PDF / टेक्स्ट)। यह डेटा निकालता है, त्रुटियाँ जाँचता है और समझाता है — आँकड़े हमेशा बिल से आते हैं, AI से कभी नहीं।",
@@ -558,6 +669,8 @@ const I18N = {
     dateFromBill: "बिल से पढ़कर भरें",
     dateFromBillHint: "नीचे बिल पर छपी तारीख़ देखें, फिर दर्ज करें।",
     dateSetManual: "मैं ख़ुद तारीख़ सेट करूँ", dateDone: "यही तारीख़ रखें", dateSkip: "अभी छोड़ें",
+    signInSub: "अपने बिल पढ़ने, जाँचने और सहेजने के लिए साइन इन करें। आपके बिल केवल आपके लिए निजी हैं।",
+    signInGoogle: "Google से जारी रखें", signOut: "साइन आउट",
   },
   te: {
     tagline: "బిల్లు సమర్పించండి (చిత్రం / PDF / టెక్స్ట్). ఇది డేటాను సంగ్రహించి, లోపాలను తనిఖీ చేసి, వివరిస్తుంది — సంఖ్యలు ఎప్పుడూ బిల్లు నుండే వస్తాయి, AI నుండి కాదు.",
@@ -587,6 +700,8 @@ const I18N = {
     dateFromBill: "బిల్లు చూసి రాయండి",
     dateFromBillHint: "కింద బిల్లుపై ముద్రించిన తేదీని చూసి నమోదు చేయండి.",
     dateSetManual: "నేనే తేదీ సెట్ చేస్తాను", dateDone: "ఈ తేదీనే ఉంచండి", dateSkip: "ప్రస్తుతానికి దాటవేయి",
+    signInSub: "మీ బిల్లులను చదవడానికి, తనిఖీ చేయడానికి, సేవ్ చేయడానికి సైన్ ఇన్ చేయండి. మీ బిల్లులు మీకు మాత్రమే ప్రైవేట్.",
+    signInGoogle: "Googleతో కొనసాగించండి", signOut: "సైన్ అవుట్",
   },
   // The ten languages below are machine-authored translations pending
   // native-speaker review; keys they don't define fall back to English.
@@ -1132,7 +1247,6 @@ async function loadDash() {
   }
 }
 $("dashRefresh").onclick = loadDash;
-loadDash();
 
 $("histRefresh").onclick = loadHistory;
 $("histQ").oninput = () => { clearTimeout(window.__hq); window.__hq = setTimeout(loadHistory, 300); };
@@ -1146,7 +1260,9 @@ $("histClear").onclick = async () => {
   } catch (e) { alert("Clear failed: " + e); }
   loadHistory();
 };
-loadHistory();
+// Bootstrap auth; loadDash()/loadHistory() run from applySession once a
+// session is established (or restored), and the gate shows otherwise.
+initAuth();
 
 // Remove the splash from the tree once its exit animation ends.
 $("splash").addEventListener("animationend", (e) => {
