@@ -112,12 +112,15 @@ def _already_seeded(db, bill: Bill) -> bool:
         rows = db.select("bills", {"merchant": bill.merchant.value})
     except Exception:
         return False
+    bill_total = bill.total_amount.value
+    bill_date = bill.bill_date.value if bill.bill_date is not None else None
     for r in rows:
-        same_total = str(r.get("total_amount")) == bill.total_amount.value or (
+        same_total = str(r.get("total_amount")) == bill_total or (
             r.get("total_amount") is not None
-            and Decimal(str(r["total_amount"])) == Decimal(bill.total_amount.value)
+            and bill_total is not None
+            and Decimal(str(r["total_amount"])) == Decimal(bill_total)
         )
-        if str(r.get("bill_date")) == bill.bill_date.value and same_total:
+        if str(r.get("bill_date")) == bill_date and same_total:
             return True
     return False
 

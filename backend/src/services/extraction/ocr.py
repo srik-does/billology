@@ -155,7 +155,9 @@ def _extract_tesseract(image: Any) -> ExtractionResult:
     # total and merchant recovered). --psm 4 fits the single-column layout.
     if gray.width < 1000:
         scale = max(2, round(1000 / gray.width))
-        gray = gray.resize((gray.width * scale, gray.height * scale), Image.LANCZOS)
+        gray = gray.resize(
+            (gray.width * scale, gray.height * scale), Image.Resampling.LANCZOS
+        )
     gray = ImageOps.autocontrast(gray, cutoff=2)
     data = pytesseract.image_to_data(gray, output_type=Output.DICT, config="--psm 4")
 

@@ -158,7 +158,7 @@ def _check_sum(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
 
     # The itemization verifies against the subtotal — the total itself may still
     # be misprinted, which only this chain can prove.
-    if sub_ok and total is not None and not total_ok:
+    if sub_ok and subtotal is not None and total is not None and not total_ok:
         expected_total = subtotal + tax
         if abs(expected_total - total) > EPSILON:
             flags.append(
@@ -189,7 +189,7 @@ def _check_duplicates(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
             continue
         groups[(desc, str(amount))].append(item)
 
-    for (desc, amount), items in groups.items():
+    for (desc, amount_str), items in groups.items():
         if len(items) > 1:
             # A "duplicate" read off a low-confidence scan may just be the same
             # line mis-read twice — gate on the figures/descriptions involved.
@@ -202,11 +202,11 @@ def _check_duplicates(bill: Bill, flags: list[DiscrepancyFlag]) -> None:
                     DiscrepancyKind.duplicate_item,
                     {
                         "description": desc,
-                        "amount": amount,
+                        "amount": amount_str,
                         "occurrences": len(items),
                     },
                     (
-                        f"'{desc}' at {amount} appears {len(items)} times — it may have been "
+                        f"'{desc}' at {amount_str} appears {len(items)} times — it may have been "
                         f"charged more than once."
                     ),
                     contributors,

@@ -295,7 +295,7 @@ def _bill_from_rows(row: dict, items: list[dict], flags: list[dict],
             row.get("total_source_ref"), row.get("total_confidence"),
         ) or TracedValue(value="0"),
         category=(
-            Category(id=category.get("id"), name=category.get("name"),
+            Category(id=category.get("id"), name=category.get("name") or "",
                      is_seeded=category.get("is_seeded", False))
             if category else None
         ),

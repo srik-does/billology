@@ -327,7 +327,9 @@ def parse(result: ExtractionResult, bill_type: BillType) -> Bill:
                 if comp_rate is not None:
                     comp_rates.append(comp_rate)
                 tax_lines.append(
-                    TaxLine(name=comp_name, rate=comp_rate_tv, amount=_traced(parsed[0], ln))
+                    TaxLine(
+                        name=comp_name or "Tax", rate=comp_rate_tv, amount=_traced(parsed[0], ln)
+                    )
                 )
             continue
         if is_tax:

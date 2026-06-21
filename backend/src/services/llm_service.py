@@ -331,7 +331,7 @@ class GroqLLMService(ChatLLMService):
         self._model = model
         self._vision_model = vision_model
         self._api_key = api_key
-        self._client_instance = None
+        self._client_instance: Any = None
 
     def _client(self):  # type: ignore[no-untyped-def]
         from groq import Groq

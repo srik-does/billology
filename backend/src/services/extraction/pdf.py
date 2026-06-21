@@ -134,7 +134,12 @@ def _select_ocr_pages(image_pages: list[int], cap: int) -> list[int]:
     chosen = image_pages[: cap - 1] + image_pages[-1:]
     # De-dupe while preserving order (last page could coincide with the head).
     seen: set[int] = set()
-    return [p for p in chosen if not (p in seen or seen.add(p))]
+    ordered: list[int] = []
+    for p in chosen:
+        if p not in seen:
+            seen.add(p)
+            ordered.append(p)
+    return ordered
 
 
 def _ocr_image_pages(file_bytes: bytes, pages: list[int], result: ExtractionResult) -> None:

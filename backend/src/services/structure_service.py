@@ -33,10 +33,13 @@ EPSILON = Decimal("1.00")
 
 
 def _dec(tv: Optional[TracedValue]) -> Optional[Decimal]:
-    if tv is None or tv.value in (None, ""):
+    if tv is None:
+        return None
+    raw = tv.value
+    if raw is None or raw == "":
         return None
     try:
-        return Decimal(tv.value)
+        return Decimal(raw)
     except Exception:  # noqa: BLE001
         return None
 

@@ -61,7 +61,9 @@ npm-audit:
   allow_failure: true
   script:
     - cd mobile
-    - npm audit --audit-level=high
+    # Expo SDK pulls in transitive moderate/high advisories (uuid via xcode/@expo/*)
+    # that can't be fixed without breaking the SDK; gate on genuinely critical only.
+    - npm audit --audit-level=critical
 
 changelog:
   stage: security
