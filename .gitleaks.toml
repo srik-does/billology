@@ -1,0 +1,16 @@
+# gitleaks config — extend the built-in rules, then allow values that are
+# public by design so the scan flags only genuine secrets.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+Supabase *publishable* keys (sb_publishable_…) are public by design: they are
+paired with EXPO_PUBLIC_ vars, inlined into the shipped client bundle, and
+guarded by Row Level Security — not by secrecy. The secret to protect is the
+service_role / sb_secret_ key, which is never committed (it lives in backend/.env).
+"""
+regexTarget = "match"
+regexes = [
+  '''sb_publishable_[A-Za-z0-9_\-]+''',
+]

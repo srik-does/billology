@@ -45,7 +45,7 @@ gitleaks:
     entrypoint: [""]
   allow_failure: true
   script:
-    - gitleaks detect --source . --verbose --no-banner
+    - gitleaks detect --source . --config .gitleaks.toml --verbose --no-banner
 
 pip-audit:
   stage: security
