@@ -121,6 +121,20 @@ pytest tests/ --cov=src
 - **Hooks:** `.pre-commit-config.yaml` (`pre-commit install`)
 - **CI:** `.gitlab-ci.yml`
 
+## Project documentation
+
+Strategy and process docs live under [`docs/`](docs/):
+
+- [Growth & continuous-improvement strategy](docs/growth-strategy.md) — how we grow
+  the user base and keep improving features from real usage.
+- [Reach expansion & user onboarding](docs/geographical-expansion.md) — horizontal,
+  geographic/language expansion and the per-region onboarding playbook.
+- [Contributor growth & community](docs/contributor-growth.md) — contributor
+  on-ramps, onboarding, and expansion across institutions and regions.
+
+See also [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md),
+[SECURITY.md](SECURITY.md), and [COMPLIANCE.md](COMPLIANCE.md).
+
 ## License
 
 [AGPL-3.0](LICENSE) — © 2026 Billology contributors.
