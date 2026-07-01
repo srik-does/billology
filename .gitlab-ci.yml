@@ -115,8 +115,11 @@ fetch-apk:
   script:
     - apt-get update -qq && apt-get install -y -qq curl > /dev/null
     - npm install -g eas-cli
+    # Must run from the Expo project dir (app.json / eas.json live in mobile/).
+    - cd mobile
     # Grab the most recent finished Android build's artifact.
-    - eas build:list --platform android --status finished --limit 1 --non-interactive --json > build.json
+    - eas build:list --platform android --status finished --limit 1 --non-interactive --json > ../build.json
+    - cd ..
     - |
       APK_URL=$(node -e "const b=require('./build.json'); const x=(Array.isArray(b)?b[0]:b)||{}; const a=x.artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
       if [ -z "$APK_URL" ]; then echo "No finished Android build found on EAS"; cat build.json; exit 1; fi
