@@ -113,21 +113,24 @@ fetch-apk:
       when: manual
       allow_failure: false
   script:
-    - apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
+    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
     - npm install -g eas-cli
     - eas --version
     # Must run from the Expo project dir (app.json / eas.json live in mobile/).
     - cd mobile
-    # Diagnostics (never fail the job): confirm auth and show the real error, if
-    # any, that --json otherwise collapses to "command failed".
+    # eas build:list loads the Expo project config, which requires the project's
+    # node_modules (the `expo` package) to resolve app.json → projectId.
+    - npm install --legacy-peer-deps
     - 'echo "eas whoami:"; eas whoami || true'
-    # List recent builds as JSON; capture stderr so a real failure is visible.
+    # Human-readable diagnostic prints the real error that --json collapses.
+    - 'echo "=== build:list diagnostic ==="; eas build:list --limit 3 --non-interactive || true'
+    # List recent builds as JSON; capture both streams so a failure is visible.
     - |
       set +e
       eas build:list --limit 10 --non-interactive --json > ../build.json 2> ../eas-err.txt
       code=$?
       set -e
-      if [ $code -ne 0 ]; then echo "=== eas build:list failed (exit $code) ==="; cat ../eas-err.txt; exit 1; fi
+      if [ $code -ne 0 ]; then echo "=== stderr ==="; cat ../eas-err.txt; echo "=== stdout ==="; cat ../build.json; exit 1; fi
     - cd ..
     # Pick the newest FINISHED Android build that has a downloadable artifact.
     - |
