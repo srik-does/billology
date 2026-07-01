@@ -103,6 +103,39 @@ npx expo start -c
 
 Scan the QR with Expo Go (SDK 54).
 
+## 📱 Install the Android app (APK)
+
+A prebuilt Android APK is attached to every tagged [**GitLab Release**](https://code.swecha.org/srikeerthan_reddy/billology/-/releases)
+as a downloadable asset (also mirrored in the project
+[Package Registry](https://code.swecha.org/srikeerthan_reddy/billology/-/packages)).
+
+1. Open the latest release, download **`billology.apk`** from the **Assets** section.
+2. On your Android phone, open the downloaded file and tap **Install**. If prompted,
+   enable **"Install unknown apps"** for your browser or file manager
+   (Settings → Apps → Special access → Install unknown apps).
+3. Launch **Billology**, grant the camera/photo permission, and submit a bill
+   (photo, PDF, or pasted text).
+
+The app is preconfigured to talk to the hosted backend at
+<https://billology.onrender.com> (free tier — the first request after idle may take
+~30 s to wake). Requires **Android 6.0+**; it's an unsigned preview build meant for
+external/side-load distribution.
+
+**Build the APK yourself** (Expo Application Services):
+
+```powershell
+cd mobile
+npm install --legacy-peer-deps
+npm install -g eas-cli
+eas login
+eas build --platform android --profile preview   # buildType: apk (see eas.json)
+```
+
+Releases are produced automatically: pushing a version tag (e.g. `v2.0.1`) runs the
+`build-apk` + `release-apk` CI jobs, which build the APK, publish it to the Package
+Registry, and create the GitLab Release with the APK linked as an asset. This
+requires a masked `EXPO_TOKEN` CI/CD variable (Settings → CI/CD → Variables).
+
 ### Tests
 
 ```powershell

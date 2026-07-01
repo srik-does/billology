@@ -6,6 +6,8 @@ stages:
   - typecheck
   - test
   - security
+  - build
+  - release
 
 ruff:
   stage: lint
@@ -75,3 +77,77 @@ changelog:
     - if: $CI_COMMIT_TAG
   script:
     - git-cliff --config cliff.toml --latest
+
+# --- Release automation (tags only) --------------------------------------
+# On a version tag (e.g. v2.0.1) the Android APK is built by EAS, uploaded to
+# this project's generic Package Registry, and attached to a GitLab Release as
+# a linked asset. Requires a masked CI/CD variable EXPO_TOKEN (Expo access
+# token) so the EAS build can run non-interactively.
+
+build-apk:
+  stage: build
+  image: node:20
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
+    - npm install -g eas-cli
+    - cd mobile
+    - npm install --legacy-peer-deps
+    # Cloud build via the "preview" profile (buildType: apk); --wait downloads
+    # the finished artifact to the given path.
+    - eas build --platform android --profile preview --non-interactive --wait --output "../billology-${CI_COMMIT_TAG}.apk"
+    - cd ..
+    # Publish to the generic Package Registry so the Release can link to it.
+    - |
+      curl --fail --silent --show-error \
+        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --upload-file "billology-${CI_COMMIT_TAG}.apk" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/billology/${CI_COMMIT_TAG}/billology-${CI_COMMIT_TAG}.apk"
+  artifacts:
+    paths:
+      - "billology-${CI_COMMIT_TAG}.apk"
+    expire_in: never
+
+release-apk:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - job: build-apk
+      artifacts: true
+  script:
+    - echo "Publishing GitLab Release for ${CI_COMMIT_TAG} with the APK asset."
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Billology $CI_COMMIT_TAG"
+    description: |
+      ## Billology $CI_COMMIT_TAG — Android app
+
+      AI-powered bill ingestion and analysis. The AI reads and explains, but
+      never invents a number.
+
+      ### 📱 Install the Android app
+
+      1. **Download** `billology.apk` from the **Assets** below (or the
+         [Package Registry](../-/packages)).
+      2. On your phone, open the file and tap **Install**. If prompted, allow
+         **"Install unknown apps"** for your browser/file manager
+         (Settings → Apps → Special access → Install unknown apps).
+      3. Open **Billology**, grant camera/photo permission, and submit a bill
+         (photo, PDF, or pasted text).
+
+      The app talks to the hosted backend at <https://billology.onrender.com>
+      (free tier — the first request after idle may take ~30 s to wake).
+
+      - Requires Android 6.0+ · unsigned debug/preview build (external
+        distribution) · ~50 MB.
+      - Full changelog: [CHANGELOG.md](CHANGELOG.md).
+      - Build it yourself: `cd mobile && eas build -p android --profile preview`.
+    assets:
+      links:
+        - name: "billology-$CI_COMMIT_TAG.apk (Android)"
+          url: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/billology/$CI_COMMIT_TAG/billology-$CI_COMMIT_TAG.apk"
+          link_type: package
+          filepath: "/billology.apk"
