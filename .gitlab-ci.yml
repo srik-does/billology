@@ -7,6 +7,7 @@ stages:
   - test
   - security
   - build
+  - package
   - release
 
 ruff:
@@ -79,29 +80,46 @@ changelog:
     - git-cliff --config cliff.toml --latest
 
 # --- Release automation (tags only) --------------------------------------
-# On a version tag (e.g. v2.0.1) the Android APK is built by EAS, uploaded to
-# this project's generic Package Registry, and attached to a GitLab Release as
-# a linked asset. Requires a masked CI/CD variable EXPO_TOKEN (Expo access
-# token) so the EAS build can run non-interactively.
+# Decoupled from EAS's unpredictable free-tier queue so no single job has to
+# sit through a build and hit the runner's 1h timeout:
+#   build-apk (manual) → triggers the EAS cloud build and returns immediately.
+#   fetch-apk (manual) → click once that build shows "finished" on expo.dev;
+#                        it downloads the finished APK and uploads it to the
+#                        generic Package Registry.
+#   release-apk (auto) → creates the GitLab Release with the APK as an asset.
+# Requires a masked CI/CD variable EXPO_TOKEN so EAS runs non-interactively.
 
 build-apk:
   stage: build
   image: node:20
   rules:
     - if: $CI_COMMIT_TAG
+      when: manual
+      allow_failure: true
   script:
-    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
     - npm install -g eas-cli
     - cd mobile
     - npm install --legacy-peer-deps
-    # Cloud build via the "preview" profile (buildType: apk). --output is only
-    # valid for local builds, so for a cloud build we --wait, capture the build
-    # JSON, then download the finished artifact from its URL.
-    - eas build --platform android --profile preview --non-interactive --wait --json > ../build.json
-    - cd ..
+    # Queue the cloud build (preview profile → apk) and return immediately;
+    # the build finishes on Expo's servers. Watch it at expo.dev, then run
+    # the manual fetch-apk job below.
+    - eas build --platform android --profile preview --non-interactive --no-wait
+
+fetch-apk:
+  stage: package
+  image: node:20
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+      allow_failure: false
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
+    - npm install -g eas-cli
+    # Grab the most recent finished Android build's artifact.
+    - eas build:list --platform android --status finished --limit 1 --non-interactive --json > build.json
     - |
-      APK_URL=$(node -e "const b=require('./build.json'); const a=(Array.isArray(b)?b[0]:b).artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
-      if [ -z "$APK_URL" ]; then echo "No artifact URL in build.json"; cat build.json; exit 1; fi
+      APK_URL=$(node -e "const b=require('./build.json'); const x=(Array.isArray(b)?b[0]:b)||{}; const a=x.artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
+      if [ -z "$APK_URL" ]; then echo "No finished Android build found on EAS"; cat build.json; exit 1; fi
       echo "Downloading APK from $APK_URL"
       curl -L --fail --silent --show-error -o "billology-${CI_COMMIT_TAG}.apk" "$APK_URL"
     # Publish to the generic Package Registry so the Release can link to it.
@@ -121,7 +139,7 @@ release-apk:
   rules:
     - if: $CI_COMMIT_TAG
   needs:
-    - job: build-apk
+    - job: fetch-apk
       artifacts: true
   script:
     - echo "Publishing GitLab Release for ${CI_COMMIT_TAG} with the APK asset."
