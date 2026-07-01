@@ -16,6 +16,7 @@ ruff:
   script:
     - pip install --quiet ruff
     - ruff check backend/src
+    - ruff format --check backend/src
 
 mypy:
   stage: typecheck

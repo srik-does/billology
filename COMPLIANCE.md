@@ -6,6 +6,10 @@ each added file does and why it belongs in this repository.
 | Criterion | File(s) | Justification |
 |---|---|---|
 | Linter | `pyproject.toml` (`[tool.ruff]`), `mobile/.eslintrc.json` | Ruff lints the Python backend (pyflakes/pycodestyle/import order, py311 target); ESLint covers the React Native app with `eslint:recommended`. Both run in CI (`ruff` job) and pre-commit. |
+| Formatter | `.gitlab-ci.yml` (`ruff` job: `ruff format --check backend/src`) | Ruff's formatter enforces consistent Python style; the CI `ruff` job gates on `ruff format --check` so unformatted code fails the pipeline. |
+| Environment example | `.env.example` (root), `backend/.env.example`, `mobile/.env.example` | Documents every required env var with placeholder values (no secrets). The root file aggregates backend + mobile for quick reference; per-package files are what you copy to `backend/.env` / `mobile/.env`. |
+| Containerization | `Dockerfile` (root), `backend/Dockerfile` | Builds the FastAPI backend (which also serves the web app). Root Dockerfile builds from repo-root context (`docker build .`); `backend/Dockerfile` is what Render builds via `render.yaml` (`rootDir: backend`). |
+| Docker ignore | `.dockerignore` (root), `backend/.dockerignore` | Keeps the build context lean and secret-free — excludes `.env*`, `node_modules/`, `mobile/`, tests, caches, and docs from the image. |
 | Type checker | `pyproject.toml` (`[tool.mypy]`) | Mypy checks `backend/src` (untyped defs checked, implicit Optional banned). Run by the CI `mypy` job. |
 | Secret scanning | `.pre-commit-config.yaml` (gitleaks, detect-private-key), `.gitlab-ci.yml` (`gitleaks` job) | Gitleaks scans every commit locally and the full tree in CI, so credentials (Supabase/Groq keys) can never land in history. Complements `.gitignore`/`.dockerignore` rules that already exclude `.env`. |
 | Dependency audit | `.gitlab-ci.yml` (`pip-audit`, `npm-audit` jobs) | pip-audit checks `backend/requirements.txt` against known CVEs; `npm audit` does the same for the Expo app. Advisory (allow_failure) so upstream advisories don't block hackathon iteration. |

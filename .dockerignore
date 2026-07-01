@@ -1,0 +1,24 @@
+# Root build context is the backend image only — keep it lean and secret-free.
+# Secrets
+**/.env
+**/.env.*
+# The backend image does not need the mobile app or tooling/docs
+mobile/
+specs/
+docs/
+feedback/
+.specify/
+.git/
+.github/
+.gitlab-ci.yml
+# Python / virtualenv cruft
+venv/
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# Tests and docs aren't needed at runtime
+backend/tests/
+**/*.md
