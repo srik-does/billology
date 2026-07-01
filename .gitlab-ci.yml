@@ -113,16 +113,26 @@ fetch-apk:
       when: manual
       allow_failure: false
   script:
-    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
+    - apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
     - npm install -g eas-cli
+    - eas --version
     # Must run from the Expo project dir (app.json / eas.json live in mobile/).
     - cd mobile
-    # Grab the most recent finished Android build's artifact.
-    - eas build:list --platform android --status finished --limit 1 --non-interactive --json > ../build.json
-    - cd ..
+    # Diagnostics (never fail the job): confirm auth and show the real error, if
+    # any, that --json otherwise collapses to "command failed".
+    - 'echo "eas whoami:"; eas whoami || true'
+    # List recent builds as JSON; capture stderr so a real failure is visible.
     - |
-      APK_URL=$(node -e "const b=require('./build.json'); const x=(Array.isArray(b)?b[0]:b)||{}; const a=x.artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
-      if [ -z "$APK_URL" ]; then echo "No finished Android build found on EAS"; cat build.json; exit 1; fi
+      set +e
+      eas build:list --limit 10 --non-interactive --json > ../build.json 2> ../eas-err.txt
+      code=$?
+      set -e
+      if [ $code -ne 0 ]; then echo "=== eas build:list failed (exit $code) ==="; cat ../eas-err.txt; exit 1; fi
+    - cd ..
+    # Pick the newest FINISHED Android build that has a downloadable artifact.
+    - |
+      APK_URL=$(node -e "const b=require('./build.json'); const arr=Array.isArray(b)?b:[b]; const p=arr.find(x=>String(x.platform||'').toUpperCase()==='ANDROID' && String(x.status||'').toUpperCase()==='FINISHED' && ((x.artifacts||{}).applicationArchiveUrl||(x.artifacts||{}).buildUrl)); const a=(p||{}).artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
+      if [ -z "$APK_URL" ]; then echo "No finished Android build with an artifact found:"; cat build.json; exit 1; fi
       echo "Downloading APK from $APK_URL"
       curl -L --fail --silent --show-error -o "billology-${CI_COMMIT_TAG}.apk" "$APK_URL"
     # Publish to the generic Package Registry so the Release can link to it.
