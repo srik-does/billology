@@ -136,8 +136,8 @@ release-apk:
 
       ### 📱 Install the Android app
 
-      1. **Download** `billology.apk` from the **Assets** below (or the
-         [Package Registry](../-/packages)).
+      1. **Download** the **billology.apk** file from the **Assets** below (or
+         the [Package Registry](../-/packages)).
       2. On your phone, open the file and tap **Install**. If prompted, allow
          **"Install unknown apps"** for your browser/file manager
          (Settings → Apps → Special access → Install unknown apps).
@@ -150,7 +150,8 @@ release-apk:
       - Requires Android 6.0+ · unsigned debug/preview build (external
         distribution) · ~50 MB.
       - Full changelog: [CHANGELOG.md](CHANGELOG.md).
-      - Build it yourself: `cd mobile && eas build -p android --profile preview`.
+      - Build it yourself: run "eas build -p android --profile preview" in the
+        mobile folder.
     assets:
       links:
         - name: "billology-$CI_COMMIT_TAG.apk (Android)"
