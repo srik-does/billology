@@ -94,10 +94,16 @@ build-apk:
     - npm install -g eas-cli
     - cd mobile
     - npm install --legacy-peer-deps
-    # Cloud build via the "preview" profile (buildType: apk); --wait downloads
-    # the finished artifact to the given path.
-    - eas build --platform android --profile preview --non-interactive --wait --output "../billology-${CI_COMMIT_TAG}.apk"
+    # Cloud build via the "preview" profile (buildType: apk). --output is only
+    # valid for local builds, so for a cloud build we --wait, capture the build
+    # JSON, then download the finished artifact from its URL.
+    - eas build --platform android --profile preview --non-interactive --wait --json > ../build.json
     - cd ..
+    - |
+      APK_URL=$(node -e "const b=require('./build.json'); const a=(Array.isArray(b)?b[0]:b).artifacts||{}; process.stdout.write(a.applicationArchiveUrl||a.buildUrl||'')")
+      if [ -z "$APK_URL" ]; then echo "No artifact URL in build.json"; cat build.json; exit 1; fi
+      echo "Downloading APK from $APK_URL"
+      curl -L --fail --silent --show-error -o "billology-${CI_COMMIT_TAG}.apk" "$APK_URL"
     # Publish to the generic Package Registry so the Release can link to it.
     - |
       curl --fail --silent --show-error \
