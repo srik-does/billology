@@ -72,9 +72,7 @@ def _score(bill: Bill) -> tuple[int, int, float]:
     return (has_total, 1 if gap <= EPSILON else 0, -float(gap))
 
 
-def _build_labeled(
-    lines: list[ExtractionLine], labels: dict[str, str], heuristic: Bill
-) -> Bill:
+def _build_labeled(lines: list[ExtractionLine], labels: dict[str, str], heuristic: Bill) -> Bill:
     """Deterministically re-parse figures from lines, guided only by roles."""
     merchant_ln: Optional[ExtractionLine] = None
     total: Optional[TracedValue] = None

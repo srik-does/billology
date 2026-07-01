@@ -43,18 +43,12 @@ def _fallback(bill: Bill) -> str:
     return _BY_TYPE.get(bill.bill_type, "Other")
 
 
-def suggest_category(
-    bill: Bill, llm: Optional[LLMService] = None, db=persistence
-) -> str:
+def suggest_category(bill: Bill, llm: Optional[LLMService] = None, db=persistence) -> str:
     known = get_known_categories(db)
     try:
         service = llm or get_llm_service()
-        line_items = [
-            {"description": li.description.value} for li in bill.line_items
-        ]
-        answer = service.suggest_category(
-            bill.merchant.value or "", line_items, known
-        )
+        line_items = [{"description": li.description.value} for li in bill.line_items]
+        answer = service.suggest_category(bill.merchant.value or "", line_items, known)
         if answer in known:
             return answer
         # LLM proposed something off-list (or "new category"); fall back.

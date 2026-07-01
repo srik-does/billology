@@ -19,7 +19,9 @@ from src.services import bill_writer, persistence
 
 def main() -> None:
     settings = get_settings()
-    print(f"SUPABASE_URL set: {bool(settings.supabase_url)} | key set: {bool(settings.supabase_key)}")
+    print(
+        f"SUPABASE_URL set: {bool(settings.supabase_url)} | key set: {bool(settings.supabase_key)}"
+    )
     print(f"key prefix: {settings.supabase_key[:8] + '…' if settings.supabase_key else '(none)'}")
 
     bill = build_demo_bills()[0]  # one telecom recharge

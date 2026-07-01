@@ -45,10 +45,10 @@ def _llm():
 @router.post("/qa")
 def ask(req: QARequest):
     try:
-        result = answer_question(
-            req.question, db=persistence, embed_fn=_embed_fn(), llm=_llm()
-        )
+        result = answer_question(req.question, db=persistence, embed_fn=_embed_fn(), llm=_llm())
     except PersistenceError as exc:
         logger.error("qa persistence error: %s", exc)
-        return JSONResponse(status_code=502, content={"error": "persist_failed", "detail": str(exc)})
+        return JSONResponse(
+            status_code=502, content={"error": "persist_failed", "detail": str(exc)}
+        )
     return result

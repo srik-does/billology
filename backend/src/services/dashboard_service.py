@@ -41,7 +41,9 @@ def _saved_bills(db, date_from: Optional[str], date_to: Optional[str]) -> list[d
     return rows
 
 
-def by_category(db=persistence, date_from: Optional[str] = None, date_to: Optional[str] = None) -> list[dict[str, Any]]:
+def by_category(
+    db=persistence, date_from: Optional[str] = None, date_to: Optional[str] = None
+) -> list[dict[str, Any]]:
     """Spending grouped by category (donut/pie source), descending by total."""
     totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for r in _saved_bills(db, date_from, date_to):
@@ -51,7 +53,9 @@ def by_category(db=persistence, date_from: Optional[str] = None, date_to: Option
     return items
 
 
-def monthly(db=persistence, date_from: Optional[str] = None, date_to: Optional[str] = None) -> list[dict[str, Any]]:
+def monthly(
+    db=persistence, date_from: Optional[str] = None, date_to: Optional[str] = None
+) -> list[dict[str, Any]]:
     """Spending grouped by month YYYY-MM (bar/line trend source), ascending."""
     totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for r in _saved_bills(db, date_from, date_to):

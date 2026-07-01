@@ -82,6 +82,7 @@ def get_client():
 
 # --- Storage --------------------------------------------------------------
 
+
 def upload_artifact(file_bytes: bytes, filename: str, content_type: str) -> str:
     """Upload an original bill artifact to the private bucket; return its path.
 
@@ -100,13 +101,12 @@ def upload_artifact(file_bytes: bytes, filename: str, content_type: str) -> str:
 
 def signed_url(path: str, expires_in: int = 3600) -> str:
     settings = get_settings()
-    resp = _service().storage.from_(settings.supabase_bucket).create_signed_url(
-        path, expires_in
-    )
+    resp = _service().storage.from_(settings.supabase_bucket).create_signed_url(path, expires_in)
     return resp.get("signedURL") or resp.get("signed_url", "")
 
 
 # --- Tables ---------------------------------------------------------------
+
 
 def insert_row(table: str, row: dict[str, Any]) -> dict[str, Any]:
     """Insert one row and return it. Raises PersistenceError on failure.
@@ -185,10 +185,14 @@ def delete_all(table: str) -> int:
 def match_bills(embedding_literal: str, match_count: int = 5) -> list[dict[str, Any]]:
     """Semantic search via the match_bills RPC (pgvector cosine). Returns rows."""
     try:
-        resp = get_client().rpc(
-            "match_bills",
-            {"query_embedding": embedding_literal, "match_count": match_count},
-        ).execute()
+        resp = (
+            get_client()
+            .rpc(
+                "match_bills",
+                {"query_embedding": embedding_literal, "match_count": match_count},
+            )
+            .execute()
+        )
     except Exception as exc:
         raise PersistenceError(f"match_bills RPC failed: {exc}") from exc
     return resp.data or []

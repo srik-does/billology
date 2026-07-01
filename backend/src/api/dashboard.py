@@ -22,7 +22,9 @@ def dashboard_by_category(date_from: Optional[str] = None, date_to: Optional[str
         return dashboard_service.by_category(date_from=date_from, date_to=date_to)
     except PersistenceError as exc:
         logger.error("dashboard by-category failed: %s", exc)
-        return JSONResponse(status_code=502, content={"error": "persist_failed", "detail": str(exc)})
+        return JSONResponse(
+            status_code=502, content={"error": "persist_failed", "detail": str(exc)}
+        )
 
 
 @router.get("/dashboard/monthly")
@@ -31,4 +33,6 @@ def dashboard_monthly(date_from: Optional[str] = None, date_to: Optional[str] = 
         return dashboard_service.monthly(date_from=date_from, date_to=date_to)
     except PersistenceError as exc:
         logger.error("dashboard monthly failed: %s", exc)
-        return JSONResponse(status_code=502, content={"error": "persist_failed", "detail": str(exc)})
+        return JSONResponse(
+            status_code=502, content={"error": "persist_failed", "detail": str(exc)}
+        )

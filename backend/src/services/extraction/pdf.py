@@ -73,7 +73,9 @@ def extract_pdf(file_bytes: bytes) -> ExtractionResult:
             logger.warning(
                 "Scanned PDF has %d image pages; OCR limited to %d (pages %s) to "
                 "stay within the request timeout — result may be partial.",
-                len(image_pages), len(pages_to_ocr), [p + 1 for p in pages_to_ocr],
+                len(image_pages),
+                len(pages_to_ocr),
+                [p + 1 for p in pages_to_ocr],
             )
         _ocr_image_pages(file_bytes, pages_to_ocr, result)
 
@@ -160,8 +162,11 @@ def _ocr_image_pages(file_bytes: bytes, pages: list[int], result: ExtractionResu
         for ln in page_result.lines:
             result.lines.append(
                 ExtractionLine(
-                    text=ln.text, page=page_no, line=ln.line,
-                    bbox=ln.bbox, confidence=ln.confidence,
+                    text=ln.text,
+                    page=page_no,
+                    line=ln.line,
+                    bbox=ln.bbox,
+                    confidence=ln.confidence,
                 )
             )
         result.raw_text = f"{result.raw_text}\n{page_result.raw_text}".strip()

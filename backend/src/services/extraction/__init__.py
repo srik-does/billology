@@ -151,8 +151,6 @@ def process_inputs(
             try:
                 return _finalize(vision.extract_bill(images, bill_type_hint, partial=partial))
             except vision.VisionExtractionError as exc:
-                logger.warning(
-                    "vision extraction unavailable, falling back to local OCR: %s", exc
-                )
+                logger.warning("vision extraction unavailable, falling back to local OCR: %s", exc)
 
     return _finalize(_process_classic(files, text, bill_type_hint))

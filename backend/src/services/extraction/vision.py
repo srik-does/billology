@@ -69,8 +69,13 @@ DEGRADED_CONFIDENCE = 0.5
 
 # Field names the model may report as uncertain (anything else is ignored).
 _UNCERTAIN_FIELDS = {
-    "merchant", "bill_date", "subtotal", "taxable_value", "tax",
-    "total_amount", "line_items",
+    "merchant",
+    "bill_date",
+    "subtotal",
+    "taxable_value",
+    "tax",
+    "total_amount",
+    "line_items",
 }
 
 # Long side cap before JPEG re-encode: keeps the base64 payload well under
@@ -140,7 +145,9 @@ def _trace(raw_lines: list[str], needle: Optional[str]) -> Optional[SourceRef]:
     digits = low.replace(",", "")
     # Short all-digit tokens (quantities like "2") match as standalone tokens
     # only, so they don't trace to the first line containing that digit.
-    token = re.compile(rf"\b{re.escape(digits)}\b") if digits.isdigit() and len(digits) <= 2 else None
+    token = (
+        re.compile(rf"\b{re.escape(digits)}\b") if digits.isdigit() and len(digits) <= 2 else None
+    )
     for idx, line in enumerate(raw_lines):
         line_low = line.lower()
         if token is not None:
@@ -164,9 +171,7 @@ def _traced(
     )
 
 
-def _traced_amount(
-    value: Any, raw_lines: list[str], conf: float
-) -> Optional[TracedValue]:
+def _traced_amount(value: Any, raw_lines: list[str], conf: float) -> Optional[TracedValue]:
     amount = _amount(value)
     if amount is None:
         return None
@@ -186,9 +191,9 @@ def _bill_date(value: Any, raw_lines: list[str], conf: float) -> Optional[Traced
     return _traced(parsed.isoformat(), raw_lines, conf)
 
 
-def _tax(data: dict[str, Any], raw_lines: list[str], conf: float) -> tuple[
-    Optional[TracedValue], Optional[TracedValue], list[TaxLine]
-]:
+def _tax(
+    data: dict[str, Any], raw_lines: list[str], conf: float
+) -> tuple[Optional[TracedValue], Optional[TracedValue], list[TaxLine]]:
     """(tax_amount, tax_rate, tax_lines).
 
     A single printed total-tax figure yields one named line ("Tax"); a printed
@@ -306,11 +311,7 @@ def _swap_computed_totals(items: list[LineItem]) -> Optional[list[LineItem]]:
     out: list[LineItem] = []
     for item in items:
         unit = item.unit_amount
-        if (
-            item.line_total.source_ref is None
-            and unit is not None
-            and unit.source_ref is not None
-        ):
+        if item.line_total.source_ref is None and unit is not None and unit.source_ref is not None:
             out.append(item.model_copy(update={"line_total": unit}))
             swapped = True
         else:
@@ -331,10 +332,7 @@ def _salvage_from_transcript(raw_lines: list[str], bill_type: BillType) -> Bill:
     result = ExtractionResult(
         kind=ArtifactKind.image,
         raw_text="\n".join(raw_lines),
-        lines=[
-            ExtractionLine(text=text, page=0, line=idx)
-            for idx, text in enumerate(raw_lines)
-        ],
+        lines=[ExtractionLine(text=text, page=0, line=idx) for idx, text in enumerate(raw_lines)],
     )
     return keyword_parser.parse(result, bill_type)
 
@@ -396,9 +394,7 @@ def extract_bill(
         return DEGRADED_CONFIDENCE if field in uncertain else VISION_CONFIDENCE
 
     raw_lines = [
-        ln.strip()
-        for ln in data.get("raw_lines", [])
-        if isinstance(ln, str) and ln.strip()
+        ln.strip() for ln in data.get("raw_lines", []) if isinstance(ln, str) and ln.strip()
     ][:MAX_RAW_LINES]
     raw_text = "\n".join(raw_lines)
 

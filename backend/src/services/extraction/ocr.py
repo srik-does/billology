@@ -107,8 +107,12 @@ def _extract_rapidocr(image: Any) -> ExtractionResult:
             {
                 "text": text,
                 "score": float(scores[i]) if i < len(scores) else 0.0,
-                "left": min(xs), "top": min(ys), "right": max(xs), "bottom": max(ys),
-                "cy": (min(ys) + max(ys)) / 2, "h": max(ys) - min(ys),
+                "left": min(xs),
+                "top": min(ys),
+                "right": max(xs),
+                "bottom": max(ys),
+                "cy": (min(ys) + max(ys)) / 2,
+                "h": max(ys) - min(ys),
             }
         )
 
@@ -117,7 +121,10 @@ def _extract_rapidocr(image: Any) -> ExtractionResult:
     dets.sort(key=lambda d: d["cy"])
     groups: list[list[dict[str, Any]]] = []
     for det in dets:
-        if groups and abs(det["cy"] - groups[-1][0]["cy"]) < max(det["h"], groups[-1][0]["h"]) * 0.5:
+        if (
+            groups
+            and abs(det["cy"] - groups[-1][0]["cy"]) < max(det["h"], groups[-1][0]["h"]) * 0.5
+        ):
             groups[-1].append(det)
         else:
             groups.append([det])
@@ -128,10 +135,14 @@ def _extract_rapidocr(image: Any) -> ExtractionResult:
         text = " ".join(d["text"] for d in group)
         result.lines.append(
             ExtractionLine(
-                text=text, page=0, line=line_no,
+                text=text,
+                page=0,
+                line=line_no,
                 bbox=[
-                    min(d["left"] for d in group), min(d["top"] for d in group),
-                    max(d["right"] for d in group), max(d["bottom"] for d in group),
+                    min(d["left"] for d in group),
+                    min(d["top"] for d in group),
+                    max(d["right"] for d in group),
+                    max(d["bottom"] for d in group),
                 ],
                 confidence=sum(d["score"] for d in group) / len(group),
             )
@@ -155,9 +166,7 @@ def _extract_tesseract(image: Any) -> ExtractionResult:
     # total and merchant recovered). --psm 4 fits the single-column layout.
     if gray.width < 1000:
         scale = max(2, round(1000 / gray.width))
-        gray = gray.resize(
-            (gray.width * scale, gray.height * scale), Image.Resampling.LANCZOS
-        )
+        gray = gray.resize((gray.width * scale, gray.height * scale), Image.Resampling.LANCZOS)
     gray = ImageOps.autocontrast(gray, cutoff=2)
     data = pytesseract.image_to_data(gray, output_type=Output.DICT, config="--psm 4")
 
@@ -197,7 +206,9 @@ def _extract_tesseract(image: Any) -> ExtractionResult:
         line_conf = sum(w["conf"] for w in words) / len(words) / 100.0
         result.lines.append(
             ExtractionLine(
-                text=text, page=0, line=line_no,
+                text=text,
+                page=0,
+                line=line_no,
                 bbox=[float(left), float(top), float(right), float(bottom)],
                 confidence=line_conf,
             )

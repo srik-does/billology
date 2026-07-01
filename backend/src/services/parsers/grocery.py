@@ -14,8 +14,16 @@ from src.services.parsers import base
 # vocabulary (invoice/bill no/hsn) is intentionally excluded — telecom GST
 # invoices carry those too and they were causing misclassification.
 KEYWORDS = (
-    "qty", "mrp", "item", "cashier", "kg", "pcs",
-    "supermarket", "mart", "store", "grocery",
+    "qty",
+    "mrp",
+    "item",
+    "cashier",
+    "kg",
+    "pcs",
+    "supermarket",
+    "mart",
+    "store",
+    "grocery",
 )
 
 # Decisive grocery signals.

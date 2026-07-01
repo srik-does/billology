@@ -28,6 +28,4 @@ user_id: ContextVar[str] = ContextVar("user_id", default="")
 # English + 12 Indian languages. Keep in sync with the mobile Language type,
 # the web language <select>, qa_service._TEMPLATES, and llm_service._LANG_NAMES
 # (test_i18n.py enforces the backend side).
-SUPPORTED_LANGUAGES = (
-    "en", "hi", "te", "ta", "kn", "ml", "bn", "mr", "gu", "pa", "or", "as", "ur"
-)
+SUPPORTED_LANGUAGES = ("en", "hi", "te", "ta", "kn", "ml", "bn", "mr", "gu", "pa", "or", "as", "ur")

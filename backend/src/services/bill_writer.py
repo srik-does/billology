@@ -22,6 +22,7 @@ from src.services.embedding_service import embed as _default_embed
 
 # --- pure helpers -----------------------------------------------------------
 
+
 def _val(traced: Optional[TracedValue]) -> Optional[str]:
     return traced.value if (traced and traced.value is not None) else None
 
@@ -249,6 +250,7 @@ def artifact_rows(bill_id: str, bill: Bill) -> list[dict[str, Any]]:
 
 # --- IO ---------------------------------------------------------------------
 
+
 def _resolve_category_id(bill: Bill, db) -> Optional[str]:
     if not bill.category:
         return None
@@ -277,11 +279,17 @@ def save_bill(
     # Upload originals (best-effort within the trust boundary).
     for content, filename, content_type in original_files or []:
         path = db.upload_artifact(content, filename, content_type)
-        kind = "pdf" if (content_type == "application/pdf" or filename.lower().endswith(".pdf")) else "image"
+        kind = (
+            "pdf"
+            if (content_type == "application/pdf" or filename.lower().endswith(".pdf"))
+            else "image"
+        )
         from src.models import ArtifactKind, SourceArtifact
 
         bill.source_artifacts.append(
-            SourceArtifact(kind=ArtifactKind(kind), storage_path=path, page_order=len(bill.source_artifacts))
+            SourceArtifact(
+                kind=ArtifactKind(kind), storage_path=path, page_order=len(bill.source_artifacts)
+            )
         )
 
     tags = enrichment_tags(bill, llm)

@@ -12,15 +12,37 @@ from src.services.parsers import base
 
 # Hints used by the orchestrator's bill-type detection.
 KEYWORDS = (
-    "recharge", "validity", "talktime", "plan", "data", "operator",
-    "mobile number", "prepaid", "postpaid", "airtel", "jio", "vi ", "vodafone", "bsnl",
+    "recharge",
+    "validity",
+    "talktime",
+    "plan",
+    "data",
+    "operator",
+    "mobile number",
+    "prepaid",
+    "postpaid",
+    "airtel",
+    "jio",
+    "vi ",
+    "vodafone",
+    "bsnl",
 )
 
 # Decisive signals: if any appear, the bill is telecom regardless of generic
 # invoice vocabulary it may share with grocery receipts.
 STRONG = (
-    "recharge", "talktime", "validity", "prepaid", "postpaid", "data pack",
-    "mobile number", "operator", "airtel", "jio", "vodafone", "bsnl",
+    "recharge",
+    "talktime",
+    "validity",
+    "prepaid",
+    "postpaid",
+    "data pack",
+    "mobile number",
+    "operator",
+    "airtel",
+    "jio",
+    "vodafone",
+    "bsnl",
 )
 
 

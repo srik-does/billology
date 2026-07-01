@@ -68,15 +68,11 @@ class LLMService(ABC):
         """Translate a numeric question into a parameterized, allowlisted query."""
 
     @abstractmethod
-    def summarize_results(
-        self, question: str, retrieved_records: list[dict[str, Any]]
-    ) -> str:
+    def summarize_results(self, question: str, retrieved_records: list[dict[str, Any]]) -> str:
         """Summarize over already-retrieved real records (semantic path)."""
 
     @abstractmethod
-    def derive_intent(
-        self, question: str, categories: list[str], today: str
-    ) -> dict[str, Any]:
+    def derive_intent(self, question: str, categories: list[str], today: str) -> dict[str, Any]:
         """Translate a spending question into a constrained query intent.
 
         Returns {path, category, month, merchant, aggregate}; every field is
@@ -174,9 +170,7 @@ class ChatLLMService(LLMService):
             "prints both a per-unit price and a row total. "
             "is_bill: false when the image is not a bill, receipt, or invoice."
         )
-        raw = self._chat_vision(
-            system, "Transcribe this bill.", images_b64, json_mode=True
-        )
+        raw = self._chat_vision(system, "Transcribe this bill.", images_b64, json_mode=True)
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else {}
 
@@ -225,7 +219,7 @@ class ChatLLMService(LLMService):
     def question_to_query(self, question: str, schema: str) -> dict[str, Any]:
         system = (
             "Translate the question into a parameterized SQL query over ONLY the "
-            "allowlisted schema. Return JSON {\"sql\": str, \"params\": object}. "
+            'allowlisted schema. Return JSON {"sql": str, "params": object}. '
             "SELECT only; no DML/DDL; no tables outside the schema."
         )
         raw = self._chat(system, f"SCHEMA:\n{schema}\n\nQUESTION:\n{question}", json_mode=True)
@@ -234,9 +228,7 @@ class ChatLLMService(LLMService):
         except json.JSONDecodeError:
             return {"sql": "", "params": {}}
 
-    def summarize_results(
-        self, question: str, retrieved_records: list[dict[str, Any]]
-    ) -> str:
+    def summarize_results(self, question: str, retrieved_records: list[dict[str, Any]]) -> str:
         system = (
             "You answer a spending question using ONLY the provided records — real "
             "bills the system already retrieved as the closest matches, so assume "
@@ -249,15 +241,12 @@ class ChatLLMService(LLMService):
             "evidence that a record is irrelevant, so never dismiss a clearly "
             "relevant bill because its category is null. Do not invent any figure "
             "not present in the records. Only say the information is unavailable if "
-            "the records are truly unrelated to the question."
-            + _lang_clause()
+            "the records are truly unrelated to the question." + _lang_clause()
         )
         user = json.dumps({"question": question, "records": retrieved_records})
         return self._chat(system, user).strip()
 
-    def derive_intent(
-        self, question: str, categories: list[str], today: str
-    ) -> dict[str, Any]:
+    def derive_intent(self, question: str, categories: list[str], today: str) -> dict[str, Any]:
         system = (
             "You translate a question about personal spending into a constrained "
             "query intent over a bills database. The question may be in English "

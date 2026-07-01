@@ -26,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
     """Per-request LLM provider override + UI language (see request_context).
@@ -114,7 +115,9 @@ def health() -> dict[str, str]:
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     # Log the full traceback server-side so root causes are never swallowed,
     # and return the error type/message to aid debugging during the demo.
-    logging.getLogger("billology").exception("Unhandled error on %s %s", request.method, request.url.path)
+    logging.getLogger("billology").exception(
+        "Unhandled error on %s %s", request.method, request.url.path
+    )
     return JSONResponse(
         status_code=500,
         content={"error": "internal_error", "detail": f"{type(exc).__name__}: {exc}"},

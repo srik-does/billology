@@ -33,9 +33,7 @@ _MONEY = re.compile(r"(?:₹|Rs\.?|INR)?\s*\d[\d,]*(?:\.\d{1,2})?", re.IGNORECAS
 # i.e. carry a currency marker OR a decimal fraction. This prevents phone numbers,
 # quantities, validity days, etc. from being mistaken for amounts (which would
 # otherwise produce false sum-mismatch flags downstream).
-_CHARGE = re.compile(
-    r"(?P<cur>₹|Rs\.?|INR)?\s*(?P<num>\d[\d,]*(?:\.\d{1,2})?)\s*$", re.IGNORECASE
-)
+_CHARGE = re.compile(r"(?P<cur>₹|Rs\.?|INR)?\s*(?P<num>\d[\d,]*(?:\.\d{1,2})?)\s*$", re.IGNORECASE)
 _RATE = re.compile(r"(\d{1,2}(?:\.\d+)?)\s*%")
 # Decimal-bearing money tokens only (used to spot summary-table rows: a line
 # like "Total: 19703.40 541.84 541.84 0.00" is a GST-summary row, not the bill
@@ -68,14 +66,18 @@ def _kw_re(word: str) -> "re.Pattern[str]":
 # Per-component lines that must be summed (a correct bill splits tax into these);
 # ordered most-specific first so a CGST line is named "CGST", not "GST".
 _TAX_COMPONENT_RES: tuple[tuple[str, "re.Pattern[str]"], ...] = (
-    ("CGST", _kw_re("cgst")), ("SGST", _kw_re("sgst")),
-    ("IGST", _kw_re("igst")), ("UTGST", _kw_re("utgst")),
+    ("CGST", _kw_re("cgst")),
+    ("SGST", _kw_re("sgst")),
+    ("IGST", _kw_re("igst")),
+    ("UTGST", _kw_re("utgst")),
 )
 # All tax labels (components plus single-line taxes). "cess" lets a compensation
 # cess line be recognized as tax, not a purchased item.
 _TAX_ALL_RES: tuple[tuple[str, "re.Pattern[str]"], ...] = _TAX_COMPONENT_RES + (
-    ("Cess", _kw_re("cess")), ("GST", _kw_re("gst")),
-    ("VAT", _kw_re("vat")), ("Tax", _kw_re("tax")),
+    ("Cess", _kw_re("cess")),
+    ("GST", _kw_re("gst")),
+    ("VAT", _kw_re("vat")),
+    ("Tax", _kw_re("tax")),
 )
 
 
@@ -359,7 +361,9 @@ def parse(result: ExtractionResult, bill_type: BillType) -> Bill:
                         value=description,
                         provenance=Provenance.extracted,
                         confidence=ln.confidence,
-                        source_ref=SourceRef(page=ln.page, line=ln.line, bbox=ln.bbox, raw_text=ln.text),
+                        source_ref=SourceRef(
+                            page=ln.page, line=ln.line, bbox=ln.bbox, raw_text=ln.text
+                        ),
                     ),
                     line_total=_traced(amount, ln),
                 )

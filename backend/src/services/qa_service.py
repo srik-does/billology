@@ -38,13 +38,34 @@ _CATEGORY_HINTS = [
 ]
 
 _MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 _NUMERIC_TRIGGERS = (
-    "how much", "how many", "total", "spend", "spent", "sum", "count",
-    "number of", "last time", "latest", "most recent", "average", "avg",
+    "how much",
+    "how many",
+    "total",
+    "spend",
+    "spent",
+    "sum",
+    "count",
+    "number of",
+    "last time",
+    "latest",
+    "most recent",
+    "average",
+    "avg",
 )
 
 
@@ -233,6 +254,7 @@ def _classify(question: str) -> str:
 
 # --- forgiving matching -------------------------------------------------------
 
+
 def _norm(s: str) -> str:
     """Collapse to lowercase alphanumerics so 'D-Mart' == 'd mart' == 'DMART'."""
     return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
@@ -259,8 +281,11 @@ _STOPWORDS = frozenset(
 
 
 def _tokens(s: str) -> set[str]:
-    return {t for t in re.findall(r"[a-z0-9]+", (s or "").lower())
-            if len(t) >= 3 and t not in _STOPWORDS}
+    return {
+        t
+        for t in re.findall(r"[a-z0-9]+", (s or "").lower())
+        if len(t) >= 3 and t not in _STOPWORDS
+    }
 
 
 def _keyword_score(question_tokens: set[str], row_text: str) -> int:
@@ -316,7 +341,9 @@ def _llm_intent(question: str, db, llm) -> Optional[dict[str, Any]]:
     if not (isinstance(month, str) and re.fullmatch(r"\d{4}-\d{2}", month)):
         month = None
     merchant = raw.get("merchant")
-    merchant = merchant.strip() if isinstance(merchant, str) and 0 < len(merchant.strip()) <= 60 else None
+    merchant = (
+        merchant.strip() if isinstance(merchant, str) and 0 < len(merchant.strip()) <= 60 else None
+    )
     aggregate = raw.get("aggregate")
     if aggregate not in ("sum", "count", "latest", "average"):
         aggregate = "sum"
@@ -381,7 +408,9 @@ def _summary(row: dict) -> dict:
         "id": row.get("id"),
         "merchant": row.get("merchant"),
         "bill_date": row.get("bill_date"),
-        "total_amount": str(row.get("total_amount")) if row.get("total_amount") is not None else None,
+        "total_amount": str(row.get("total_amount"))
+        if row.get("total_amount") is not None
+        else None,
         "category": row.get("category"),
     }
 
@@ -415,8 +444,12 @@ def _apply_filters(intent: dict[str, Any], rows: list[dict[str, Any]]) -> list[d
             rows = [r for r in rows if str(r["bill_date"] or "").startswith(intent["month"])]
     if intent.get("merchant"):
         needle = intent["merchant"]
-        rows = [r for r in rows if _fuzzy_merchant(needle, r["merchant"] or "")
-                or _keyword_score(_tokens(needle), r.get("tags") or "") > 0]
+        rows = [
+            r
+            for r in rows
+            if _fuzzy_merchant(needle, r["merchant"] or "")
+            or _keyword_score(_tokens(needle), r.get("tags") or "") > 0
+        ]
     return rows
 
 
@@ -434,9 +467,7 @@ def _load_line_items(db) -> list[dict[str, Any]]:
     """Saved line items joined with their parent bill's merchant/date/category."""
     cats = {c["id"]: c.get("name") for c in db.select("categories")}
     bills = {
-        b["id"]: b
-        for b in db.select("bills")
-        if not (b.get("status") and b["status"] != "saved")
+        b["id"]: b for b in db.select("bills") if not (b.get("status") and b["status"] != "saved")
     }
     rows: list[dict[str, Any]] = []
     for item in db.select("line_items"):
@@ -499,11 +530,13 @@ def _item_numeric(question: str, db, intent: dict[str, Any]) -> Optional[dict]:
     desc = f"{intent['aggregate']}(line_total) WHERE item~'{item}'{who}{when}"
 
     if intent["aggregate"] == "latest":
-        latest = max(matched, key=lambda r: (r["bill_date"] or ""))
+        latest = max(matched, key=lambda r: r["bill_date"] or "")
         return {
             "path": "numeric",
             "answer": _t("item_latest").format(
-                item=item, amount=latest["line_total"], date=latest["bill_date"],
+                item=item,
+                amount=latest["line_total"],
+                date=latest["bill_date"],
                 merchant=latest["merchant"],
             ),
             "records": [_item_record(latest)],
@@ -521,7 +554,9 @@ def _item_numeric(question: str, db, intent: dict[str, Any]) -> Optional[dict]:
         avg = (total / len(matched)).quantize(Decimal("0.01"))
         return {
             "path": "numeric",
-            "answer": _t("item_average").format(item=item, who=who, when=when, avg=avg, n=len(matched)),
+            "answer": _t("item_average").format(
+                item=item, who=who, when=when, avg=avg, n=len(matched)
+            ),
             "records": [_item_record(r) for r in matched],
             "executed_query": desc,
         }
@@ -558,11 +593,19 @@ def _numeric(question: str, db, intent: Optional[dict[str, Any]] = None) -> dict
     desc = f"{intent['aggregate']}(total_amount) WHERE category={cat}{who}{when}"
 
     if intent["aggregate"] == "latest":
-        latest = max(rows, key=lambda r: (r["bill_date"] or ""))
+        latest = max(rows, key=lambda r: r["bill_date"] or "")
         answer = _t("latest").format(
-            cat=cat, amount=latest["total_amount"], date=latest["bill_date"], merchant=latest["merchant"]
+            cat=cat,
+            amount=latest["total_amount"],
+            date=latest["bill_date"],
+            merchant=latest["merchant"],
         )
-        return {"path": "numeric", "answer": answer, "records": [_summary(latest)], "executed_query": desc}
+        return {
+            "path": "numeric",
+            "answer": answer,
+            "records": [_summary(latest)],
+            "executed_query": desc,
+        }
 
     if intent["aggregate"] == "count":
         return {
@@ -625,8 +668,11 @@ def _semantic(question: str, db, embed_fn, llm, k: int = 5) -> dict:
         all_rows = _load_bills(db)
         seen_ids = {m.get("id") for m in matches}
         scored = sorted(
-            ((row, _keyword_score(question_tokens, _searchable_text(row, descriptions)))
-             for row in all_rows if row["id"] not in seen_ids),
+            (
+                (row, _keyword_score(question_tokens, _searchable_text(row, descriptions)))
+                for row in all_rows
+                if row["id"] not in seen_ids
+            ),
             key=lambda pair: -pair[1],
         )
         matches.extend(row for row, score in scored[:k] if score > 0)

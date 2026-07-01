@@ -31,6 +31,7 @@ from src.services import bill_writer, persistence
 
 # --- builders (pure) --------------------------------------------------------
 
+
 def _tv(value, line: int = 0) -> TracedValue:
     return TracedValue(
         value=str(value),
@@ -41,10 +42,14 @@ def _tv(value, line: int = 0) -> TracedValue:
 
 
 def _item(position: int, desc: str, amount) -> LineItem:
-    return LineItem(position=position, description=_tv(desc, position), line_total=_tv(amount, position))
+    return LineItem(
+        position=position, description=_tv(desc, position), line_total=_tv(amount, position)
+    )
 
 
-def _grocery(merchant: str, date: str, category: str, items: list[tuple[str, str]], rate: str) -> Bill:
+def _grocery(
+    merchant: str, date: str, category: str, items: list[tuple[str, str]], rate: str
+) -> Bill:
     subtotal = sum(Decimal(a) for _, a in items)
     tax = (subtotal * Decimal(rate) / Decimal("100")).quantize(Decimal("0.01"))
     total = subtotal + tax
@@ -80,32 +85,78 @@ def build_demo_bills() -> list[Bill]:
     """~14 bills across Jan–Jun 2026, multiple categories, for trend + retrieval."""
     return [
         _recharge("Airtel", "2026-01-08", "Unlimited 28-day plan", "239.00"),
-        _grocery("BigBasket", "2026-01-22", "Groceries",
-                 [("Rice 5kg", "500.00"), ("Cooking Oil 1L", "200.00")], "5"),
-        _grocery("DMart", "2026-02-05", "Groceries",
-                 [("Atta 10kg", "420.00"), ("Sugar 2kg", "90.00"), ("Tea 500g", "260.00")], "5"),
+        _grocery(
+            "BigBasket",
+            "2026-01-22",
+            "Groceries",
+            [("Rice 5kg", "500.00"), ("Cooking Oil 1L", "200.00")],
+            "5",
+        ),
+        _grocery(
+            "DMart",
+            "2026-02-05",
+            "Groceries",
+            [("Atta 10kg", "420.00"), ("Sugar 2kg", "90.00"), ("Tea 500g", "260.00")],
+            "5",
+        ),
         _recharge("Jio", "2026-02-10", "Monthly data plan", "299.00"),
-        _grocery("More Supermarket", "2026-02-26", "Groceries",
-                 [("Milk 6x1L", "330.00"), ("Eggs 30", "210.00")], "0"),
-        _grocery("Spencer's", "2026-03-03", "Food & Dining",
-                 [("Bakery items", "180.00"), ("Cold cuts", "320.00")], "5"),
+        _grocery(
+            "More Supermarket",
+            "2026-02-26",
+            "Groceries",
+            [("Milk 6x1L", "330.00"), ("Eggs 30", "210.00")],
+            "0",
+        ),
+        _grocery(
+            "Spencer's",
+            "2026-03-03",
+            "Food & Dining",
+            [("Bakery items", "180.00"), ("Cold cuts", "320.00")],
+            "5",
+        ),
         _recharge("Airtel", "2026-03-09", "Unlimited 28-day plan", "239.00"),
-        _grocery("BigBasket", "2026-03-21", "Groceries",
-                 [("Vegetables", "260.00"), ("Fruits", "340.00"), ("Snacks", "150.00")], "5"),
-        _grocery("Reliance Fresh", "2026-04-02", "Groceries",
-                 [("Detergent 2kg", "380.00"), ("Soap 6pk", "240.00")], "18"),
+        _grocery(
+            "BigBasket",
+            "2026-03-21",
+            "Groceries",
+            [("Vegetables", "260.00"), ("Fruits", "340.00"), ("Snacks", "150.00")],
+            "5",
+        ),
+        _grocery(
+            "Reliance Fresh",
+            "2026-04-02",
+            "Groceries",
+            [("Detergent 2kg", "380.00"), ("Soap 6pk", "240.00")],
+            "18",
+        ),
         _recharge("Vi", "2026-04-14", "Monthly plan", "359.00"),
-        _grocery("Swiggy Instamart", "2026-04-27", "Food & Dining",
-                 [("Ready meals", "450.00"), ("Beverages", "180.00")], "5"),
-        _grocery("DMart", "2026-05-11", "Groceries",
-                 [("Rice 5kg", "510.00"), ("Pulses 2kg", "260.00"), ("Spices", "190.00")], "5"),
+        _grocery(
+            "Swiggy Instamart",
+            "2026-04-27",
+            "Food & Dining",
+            [("Ready meals", "450.00"), ("Beverages", "180.00")],
+            "5",
+        ),
+        _grocery(
+            "DMart",
+            "2026-05-11",
+            "Groceries",
+            [("Rice 5kg", "510.00"), ("Pulses 2kg", "260.00"), ("Spices", "190.00")],
+            "5",
+        ),
         _recharge("Jio", "2026-05-19", "Annual plan installment", "666.00"),
-        _grocery("BigBasket", "2026-06-04", "Groceries",
-                 [("Household supplies", "620.00"), ("Personal care", "410.00")], "18"),
+        _grocery(
+            "BigBasket",
+            "2026-06-04",
+            "Groceries",
+            [("Household supplies", "620.00"), ("Personal care", "410.00")],
+            "18",
+        ),
     ]
 
 
 # --- IO ---------------------------------------------------------------------
+
 
 def _already_seeded(db, bill: Bill) -> bool:
     try:
@@ -151,11 +202,15 @@ def seed(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed demo bills for Billology.")
-    parser.add_argument("--dry-run", action="store_true", help="Build + validate only; no DB writes.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Build + validate only; no DB writes."
+    )
     args = parser.parse_args()
     result = seed(dry_run=args.dry_run)
     mode = "DRY RUN" if args.dry_run else "SEED"
-    print(f"[{mode}] total={result['total']} inserted={result['inserted']} skipped={result['skipped']}")
+    print(
+        f"[{mode}] total={result['total']} inserted={result['inserted']} skipped={result['skipped']}"
+    )
 
 
 if __name__ == "__main__":

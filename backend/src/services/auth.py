@@ -79,7 +79,9 @@ def verify_token(token: str) -> dict:
                 logger.error("SUPABASE_URL is not set; cannot fetch JWKS.")
                 raise AuthError("Auth not configured")
             jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
-            signing_key = _jwk_client(jwks_url, settings.supabase_anon_key).get_signing_key_from_jwt(token)
+            signing_key = _jwk_client(
+                jwks_url, settings.supabase_anon_key
+            ).get_signing_key_from_jwt(token)
             return jwt.decode(token, signing_key.key, algorithms=[alg], audience=_AUDIENCE)
 
         raise AuthError(f"Unsupported token algorithm: {alg or 'none'}")
