@@ -52,6 +52,18 @@ and answers natural-language questions about your spending.
   and semantic (local embeddings → pgvector retrieval → grounded summary). Unanswerable questions
   return an explicit "not available", never an estimate.
 
+## Screenshots
+
+| Spending dashboard | Bill analysis (extract → verify → explain) |
+|---|---|
+| ![Spending dashboard with category breakdown, monthly trend, and top merchants](docs/screenshots/web-home.png) | ![Extracted bill with per-line explanations, arithmetic check, and save](docs/screenshots/web-analyze.png) |
+
+| Dark theme | Interactive API docs |
+|---|---|
+| ![Dark theme dashboard](docs/screenshots/web-home-dark.png) | ![OpenAPI documentation at /docs](docs/screenshots/api-docs.png) |
+
+*Screenshots show the bundled web client with demo data; the Android app shares the same backend and design language.*
+
 ## Architecture
 
 ```

@@ -40,6 +40,22 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def guardrails_middleware(request: Request, call_next):
+    """Abuse guardrails: per-caller rate limits + request-size cap.
+
+    Refuses oversized bodies (413) and over-budget callers (429, with
+    Retry-After) before any handler — or LLM spend — is reached. See
+    services/rate_limit.py for the policy.
+    """
+    from src.services.rate_limit import enforce
+
+    refusal = enforce(request)
+    if refusal is not None:
+        return refusal
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
     """Per-request LLM provider override + UI language (see request_context).
 

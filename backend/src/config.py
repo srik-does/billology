@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     # still logged server-side.
     debug_errors: bool = False
 
+    # Abuse guardrails (services/rate_limit.py): per-caller sliding-window
+    # limits on the user-facing routes, with a stricter budget for the
+    # LLM-heavy endpoints (extraction, Q&A), plus a request-body size cap.
+    rate_limit_per_minute: int = 60
+    rate_limit_llm_per_minute: int = 10
+    max_request_mb: int = 15
+
 
 @lru_cache
 def get_settings() -> Settings:
