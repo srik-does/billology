@@ -8,7 +8,7 @@ import { settingsHeaders } from "../store";
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ?? "http://localhost:8000";
-console.log("[API_BASE]", API_BASE);
+if (__DEV__) console.log("[API_BASE]", API_BASE);
 
 // Settings/language headers plus the signed-in user's bearer token. The backend
 // requires the token on every bill/dashboard/Q&A route and scopes data to the

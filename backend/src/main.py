@@ -1,9 +1,9 @@
 """FastAPI application entry point — the single trust boundary.
 
-Feature routers (bills, categories, dashboard, qa) are wired here as they are
-implemented in Phases 3+. This Phase-2 skeleton provides the app, a health
-check, and a uniform error handler; routers are included defensively so the app
-boots even before every router module exists.
+Wires the feature routers (bills, categories, dashboard, qa), the bundled web
+client, the health check, and a uniform error handler. All client traffic —
+mobile app, web demo, or API consumers — passes through this service; clients
+never talk to the LLM provider or the database directly.
 """
 
 from __future__ import annotations
@@ -15,13 +15,25 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-app = FastAPI(title="Billology Backend API", version="0.1.0")
+from src.config import get_settings
 
-# Permissive CORS so the bundled web demo (or a separately hosted client) can
-# call the API during the demo. Tighten for production.
+app = FastAPI(
+    title="Billology Backend API",
+    version="2.0.4",
+    description=(
+        "AI-powered bill ingestion and analysis. The AI reads and explains, "
+        "but never invents a number: every figure is extracted from the bill "
+        "and re-validated in code."
+    ),
+)
+
+# Browser origins allowed to call the API (ALLOWED_ORIGINS, comma-separated).
+# Defaults to "*" so the bundled web demo works from any host; set explicit
+# origins in production.
+_origins = [o.strip() for o in get_settings().allowed_origins.split(",") if o.strip()] or ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -113,31 +125,32 @@ def health() -> dict[str, str]:
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    # Log the full traceback server-side so root causes are never swallowed,
-    # and return the error type/message to aid debugging during the demo.
+    # Log the full traceback server-side so root causes are never swallowed.
+    # Clients get a generic message: internal exception details (paths, SQL,
+    # provider errors) must not leak across the trust boundary. Set
+    # DEBUG_ERRORS=true locally to include them while debugging.
     logging.getLogger("billology").exception(
         "Unhandled error on %s %s", request.method, request.url.path
     )
-    return JSONResponse(
-        status_code=500,
-        content={"error": "internal_error", "detail": f"{type(exc).__name__}: {exc}"},
+    detail = (
+        f"{type(exc).__name__}: {exc}"
+        if get_settings().debug_errors
+        else "Something went wrong on our side. Please try again."
     )
+    return JSONResponse(status_code=500, content={"error": "internal_error", "detail": detail})
 
 
 def _include_routers() -> None:
-    """Include feature routers if their modules are present (added in later phases)."""
-    try:
-        from src.api import bills  # noqa: WPS433
-
-        app.include_router(bills.router)
-    except ImportError:
-        pass
-    for module_name in ("categories", "dashboard", "qa"):
+    """Include the feature routers; a router that fails to import is a bug we log loudly."""
+    # Category endpoints live inside the bills router; there is no separate module.
+    for module_name in ("bills", "dashboard", "qa"):
         try:
             module = __import__(f"src.api.{module_name}", fromlist=["router"])
             app.include_router(module.router)
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logging.getLogger("billology").error(
+                "Router 'src.api.%s' failed to load and is NOT mounted: %s", module_name, exc
+            )
 
 
 _include_routers()

@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      placeholder: "As a user with mostly Telugu-language bills, I can't ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: constitution
+    attributes:
+      label: Constitution fit
+      description: >-
+        Billology never lets an LLM invent or compute a number shown to the
+        user. If the feature involves figures, where do they come from?

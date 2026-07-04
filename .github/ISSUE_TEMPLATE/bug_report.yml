@@ -1,0 +1,44 @@
+name: Bug report
+description: Something extracted, flagged, or displayed incorrectly
+title: "[bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+      placeholder: "Uploaded a grocery bill photo; the total shown was ₹0 while the bill says ₹482.50."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - Android app (APK / Expo Go)
+        - Web demo (billology.onrender.com)
+        - Backend API (direct)
+    validations:
+      required: true
+  - type: dropdown
+    id: input-kind
+    attributes:
+      label: Input type (if extraction-related)
+      options:
+        - Photo / image
+        - PDF (native text)
+        - PDF (scanned)
+        - Pasted text
+        - Not extraction-related
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: App version, device, screenshots. Please do NOT attach bills containing personal data.

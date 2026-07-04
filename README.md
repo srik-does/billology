@@ -1,6 +1,19 @@
-# 🧾 Billology
+<div align="center">
+  <img src="branding/billology-logo-512.png" alt="Billology logo" width="120" />
 
-**AI-powered bill ingestion and analysis — where the AI reads and explains, but never invents a number.**
+  <h1>Billology</h1>
+
+  <p><strong>AI-powered bill ingestion and analysis — where the AI reads and explains,<br/>but never invents a number.</strong></p>
+
+  <p>
+    <a href="https://github.com/srik-does/billology/actions/workflows/ci.yml"><img src="https://github.com/srik-does/billology/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0" /></a>
+    <img src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11" />
+    <img src="https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+    <img src="https://img.shields.io/badge/Expo-React%20Native-000020?logo=expo&logoColor=white" alt="Expo / React Native" />
+    <a href="https://billology.onrender.com"><img src="https://img.shields.io/badge/live%20demo-billology.onrender.com-E9A23B" alt="Live demo" /></a>
+  </p>
+</div>
 
 Submit a bill (photo, PDF, or pasted text). Billology extracts it, checks the
 arithmetic for provable errors, explains every charge in plain language, categorizes it, saves it,
@@ -152,7 +165,8 @@ pytest tests/ --cov=src
 - **Coverage:** pytest-cov (CI reports)
 - **Changelog:** git-cliff (`cliff.toml`)
 - **Hooks:** `.pre-commit-config.yaml` (`pre-commit install`)
-- **CI:** `.gitlab-ci.yml`
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) and GitLab CI (`.gitlab-ci.yml`) —
+  lint and the backend test suite gate every push; type checks and security scans run advisory.
 
 ## Project documentation
 

@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
 
+    # Comma-separated list of origins allowed to call the API from a browser.
+    # "*" keeps the bundled web demo and side-loaded builds working anywhere;
+    # set to the real client origins in production.
+    allowed_origins: str = "*"
+
+    # When true, unhandled-error responses include the exception type/message.
+    # Off by default: clients get a generic error while the full traceback is
+    # still logged server-side.
+    debug_errors: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:
